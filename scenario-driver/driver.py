@@ -83,10 +83,13 @@ def entity_to_mqtt_topic(entity_id: str) -> str:
 
 async def push_state_mqtt(sut: SUTConnection, entity_id: str, state: str,
                           attributes: Optional[dict] = None):
-    """Push sensor/binary_sensor state via MQTT (the correct way)."""
-    topic = entity_to_mqtt_topic(entity_id)
+    """Push sensor/binary_sensor state via MQTT (the correct way).
+    Falls back to REST if MQTT not available."""
     if sut.mqtt_client:
+        topic = entity_to_mqtt_topic(entity_id)
         sut.mqtt_client.publish(topic, state, retain=True)
+    else:
+        await push_state_rest(sut, entity_id, state, attributes)
 
 
 async def push_state_rest(sut: SUTConnection, entity_id: str, state: str,
@@ -244,6 +247,10 @@ class GeneratorEngine:
         if noise_type == "random_walk":
             if current is None:
                 current = (noise.get("min", 0) + noise.get("max", 100)) / 2
+            try:
+                current = float(current)
+            except (TypeError, ValueError):
+                current = (noise.get("min", 0) + noise.get("max", 100)) / 2
             step = noise.get("step", 1.0)
             current += random.uniform(-step, step)
             current = max(noise.get("min", -999), min(noise.get("max", 999), current))
@@ -284,7 +291,10 @@ class GeneratorEngine:
             from_entity = noise.get("from")
             formula = noise.get("formula", "value")
             value = self.driver_state.values.get(from_entity, 0)
-            # Simple eval for "value / 120" patterns
+            try:
+                value = float(value)
+            except (TypeError, ValueError):
+                value = 0
             try:
                 return eval(formula, {"value": value, "math": math})
             except Exception:
@@ -347,8 +357,18 @@ async def play_chapter(suts: list[SUTConnection], chapter_name: str,
         elif etype == "time_tick":
             sim_time = event.get("sim_time", "")
             print(f"  [{offset/1000:.0f}s] SIM TIME: {sim_time}")
-            # For HA: trigger time-based automations
-            # (HA can't know sim-time, so we force-fire)
+            # Force-trigger time-based automations at their scheduled times
+            automations_to_fire = event.get("trigger_automations", [])
+            for auto_id in automations_to_fire:
+                for sut in suts:
+                    await trigger_automation(sut, auto_id)
+
+        elif etype == "fire_event":
+            event_type = event["event_type"]
+            event_data = event.get("data", {})
+            print(f"  [{offset/1000:.0f}s] EVENT: {event_type}")
+            for sut in suts:
+                await fire_event(sut, event_type, event_data)
 
         elif etype == "sun":
             sun_event = event.get("event", "")

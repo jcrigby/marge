@@ -1,7 +1,7 @@
 {
   "metadata": {
     "version": "1.0.0",
-    "description": "Marge Day-in-the-Life scenario — An Ordinary Tuesday",
+    "description": "Marge Day-in-the-Life scenario \u2014 An Ordinary Tuesday",
     "location": {
       "latitude": 40.3916,
       "longitude": -111.8508,
@@ -15,118 +15,685 @@
     "total_duration_ms": 86400000,
     "entity_count": 43
   },
-
   "initial_state": [
-    {"entity_id": "light.bedroom", "state": "off", "attributes": {"brightness": 0, "color_temp": 400, "color_mode": "color_temp", "supported_color_modes": ["brightness", "color_temp"], "friendly_name": "Bedroom Light"}},
-    {"entity_id": "light.bathroom", "state": "off", "attributes": {"brightness": 0, "friendly_name": "Bathroom Light"}},
-    {"entity_id": "light.kitchen", "state": "off", "attributes": {"brightness": 0, "friendly_name": "Kitchen Light"}},
-    {"entity_id": "light.living_room_main", "state": "off", "attributes": {"brightness": 0, "friendly_name": "Living Room Main"}},
-    {"entity_id": "light.living_room_accent", "state": "off", "attributes": {"brightness": 0, "rgb_color": [255, 255, 255], "friendly_name": "Living Room Accent"}},
-    {"entity_id": "light.living_room_lamp", "state": "off", "attributes": {"brightness": 0, "friendly_name": "Living Room Lamp"}},
-    {"entity_id": "light.living_room_floor", "state": "off", "attributes": {"brightness": 0, "friendly_name": "Living Room Floor"}},
-    {"entity_id": "light.porch", "state": "off", "attributes": {"brightness": 0, "friendly_name": "Porch Light"}},
-    {"entity_id": "light.pathway", "state": "off", "attributes": {"brightness": 0, "friendly_name": "Pathway Light"}},
-    {"entity_id": "switch.coffee_maker", "state": "off", "attributes": {"friendly_name": "Coffee Maker"}},
-    {"entity_id": "climate.thermostat", "state": "heat", "attributes": {"temperature": 66, "current_temperature": 67.2, "hvac_modes": ["off", "heat", "cool", "heat_cool"], "min_temp": 55, "max_temp": 90, "friendly_name": "Thermostat"}},
-    {"entity_id": "lock.front_door", "state": "locked", "attributes": {"friendly_name": "Front Door Lock"}},
-    {"entity_id": "lock.back_door", "state": "locked", "attributes": {"friendly_name": "Back Door Lock"}},
-    {"entity_id": "binary_sensor.entryway_motion", "state": "off", "attributes": {"device_class": "motion", "friendly_name": "Entryway Motion"}},
-    {"entity_id": "binary_sensor.kitchen_motion", "state": "off", "attributes": {"device_class": "motion", "friendly_name": "Kitchen Motion"}},
-    {"entity_id": "binary_sensor.living_room_motion", "state": "off", "attributes": {"device_class": "motion", "friendly_name": "Living Room Motion"}},
-    {"entity_id": "binary_sensor.bedroom_motion", "state": "off", "attributes": {"device_class": "motion", "friendly_name": "Bedroom Motion"}},
-    {"entity_id": "binary_sensor.front_door_contact", "state": "off", "attributes": {"device_class": "door", "friendly_name": "Front Door"}},
-    {"entity_id": "binary_sensor.back_door_contact", "state": "off", "attributes": {"device_class": "door", "friendly_name": "Back Door"}},
-    {"entity_id": "binary_sensor.garage_door_contact", "state": "off", "attributes": {"device_class": "garage_door", "friendly_name": "Garage Door"}},
-    {"entity_id": "binary_sensor.smoke_detector", "state": "off", "attributes": {"device_class": "smoke", "friendly_name": "Smoke Detector"}},
-    {"entity_id": "binary_sensor.co_detector", "state": "off", "attributes": {"device_class": "gas", "friendly_name": "CO Detector"}},
-    {"entity_id": "sensor.bedroom_temperature", "state": "67.2", "attributes": {"unit_of_measurement": "°F", "device_class": "temperature", "state_class": "measurement", "friendly_name": "Bedroom Temperature"}},
-    {"entity_id": "sensor.bedroom_humidity", "state": "48", "attributes": {"unit_of_measurement": "%", "device_class": "humidity", "state_class": "measurement", "friendly_name": "Bedroom Humidity"}},
-    {"entity_id": "sensor.kitchen_temperature", "state": "66.8", "attributes": {"unit_of_measurement": "°F", "device_class": "temperature", "state_class": "measurement", "friendly_name": "Kitchen Temperature"}},
-    {"entity_id": "sensor.kitchen_humidity", "state": "45", "attributes": {"unit_of_measurement": "%", "device_class": "humidity", "state_class": "measurement", "friendly_name": "Kitchen Humidity"}},
-    {"entity_id": "sensor.living_room_temperature", "state": "67.5", "attributes": {"unit_of_measurement": "°F", "device_class": "temperature", "state_class": "measurement", "friendly_name": "Living Room Temperature"}},
-    {"entity_id": "sensor.living_room_humidity", "state": "46", "attributes": {"unit_of_measurement": "%", "device_class": "humidity", "state_class": "measurement", "friendly_name": "Living Room Humidity"}},
-    {"entity_id": "sensor.bathroom_temperature", "state": "68.2", "attributes": {"unit_of_measurement": "°F", "device_class": "temperature", "state_class": "measurement", "friendly_name": "Bathroom Temperature"}},
-    {"entity_id": "sensor.bathroom_humidity", "state": "52", "attributes": {"unit_of_measurement": "%", "device_class": "humidity", "state_class": "measurement", "friendly_name": "Bathroom Humidity"}},
-    {"entity_id": "sensor.entryway_temperature", "state": "65.1", "attributes": {"unit_of_measurement": "°F", "device_class": "temperature", "state_class": "measurement", "friendly_name": "Entryway Temperature"}},
-    {"entity_id": "sensor.exterior_temperature", "state": "42.1", "attributes": {"unit_of_measurement": "°F", "device_class": "temperature", "state_class": "measurement", "friendly_name": "Exterior Temperature"}},
-    {"entity_id": "sensor.exterior_humidity", "state": "78", "attributes": {"unit_of_measurement": "%", "device_class": "humidity", "state_class": "measurement", "friendly_name": "Exterior Humidity"}},
-    {"entity_id": "sensor.power_consumption", "state": "487", "attributes": {"unit_of_measurement": "W", "device_class": "power", "state_class": "measurement", "friendly_name": "Power Consumption"}},
-    {"entity_id": "sensor.voltage", "state": "120.1", "attributes": {"unit_of_measurement": "V", "device_class": "voltage", "state_class": "measurement", "friendly_name": "Voltage"}},
-    {"entity_id": "sensor.current", "state": "4.06", "attributes": {"unit_of_measurement": "A", "device_class": "current", "state_class": "measurement", "friendly_name": "Current"}},
-    {"entity_id": "media_player.living_room", "state": "off", "attributes": {"friendly_name": "Living Room Media", "supported_features": 69004}},
-    {"entity_id": "alarm_control_panel.home", "state": "armed_home", "attributes": {"code_format": "number", "friendly_name": "Home Alarm"}},
-    {"entity_id": "weather.home", "state": "clear-night", "attributes": {"temperature": 42, "humidity": 78, "pressure": 1018.2, "wind_speed": 5.3, "wind_bearing": 220, "friendly_name": "Home Weather"}},
-    {"entity_id": "device_tracker.phone", "state": "home", "attributes": {"source_type": "router", "friendly_name": "Phone"}},
-    {"entity_id": "button.bedside", "state": "unknown", "attributes": {"friendly_name": "Bedside Button"}},
-    {"entity_id": "sun.sun", "state": "below_horizon", "attributes": {"next_rising": "2026-02-12T06:47:00-07:00", "next_setting": "2026-02-12T17:32:00-07:00", "elevation": -15.2, "azimuth": 45.0, "friendly_name": "Sun"}}
+    {
+      "entity_id": "light.bedroom",
+      "state": "off",
+      "attributes": {
+        "brightness": 0,
+        "color_temp": 400,
+        "color_mode": "color_temp",
+        "supported_color_modes": [
+          "brightness",
+          "color_temp"
+        ],
+        "friendly_name": "Bedroom Light"
+      }
+    },
+    {
+      "entity_id": "light.bathroom",
+      "state": "off",
+      "attributes": {
+        "brightness": 0,
+        "friendly_name": "Bathroom Light"
+      }
+    },
+    {
+      "entity_id": "light.kitchen",
+      "state": "off",
+      "attributes": {
+        "brightness": 0,
+        "friendly_name": "Kitchen Light"
+      }
+    },
+    {
+      "entity_id": "light.living_room_main",
+      "state": "off",
+      "attributes": {
+        "brightness": 0,
+        "friendly_name": "Living Room Main"
+      }
+    },
+    {
+      "entity_id": "light.living_room_accent",
+      "state": "off",
+      "attributes": {
+        "brightness": 0,
+        "rgb_color": [
+          255,
+          255,
+          255
+        ],
+        "friendly_name": "Living Room Accent"
+      }
+    },
+    {
+      "entity_id": "light.living_room_lamp",
+      "state": "off",
+      "attributes": {
+        "brightness": 0,
+        "friendly_name": "Living Room Lamp"
+      }
+    },
+    {
+      "entity_id": "light.living_room_floor",
+      "state": "off",
+      "attributes": {
+        "brightness": 0,
+        "friendly_name": "Living Room Floor"
+      }
+    },
+    {
+      "entity_id": "light.porch",
+      "state": "off",
+      "attributes": {
+        "brightness": 0,
+        "friendly_name": "Porch Light"
+      }
+    },
+    {
+      "entity_id": "light.pathway",
+      "state": "off",
+      "attributes": {
+        "brightness": 0,
+        "friendly_name": "Pathway Light"
+      }
+    },
+    {
+      "entity_id": "switch.coffee_maker",
+      "state": "off",
+      "attributes": {
+        "friendly_name": "Coffee Maker"
+      }
+    },
+    {
+      "entity_id": "climate.thermostat",
+      "state": "heat",
+      "attributes": {
+        "temperature": 66,
+        "current_temperature": 67.2,
+        "hvac_modes": [
+          "off",
+          "heat",
+          "cool",
+          "heat_cool"
+        ],
+        "min_temp": 55,
+        "max_temp": 90,
+        "friendly_name": "Thermostat"
+      }
+    },
+    {
+      "entity_id": "lock.front_door",
+      "state": "locked",
+      "attributes": {
+        "friendly_name": "Front Door Lock"
+      }
+    },
+    {
+      "entity_id": "lock.back_door",
+      "state": "locked",
+      "attributes": {
+        "friendly_name": "Back Door Lock"
+      }
+    },
+    {
+      "entity_id": "binary_sensor.entryway_motion",
+      "state": "off",
+      "attributes": {
+        "device_class": "motion",
+        "friendly_name": "Entryway Motion"
+      }
+    },
+    {
+      "entity_id": "binary_sensor.kitchen_motion",
+      "state": "off",
+      "attributes": {
+        "device_class": "motion",
+        "friendly_name": "Kitchen Motion"
+      }
+    },
+    {
+      "entity_id": "binary_sensor.living_room_motion",
+      "state": "off",
+      "attributes": {
+        "device_class": "motion",
+        "friendly_name": "Living Room Motion"
+      }
+    },
+    {
+      "entity_id": "binary_sensor.bedroom_motion",
+      "state": "off",
+      "attributes": {
+        "device_class": "motion",
+        "friendly_name": "Bedroom Motion"
+      }
+    },
+    {
+      "entity_id": "binary_sensor.front_door_contact",
+      "state": "off",
+      "attributes": {
+        "device_class": "door",
+        "friendly_name": "Front Door"
+      }
+    },
+    {
+      "entity_id": "binary_sensor.back_door_contact",
+      "state": "off",
+      "attributes": {
+        "device_class": "door",
+        "friendly_name": "Back Door"
+      }
+    },
+    {
+      "entity_id": "binary_sensor.garage_door_contact",
+      "state": "off",
+      "attributes": {
+        "device_class": "garage_door",
+        "friendly_name": "Garage Door"
+      }
+    },
+    {
+      "entity_id": "binary_sensor.smoke_detector",
+      "state": "off",
+      "attributes": {
+        "device_class": "smoke",
+        "friendly_name": "Smoke Detector"
+      }
+    },
+    {
+      "entity_id": "binary_sensor.co_detector",
+      "state": "off",
+      "attributes": {
+        "device_class": "gas",
+        "friendly_name": "CO Detector"
+      }
+    },
+    {
+      "entity_id": "sensor.bedroom_temperature",
+      "state": "67.2",
+      "attributes": {
+        "unit_of_measurement": "\u00b0F",
+        "device_class": "temperature",
+        "state_class": "measurement",
+        "friendly_name": "Bedroom Temperature"
+      }
+    },
+    {
+      "entity_id": "sensor.bedroom_humidity",
+      "state": "48",
+      "attributes": {
+        "unit_of_measurement": "%",
+        "device_class": "humidity",
+        "state_class": "measurement",
+        "friendly_name": "Bedroom Humidity"
+      }
+    },
+    {
+      "entity_id": "sensor.kitchen_temperature",
+      "state": "66.8",
+      "attributes": {
+        "unit_of_measurement": "\u00b0F",
+        "device_class": "temperature",
+        "state_class": "measurement",
+        "friendly_name": "Kitchen Temperature"
+      }
+    },
+    {
+      "entity_id": "sensor.kitchen_humidity",
+      "state": "45",
+      "attributes": {
+        "unit_of_measurement": "%",
+        "device_class": "humidity",
+        "state_class": "measurement",
+        "friendly_name": "Kitchen Humidity"
+      }
+    },
+    {
+      "entity_id": "sensor.living_room_temperature",
+      "state": "67.5",
+      "attributes": {
+        "unit_of_measurement": "\u00b0F",
+        "device_class": "temperature",
+        "state_class": "measurement",
+        "friendly_name": "Living Room Temperature"
+      }
+    },
+    {
+      "entity_id": "sensor.living_room_humidity",
+      "state": "46",
+      "attributes": {
+        "unit_of_measurement": "%",
+        "device_class": "humidity",
+        "state_class": "measurement",
+        "friendly_name": "Living Room Humidity"
+      }
+    },
+    {
+      "entity_id": "sensor.bathroom_temperature",
+      "state": "68.2",
+      "attributes": {
+        "unit_of_measurement": "\u00b0F",
+        "device_class": "temperature",
+        "state_class": "measurement",
+        "friendly_name": "Bathroom Temperature"
+      }
+    },
+    {
+      "entity_id": "sensor.bathroom_humidity",
+      "state": "52",
+      "attributes": {
+        "unit_of_measurement": "%",
+        "device_class": "humidity",
+        "state_class": "measurement",
+        "friendly_name": "Bathroom Humidity"
+      }
+    },
+    {
+      "entity_id": "sensor.entryway_temperature",
+      "state": "65.1",
+      "attributes": {
+        "unit_of_measurement": "\u00b0F",
+        "device_class": "temperature",
+        "state_class": "measurement",
+        "friendly_name": "Entryway Temperature"
+      }
+    },
+    {
+      "entity_id": "sensor.exterior_temperature",
+      "state": "42.1",
+      "attributes": {
+        "unit_of_measurement": "\u00b0F",
+        "device_class": "temperature",
+        "state_class": "measurement",
+        "friendly_name": "Exterior Temperature"
+      }
+    },
+    {
+      "entity_id": "sensor.exterior_humidity",
+      "state": "78",
+      "attributes": {
+        "unit_of_measurement": "%",
+        "device_class": "humidity",
+        "state_class": "measurement",
+        "friendly_name": "Exterior Humidity"
+      }
+    },
+    {
+      "entity_id": "sensor.power_consumption",
+      "state": "487",
+      "attributes": {
+        "unit_of_measurement": "W",
+        "device_class": "power",
+        "state_class": "measurement",
+        "friendly_name": "Power Consumption"
+      }
+    },
+    {
+      "entity_id": "sensor.voltage",
+      "state": "120.1",
+      "attributes": {
+        "unit_of_measurement": "V",
+        "device_class": "voltage",
+        "state_class": "measurement",
+        "friendly_name": "Voltage"
+      }
+    },
+    {
+      "entity_id": "sensor.current",
+      "state": "4.06",
+      "attributes": {
+        "unit_of_measurement": "A",
+        "device_class": "current",
+        "state_class": "measurement",
+        "friendly_name": "Current"
+      }
+    },
+    {
+      "entity_id": "media_player.living_room",
+      "state": "off",
+      "attributes": {
+        "friendly_name": "Living Room Media",
+        "supported_features": 69004
+      }
+    },
+    {
+      "entity_id": "alarm_control_panel.home",
+      "state": "armed_home",
+      "attributes": {
+        "code_format": "number",
+        "friendly_name": "Home Alarm"
+      }
+    },
+    {
+      "entity_id": "weather.home",
+      "state": "clear-night",
+      "attributes": {
+        "temperature": 42,
+        "humidity": 78,
+        "pressure": 1018.2,
+        "wind_speed": 5.3,
+        "wind_bearing": 220,
+        "friendly_name": "Home Weather"
+      }
+    },
+    {
+      "entity_id": "device_tracker.phone",
+      "state": "home",
+      "attributes": {
+        "source_type": "router",
+        "friendly_name": "Phone"
+      }
+    },
+    {
+      "entity_id": "button.bedside",
+      "state": "unknown",
+      "attributes": {
+        "friendly_name": "Bedside Button"
+      }
+    },
+    {
+      "entity_id": "sun.sun",
+      "state": "below_horizon",
+      "attributes": {
+        "next_rising": "2026-02-12T06:47:00-07:00",
+        "next_setting": "2026-02-12T17:32:00-07:00",
+        "elevation": -15.2,
+        "azimuth": 45.0,
+        "friendly_name": "Sun"
+      }
+    }
   ],
-
   "chapters": {
     "dawn": {
       "start_time": "05:25:00",
       "description": "Morning automation fires. Lights, thermostat, coffee.",
       "events": [
-        {"offset_ms": 0,       "type": "annotation", "message": "Chapter: Dawn — 05:25"},
-        {"offset_ms": 60000,   "type": "state", "entity_id": "sensor.bedroom_temperature", "state": "66.9", "attributes": {}},
-        {"offset_ms": 60000,   "type": "state", "entity_id": "sensor.kitchen_temperature", "state": "66.5", "attributes": {}},
-        {"offset_ms": 120000,  "type": "state", "entity_id": "sensor.exterior_temperature", "state": "41.8", "attributes": {}},
-        {"offset_ms": 180000,  "type": "state", "entity_id": "sensor.living_room_temperature", "state": "67.1", "attributes": {}},
-        {"offset_ms": 240000,  "type": "state", "entity_id": "sensor.power_consumption", "state": "492", "attributes": {}},
-
-        {"offset_ms": 300000,  "type": "time_tick", "sim_time": "05:30:00"},
-        {"offset_ms": 300100,  "type": "annotation", "message": "☀️ 05:30 — Morning automation should fire"},
-        {"offset_ms": 300200,  "type": "verify", "entity_id": "light.bedroom", "expected_state": "on", "timeout_ms": 5000},
-        {"offset_ms": 300200,  "type": "verify", "entity_id": "climate.thermostat", "expected_attributes": {"temperature": 70}, "timeout_ms": 5000},
-        {"offset_ms": 300200,  "type": "verify", "entity_id": "switch.coffee_maker", "expected_state": "on", "timeout_ms": 5000},
-
-        {"offset_ms": 360000,  "type": "state", "entity_id": "sensor.bedroom_temperature", "state": "67.1", "attributes": {}},
-        {"offset_ms": 420000,  "type": "state", "entity_id": "sensor.bedroom_temperature", "state": "67.4", "attributes": {}},
-        {"offset_ms": 480000,  "type": "state", "entity_id": "binary_sensor.bedroom_motion", "state": "on", "attributes": {}},
-        {"offset_ms": 510000,  "type": "annotation", "message": "🚶 Occupant wakes up"},
-        {"offset_ms": 540000,  "type": "state", "entity_id": "sensor.bathroom_humidity", "state": "54", "attributes": {}},
-        {"offset_ms": 600000,  "type": "state", "entity_id": "sensor.bedroom_temperature", "state": "67.8", "attributes": {}},
-
-        {"offset_ms": 900000,  "type": "state", "entity_id": "binary_sensor.kitchen_motion", "state": "on", "attributes": {}},
-        {"offset_ms": 960000,  "type": "state", "entity_id": "sensor.kitchen_temperature", "state": "67.0", "attributes": {}},
-        {"offset_ms": 1020000, "type": "state", "entity_id": "binary_sensor.bedroom_motion", "state": "off", "attributes": {}},
-        {"offset_ms": 1200000, "type": "state", "entity_id": "binary_sensor.kitchen_motion", "state": "off", "attributes": {}},
-        {"offset_ms": 1500000, "type": "state", "entity_id": "sensor.power_consumption", "state": "1847", "attributes": {}},
-        {"offset_ms": 1500000, "type": "annotation", "message": "☕ Coffee maker drawing power"},
-        {"offset_ms": 1800000, "type": "state", "entity_id": "switch.coffee_maker", "state": "off", "attributes": {}},
-        {"offset_ms": 1800000, "type": "state", "entity_id": "sensor.power_consumption", "state": "523", "attributes": {}},
-        {"offset_ms": 2100000, "type": "annotation", "message": "Chapter: Dawn — Complete"}
+        {
+          "offset_ms": 0,
+          "type": "annotation",
+          "message": "Chapter: Dawn \u2014 05:25"
+        },
+        {
+          "offset_ms": 60000,
+          "type": "state",
+          "entity_id": "sensor.bedroom_temperature",
+          "state": "66.9",
+          "attributes": {}
+        },
+        {
+          "offset_ms": 60000,
+          "type": "state",
+          "entity_id": "sensor.kitchen_temperature",
+          "state": "66.5",
+          "attributes": {}
+        },
+        {
+          "offset_ms": 120000,
+          "type": "state",
+          "entity_id": "sensor.exterior_temperature",
+          "state": "41.8",
+          "attributes": {}
+        },
+        {
+          "offset_ms": 180000,
+          "type": "state",
+          "entity_id": "sensor.living_room_temperature",
+          "state": "67.1",
+          "attributes": {}
+        },
+        {
+          "offset_ms": 240000,
+          "type": "state",
+          "entity_id": "sensor.power_consumption",
+          "state": "492",
+          "attributes": {}
+        },
+        {
+          "offset_ms": 300000,
+          "type": "time_tick",
+          "sim_time": "05:30:00",
+          "trigger_automations": [
+            "morning_wakeup"
+          ]
+        },
+        {
+          "offset_ms": 300100,
+          "type": "annotation",
+          "message": "\u2600\ufe0f 05:30 \u2014 Morning automation should fire"
+        },
+        {
+          "offset_ms": 300200,
+          "type": "verify",
+          "entity_id": "light.bedroom",
+          "expected_state": "on",
+          "timeout_ms": 5000
+        },
+        {
+          "offset_ms": 300200,
+          "type": "verify",
+          "entity_id": "climate.thermostat",
+          "expected_attributes": {
+            "temperature": 70
+          },
+          "timeout_ms": 5000
+        },
+        {
+          "offset_ms": 300200,
+          "type": "verify",
+          "entity_id": "switch.coffee_maker",
+          "expected_state": "on",
+          "timeout_ms": 5000
+        },
+        {
+          "offset_ms": 360000,
+          "type": "state",
+          "entity_id": "sensor.bedroom_temperature",
+          "state": "67.1",
+          "attributes": {}
+        },
+        {
+          "offset_ms": 420000,
+          "type": "state",
+          "entity_id": "sensor.bedroom_temperature",
+          "state": "67.4",
+          "attributes": {}
+        },
+        {
+          "offset_ms": 480000,
+          "type": "state",
+          "entity_id": "binary_sensor.bedroom_motion",
+          "state": "on",
+          "attributes": {}
+        },
+        {
+          "offset_ms": 510000,
+          "type": "annotation",
+          "message": "\ud83d\udeb6 Occupant wakes up"
+        },
+        {
+          "offset_ms": 540000,
+          "type": "state",
+          "entity_id": "sensor.bathroom_humidity",
+          "state": "54",
+          "attributes": {}
+        },
+        {
+          "offset_ms": 600000,
+          "type": "state",
+          "entity_id": "sensor.bedroom_temperature",
+          "state": "67.8",
+          "attributes": {}
+        },
+        {
+          "offset_ms": 900000,
+          "type": "state",
+          "entity_id": "binary_sensor.kitchen_motion",
+          "state": "on",
+          "attributes": {}
+        },
+        {
+          "offset_ms": 960000,
+          "type": "state",
+          "entity_id": "sensor.kitchen_temperature",
+          "state": "67.0",
+          "attributes": {}
+        },
+        {
+          "offset_ms": 1020000,
+          "type": "state",
+          "entity_id": "binary_sensor.bedroom_motion",
+          "state": "off",
+          "attributes": {}
+        },
+        {
+          "offset_ms": 1200000,
+          "type": "state",
+          "entity_id": "binary_sensor.kitchen_motion",
+          "state": "off",
+          "attributes": {}
+        },
+        {
+          "offset_ms": 1500000,
+          "type": "state",
+          "entity_id": "sensor.power_consumption",
+          "state": "1847",
+          "attributes": {}
+        },
+        {
+          "offset_ms": 1500000,
+          "type": "annotation",
+          "message": "\u2615 Coffee maker drawing power"
+        },
+        {
+          "offset_ms": 1800000,
+          "type": "state",
+          "entity_id": "switch.coffee_maker",
+          "state": "off",
+          "attributes": {}
+        },
+        {
+          "offset_ms": 1800000,
+          "type": "state",
+          "entity_id": "sensor.power_consumption",
+          "state": "523",
+          "attributes": {}
+        },
+        {
+          "offset_ms": 2100000,
+          "type": "annotation",
+          "message": "Chapter: Dawn \u2014 Complete"
+        }
       ]
     },
-
     "morning": {
       "start_time": "06:10:00",
       "description": "Front door event. Security check (condition false, no alert).",
       "events": [
-        {"offset_ms": 0,       "type": "annotation", "message": "Chapter: Morning — 06:10"},
-        {"offset_ms": 60000,   "type": "state", "entity_id": "sensor.entryway_temperature", "state": "64.8", "attributes": {}},
-
-        {"offset_ms": 300000,  "type": "annotation", "message": "🚪 06:15 — Front door opens, occupant leaves"},
-        {"offset_ms": 300000,  "type": "state", "entity_id": "binary_sensor.front_door_contact", "state": "on", "attributes": {}},
-        {"offset_ms": 300100,  "type": "state", "entity_id": "lock.front_door", "state": "unlocked", "attributes": {}},
-        {"offset_ms": 301000,  "type": "state", "entity_id": "binary_sensor.entryway_motion", "state": "on", "attributes": {}},
-
-        {"offset_ms": 301100,  "type": "annotation", "message": "🔒 Security check: alarm is armed_home, NOT armed_away → no alert"},
-        {"offset_ms": 301100,  "type": "verify", "entity_id": "alarm_control_panel.home", "expected_state": "armed_home", "timeout_ms": 1000},
-
-        {"offset_ms": 310000,  "type": "state", "entity_id": "binary_sensor.front_door_contact", "state": "off", "attributes": {}},
-        {"offset_ms": 315000,  "type": "state", "entity_id": "lock.front_door", "state": "locked", "attributes": {}},
-        {"offset_ms": 320000,  "type": "state", "entity_id": "binary_sensor.entryway_motion", "state": "off", "attributes": {}},
-
-        {"offset_ms": 360000,  "type": "state", "entity_id": "device_tracker.phone", "state": "not_home", "attributes": {}},
-        {"offset_ms": 360000,  "type": "annotation", "message": "📱 Phone leaves WiFi range"},
-
-        {"offset_ms": 420000,  "type": "state", "entity_id": "light.bedroom", "state": "off", "attributes": {"brightness": 0}},
-        {"offset_ms": 420000,  "type": "annotation", "message": "Occupant turned off bedroom light manually before leaving"},
-
-        {"offset_ms": 600000,  "type": "annotation", "message": "Chapter: Morning — Complete"}
+        {
+          "offset_ms": 0,
+          "type": "annotation",
+          "message": "Chapter: Morning \u2014 06:10"
+        },
+        {
+          "offset_ms": 60000,
+          "type": "state",
+          "entity_id": "sensor.entryway_temperature",
+          "state": "64.8",
+          "attributes": {}
+        },
+        {
+          "offset_ms": 300000,
+          "type": "annotation",
+          "message": "\ud83d\udeaa 06:15 \u2014 Front door opens, occupant leaves"
+        },
+        {
+          "offset_ms": 300000,
+          "type": "state",
+          "entity_id": "binary_sensor.front_door_contact",
+          "state": "on",
+          "attributes": {}
+        },
+        {
+          "offset_ms": 300100,
+          "type": "state",
+          "entity_id": "lock.front_door",
+          "state": "unlocked",
+          "attributes": {}
+        },
+        {
+          "offset_ms": 301000,
+          "type": "state",
+          "entity_id": "binary_sensor.entryway_motion",
+          "state": "on",
+          "attributes": {}
+        },
+        {
+          "offset_ms": 301100,
+          "type": "annotation",
+          "message": "\ud83d\udd12 Security check: alarm is armed_home, NOT armed_away \u2192 no alert"
+        },
+        {
+          "offset_ms": 301100,
+          "type": "verify",
+          "entity_id": "alarm_control_panel.home",
+          "expected_state": "armed_home",
+          "timeout_ms": 1000
+        },
+        {
+          "offset_ms": 310000,
+          "type": "state",
+          "entity_id": "binary_sensor.front_door_contact",
+          "state": "off",
+          "attributes": {}
+        },
+        {
+          "offset_ms": 315000,
+          "type": "state",
+          "entity_id": "lock.front_door",
+          "state": "locked",
+          "attributes": {}
+        },
+        {
+          "offset_ms": 320000,
+          "type": "state",
+          "entity_id": "binary_sensor.entryway_motion",
+          "state": "off",
+          "attributes": {}
+        },
+        {
+          "offset_ms": 360000,
+          "type": "state",
+          "entity_id": "device_tracker.phone",
+          "state": "not_home",
+          "attributes": {}
+        },
+        {
+          "offset_ms": 360000,
+          "type": "annotation",
+          "message": "\ud83d\udcf1 Phone leaves WiFi range"
+        },
+        {
+          "offset_ms": 420000,
+          "type": "state",
+          "entity_id": "light.bedroom",
+          "state": "off",
+          "attributes": {
+            "brightness": 0
+          }
+        },
+        {
+          "offset_ms": 420000,
+          "type": "annotation",
+          "message": "Occupant turned off bedroom light manually before leaving"
+        },
+        {
+          "offset_ms": 600000,
+          "type": "annotation",
+          "message": "Chapter: Morning \u2014 Complete"
+        }
       ]
     },
-
     "daytime": {
       "start_time": "06:20:00",
       "description": "Steady state. Sensor noise. ~2000 state changes. The scenario driver generates these procedurally.",
@@ -134,56 +701,279 @@
         "type": "steady_state",
         "duration_ms": 39900000,
         "rules": [
-          {"entity_pattern": "sensor.*_temperature", "interval_ms": 60000, "noise": {"type": "random_walk", "step": 0.3, "min": 40, "max": 80}},
-          {"entity_pattern": "sensor.*_humidity", "interval_ms": 60000, "noise": {"type": "random_walk", "step": 0.5, "min": 30, "max": 85}},
-          {"entity_pattern": "sensor.exterior_temperature", "interval_ms": 60000, "noise": {"type": "curve", "points": [[0, 42], [0.3, 45], [0.5, 52], [0.7, 48], [1.0, 44]]}},
-          {"entity_pattern": "sensor.power_consumption", "interval_ms": 10000, "noise": {"type": "sinusoidal", "baseline": 500, "amplitude": 150, "period_ms": 3600000}},
-          {"entity_pattern": "sensor.voltage", "interval_ms": 10000, "noise": {"type": "random_walk", "step": 0.2, "min": 118, "max": 122}},
-          {"entity_pattern": "sensor.current", "interval_ms": 10000, "noise": {"type": "derived", "from": "sensor.power_consumption", "formula": "value / 120"}},
-          {"entity_pattern": "binary_sensor.*_motion", "interval_ms": 300000, "noise": {"type": "stochastic", "on_probability": 0.1, "on_duration_ms": 30000}},
-          {"entity_pattern": "weather.home", "interval_ms": 1800000, "noise": {"type": "curve", "state_values": ["clear-night", "sunny", "sunny", "partlycloudy", "sunny", "sunny", "clear-night"]}}
+          {
+            "entity_pattern": "sensor.*_temperature",
+            "interval_ms": 60000,
+            "noise": {
+              "type": "random_walk",
+              "step": 0.3,
+              "min": 40,
+              "max": 80
+            }
+          },
+          {
+            "entity_pattern": "sensor.*_humidity",
+            "interval_ms": 60000,
+            "noise": {
+              "type": "random_walk",
+              "step": 0.5,
+              "min": 30,
+              "max": 85
+            }
+          },
+          {
+            "entity_pattern": "sensor.exterior_temperature",
+            "interval_ms": 60000,
+            "noise": {
+              "type": "curve",
+              "points": [
+                [
+                  0,
+                  42
+                ],
+                [
+                  0.3,
+                  45
+                ],
+                [
+                  0.5,
+                  52
+                ],
+                [
+                  0.7,
+                  48
+                ],
+                [
+                  1.0,
+                  44
+                ]
+              ]
+            }
+          },
+          {
+            "entity_pattern": "sensor.power_consumption",
+            "interval_ms": 10000,
+            "noise": {
+              "type": "sinusoidal",
+              "baseline": 500,
+              "amplitude": 150,
+              "period_ms": 3600000
+            }
+          },
+          {
+            "entity_pattern": "sensor.voltage",
+            "interval_ms": 10000,
+            "noise": {
+              "type": "random_walk",
+              "step": 0.2,
+              "min": 118,
+              "max": 122
+            }
+          },
+          {
+            "entity_pattern": "sensor.current",
+            "interval_ms": 10000,
+            "noise": {
+              "type": "derived",
+              "from": "sensor.power_consumption",
+              "formula": "value / 120"
+            }
+          },
+          {
+            "entity_pattern": "binary_sensor.*_motion",
+            "interval_ms": 300000,
+            "noise": {
+              "type": "stochastic",
+              "on_probability": 0.1,
+              "on_duration_ms": 30000
+            }
+          },
+          {
+            "entity_pattern": "weather.home",
+            "interval_ms": 1800000,
+            "noise": {
+              "type": "curve",
+              "state_values": [
+                "clear-night",
+                "sunny",
+                "sunny",
+                "partlycloudy",
+                "sunny",
+                "sunny",
+                "clear-night"
+              ]
+            }
+          }
         ]
       },
       "events": [
-        {"offset_ms": 0,          "type": "annotation", "message": "Chapter: Daytime — steady state begins"},
-        {"offset_ms": 1620000,    "type": "time_tick", "sim_time": "06:47:00"},
-        {"offset_ms": 1620000,    "type": "sun", "event": "sunrise"},
-        {"offset_ms": 1620100,    "type": "state", "entity_id": "sun.sun", "state": "above_horizon", "attributes": {"elevation": 0.5, "azimuth": 110}},
-        {"offset_ms": 1620100,    "type": "annotation", "message": "☀️ 06:47 — Sunrise"},
-        {"offset_ms": 39900000,   "type": "annotation", "message": "Chapter: Daytime — Complete"}
+        {
+          "offset_ms": 0,
+          "type": "annotation",
+          "message": "Chapter: Daytime \u2014 steady state begins"
+        },
+        {
+          "offset_ms": 1620000,
+          "type": "time_tick",
+          "sim_time": "06:47:00"
+        },
+        {
+          "offset_ms": 1620000,
+          "type": "sun",
+          "event": "sunrise"
+        },
+        {
+          "offset_ms": 1620100,
+          "type": "state",
+          "entity_id": "sun.sun",
+          "state": "above_horizon",
+          "attributes": {
+            "elevation": 0.5,
+            "azimuth": 110
+          }
+        },
+        {
+          "offset_ms": 1620100,
+          "type": "annotation",
+          "message": "\u2600\ufe0f 06:47 \u2014 Sunrise"
+        },
+        {
+          "offset_ms": 39900000,
+          "type": "annotation",
+          "message": "Chapter: Daytime \u2014 Complete"
+        }
       ]
     },
-
     "sunset": {
       "start_time": "17:25:00",
       "description": "Sunset trigger. Exterior lights + evening scene.",
       "events": [
-        {"offset_ms": 0,       "type": "annotation", "message": "Chapter: Sunset — 17:25"},
-        {"offset_ms": 60000,   "type": "state", "entity_id": "sensor.exterior_temperature", "state": "44.2", "attributes": {}},
-        {"offset_ms": 120000,  "type": "state", "entity_id": "sensor.living_room_temperature", "state": "70.1", "attributes": {}},
-        {"offset_ms": 180000,  "type": "state", "entity_id": "device_tracker.phone", "state": "home", "attributes": {}},
-        {"offset_ms": 180000,  "type": "annotation", "message": "📱 Phone returns to WiFi"},
-
-        {"offset_ms": 420000,  "type": "time_tick", "sim_time": "17:32:00"},
-        {"offset_ms": 420000,  "type": "sun", "event": "sunset"},
-        {"offset_ms": 420100,  "type": "state", "entity_id": "sun.sun", "state": "below_horizon", "attributes": {"elevation": -0.5, "azimuth": 250}},
-        {"offset_ms": 420100,  "type": "annotation", "message": "🌅 17:32 — Sunset automation should fire"},
-
-        {"offset_ms": 420200,  "type": "verify", "entity_id": "light.porch", "expected_state": "on", "timeout_ms": 5000},
-        {"offset_ms": 420200,  "type": "verify", "entity_id": "light.pathway", "expected_state": "on", "timeout_ms": 5000},
-        {"offset_ms": 420200,  "type": "verify", "entity_id": "light.living_room_main", "expected_state": "on", "timeout_ms": 5000},
-        {"offset_ms": 420200,  "type": "verify", "entity_id": "light.living_room_accent", "expected_state": "on", "timeout_ms": 5000},
-        {"offset_ms": 420200,  "type": "verify", "entity_id": "light.living_room_lamp", "expected_state": "on", "timeout_ms": 5000},
-        {"offset_ms": 420200,  "type": "verify", "entity_id": "light.living_room_floor", "expected_state": "on", "timeout_ms": 5000},
-        {"offset_ms": 420200,  "type": "verify", "entity_id": "media_player.living_room", "expected_state": "on", "timeout_ms": 5000},
-
-        {"offset_ms": 480000,  "type": "state", "entity_id": "binary_sensor.living_room_motion", "state": "on", "attributes": {}},
-        {"offset_ms": 540000,  "type": "state", "entity_id": "sensor.exterior_temperature", "state": "43.5", "attributes": {}},
-        {"offset_ms": 600000,  "type": "state", "entity_id": "sensor.exterior_humidity", "state": "82", "attributes": {}},
-        {"offset_ms": 900000,  "type": "annotation", "message": "Chapter: Sunset — Complete"}
+        {
+          "offset_ms": 0,
+          "type": "annotation",
+          "message": "Chapter: Sunset \u2014 17:25"
+        },
+        {
+          "offset_ms": 60000,
+          "type": "state",
+          "entity_id": "sensor.exterior_temperature",
+          "state": "44.2",
+          "attributes": {}
+        },
+        {
+          "offset_ms": 120000,
+          "type": "state",
+          "entity_id": "sensor.living_room_temperature",
+          "state": "70.1",
+          "attributes": {}
+        },
+        {
+          "offset_ms": 180000,
+          "type": "state",
+          "entity_id": "device_tracker.phone",
+          "state": "home",
+          "attributes": {}
+        },
+        {
+          "offset_ms": 180000,
+          "type": "annotation",
+          "message": "\ud83d\udcf1 Phone returns to WiFi"
+        },
+        {
+          "offset_ms": 420000,
+          "type": "time_tick",
+          "sim_time": "17:32:00"
+        },
+        {
+          "offset_ms": 420000,
+          "type": "sun",
+          "event": "sunset"
+        },
+        {
+          "offset_ms": 420100,
+          "type": "state",
+          "entity_id": "sun.sun",
+          "state": "below_horizon",
+          "attributes": {
+            "elevation": -0.5,
+            "azimuth": 250
+          }
+        },
+        {
+          "offset_ms": 420100,
+          "type": "annotation",
+          "message": "\ud83c\udf05 17:32 \u2014 Sunset automation should fire"
+        },
+        {
+          "offset_ms": 420200,
+          "type": "verify",
+          "entity_id": "light.porch",
+          "expected_state": "on",
+          "timeout_ms": 5000
+        },
+        {
+          "offset_ms": 420200,
+          "type": "verify",
+          "entity_id": "light.pathway",
+          "expected_state": "on",
+          "timeout_ms": 5000
+        },
+        {
+          "offset_ms": 420200,
+          "type": "verify",
+          "entity_id": "light.living_room_main",
+          "expected_state": "on",
+          "timeout_ms": 5000
+        },
+        {
+          "offset_ms": 420200,
+          "type": "verify",
+          "entity_id": "light.living_room_accent",
+          "expected_state": "on",
+          "timeout_ms": 5000
+        },
+        {
+          "offset_ms": 420200,
+          "type": "verify",
+          "entity_id": "light.living_room_lamp",
+          "expected_state": "on",
+          "timeout_ms": 5000
+        },
+        {
+          "offset_ms": 420200,
+          "type": "verify",
+          "entity_id": "light.living_room_floor",
+          "expected_state": "on",
+          "timeout_ms": 5000
+        },
+        {
+          "offset_ms": 480000,
+          "type": "state",
+          "entity_id": "binary_sensor.living_room_motion",
+          "state": "on",
+          "attributes": {}
+        },
+        {
+          "offset_ms": 540000,
+          "type": "state",
+          "entity_id": "sensor.exterior_temperature",
+          "state": "43.5",
+          "attributes": {}
+        },
+        {
+          "offset_ms": 600000,
+          "type": "state",
+          "entity_id": "sensor.exterior_humidity",
+          "state": "82",
+          "attributes": {}
+        },
+        {
+          "offset_ms": 900000,
+          "type": "annotation",
+          "message": "Chapter: Sunset \u2014 Complete"
+        }
       ]
     },
-
     "evening": {
       "start_time": "17:40:00",
       "description": "Quiet evening. Occasional sensor updates.",
@@ -191,46 +981,182 @@
         "type": "steady_state",
         "duration_ms": 15300000,
         "rules": [
-          {"entity_pattern": "sensor.*_temperature", "interval_ms": 60000, "noise": {"type": "random_walk", "step": 0.2, "min": 40, "max": 80}},
-          {"entity_pattern": "sensor.*_humidity", "interval_ms": 60000, "noise": {"type": "random_walk", "step": 0.3, "min": 30, "max": 85}},
-          {"entity_pattern": "sensor.power_consumption", "interval_ms": 10000, "noise": {"type": "sinusoidal", "baseline": 800, "amplitude": 200, "period_ms": 3600000}},
-          {"entity_pattern": "binary_sensor.*_motion", "interval_ms": 600000, "noise": {"type": "stochastic", "on_probability": 0.15, "on_duration_ms": 30000}}
+          {
+            "entity_pattern": "sensor.*_temperature",
+            "interval_ms": 60000,
+            "noise": {
+              "type": "random_walk",
+              "step": 0.2,
+              "min": 40,
+              "max": 80
+            }
+          },
+          {
+            "entity_pattern": "sensor.*_humidity",
+            "interval_ms": 60000,
+            "noise": {
+              "type": "random_walk",
+              "step": 0.3,
+              "min": 30,
+              "max": 85
+            }
+          },
+          {
+            "entity_pattern": "sensor.power_consumption",
+            "interval_ms": 10000,
+            "noise": {
+              "type": "sinusoidal",
+              "baseline": 800,
+              "amplitude": 200,
+              "period_ms": 3600000
+            }
+          },
+          {
+            "entity_pattern": "binary_sensor.*_motion",
+            "interval_ms": 600000,
+            "noise": {
+              "type": "stochastic",
+              "on_probability": 0.15,
+              "on_duration_ms": 30000
+            }
+          }
         ]
       },
       "events": [
-        {"offset_ms": 0,          "type": "annotation", "message": "Chapter: Evening — quiet time"},
-        {"offset_ms": 15300000,   "type": "annotation", "message": "Chapter: Evening — Complete"}
+        {
+          "offset_ms": 0,
+          "type": "annotation",
+          "message": "Chapter: Evening \u2014 quiet time"
+        },
+        {
+          "offset_ms": 15300000,
+          "type": "annotation",
+          "message": "Chapter: Evening \u2014 Complete"
+        }
       ]
     },
-
     "goodnight": {
       "start_time": "21:55:00",
       "description": "Bedside button. Goodnight routine. 12+ state changes.",
       "events": [
-        {"offset_ms": 0,       "type": "annotation", "message": "Chapter: Goodnight — 21:55"},
-        {"offset_ms": 60000,   "type": "state", "entity_id": "binary_sensor.bedroom_motion", "state": "on", "attributes": {}},
-        {"offset_ms": 120000,  "type": "state", "entity_id": "sensor.bedroom_temperature", "state": "70.4", "attributes": {}},
-
-        {"offset_ms": 300000,  "type": "time_tick", "sim_time": "22:00:00"},
-        {"offset_ms": 300000,  "type": "annotation", "message": "🌙 22:00 — Bedside button pressed"},
-        {"offset_ms": 300000,  "type": "state", "entity_id": "button.bedside", "state": "2026-02-12T22:00:00-07:00", "attributes": {}},
-
-        {"offset_ms": 300100,  "type": "annotation", "message": "🌙 Goodnight routine should fire — 12+ state changes"},
-        {"offset_ms": 300200,  "type": "verify", "entity_id": "light.bedroom", "expected_state": "off", "timeout_ms": 5000},
-        {"offset_ms": 300200,  "type": "verify", "entity_id": "light.living_room_main", "expected_state": "off", "timeout_ms": 5000},
-        {"offset_ms": 300200,  "type": "verify", "entity_id": "light.porch", "expected_state": "off", "timeout_ms": 5000},
-        {"offset_ms": 300200,  "type": "verify", "entity_id": "light.pathway", "expected_state": "off", "timeout_ms": 5000},
-        {"offset_ms": 300200,  "type": "verify", "entity_id": "lock.front_door", "expected_state": "locked", "timeout_ms": 5000},
-        {"offset_ms": 300200,  "type": "verify", "entity_id": "lock.back_door", "expected_state": "locked", "timeout_ms": 5000},
-        {"offset_ms": 300200,  "type": "verify", "entity_id": "climate.thermostat", "expected_attributes": {"temperature": 66}, "timeout_ms": 5000},
-        {"offset_ms": 300200,  "type": "verify", "entity_id": "alarm_control_panel.home", "expected_state": "armed_night", "timeout_ms": 5000},
-        {"offset_ms": 300200,  "type": "verify", "entity_id": "media_player.living_room", "expected_state": "off", "timeout_ms": 5000},
-
-        {"offset_ms": 310000,  "type": "state", "entity_id": "binary_sensor.bedroom_motion", "state": "off", "attributes": {}},
-        {"offset_ms": 600000,  "type": "annotation", "message": "Chapter: Goodnight — Complete"}
+        {
+          "offset_ms": 0,
+          "type": "annotation",
+          "message": "Chapter: Goodnight \u2014 21:55"
+        },
+        {
+          "offset_ms": 60000,
+          "type": "state",
+          "entity_id": "binary_sensor.bedroom_motion",
+          "state": "on",
+          "attributes": {}
+        },
+        {
+          "offset_ms": 120000,
+          "type": "state",
+          "entity_id": "sensor.bedroom_temperature",
+          "state": "70.4",
+          "attributes": {}
+        },
+        {
+          "offset_ms": 300000,
+          "type": "time_tick",
+          "sim_time": "22:00:00"
+        },
+        {
+          "offset_ms": 300000,
+          "type": "annotation",
+          "message": "\ud83c\udf19 22:00 \u2014 Bedside button pressed"
+        },
+        {
+          "offset_ms": 300000,
+          "type": "state",
+          "entity_id": "button.bedside",
+          "state": "2026-02-12T22:00:00-07:00",
+          "attributes": {}
+        },
+        {
+          "offset_ms": 300050,
+          "type": "fire_event",
+          "event_type": "bedside_button_pressed"
+        },
+        {
+          "offset_ms": 300100,
+          "type": "annotation",
+          "message": "\ud83c\udf19 Goodnight routine should fire \u2014 12+ state changes"
+        },
+        {
+          "offset_ms": 300200,
+          "type": "verify",
+          "entity_id": "light.bedroom",
+          "expected_state": "off",
+          "timeout_ms": 5000
+        },
+        {
+          "offset_ms": 300200,
+          "type": "verify",
+          "entity_id": "light.living_room_main",
+          "expected_state": "off",
+          "timeout_ms": 5000
+        },
+        {
+          "offset_ms": 300200,
+          "type": "verify",
+          "entity_id": "light.porch",
+          "expected_state": "off",
+          "timeout_ms": 5000
+        },
+        {
+          "offset_ms": 300200,
+          "type": "verify",
+          "entity_id": "light.pathway",
+          "expected_state": "off",
+          "timeout_ms": 5000
+        },
+        {
+          "offset_ms": 300200,
+          "type": "verify",
+          "entity_id": "lock.front_door",
+          "expected_state": "locked",
+          "timeout_ms": 5000
+        },
+        {
+          "offset_ms": 300200,
+          "type": "verify",
+          "entity_id": "lock.back_door",
+          "expected_state": "locked",
+          "timeout_ms": 5000
+        },
+        {
+          "offset_ms": 300200,
+          "type": "verify",
+          "entity_id": "climate.thermostat",
+          "expected_attributes": {
+            "temperature": 66
+          },
+          "timeout_ms": 5000
+        },
+        {
+          "offset_ms": 300200,
+          "type": "verify",
+          "entity_id": "alarm_control_panel.home",
+          "expected_state": "armed_night",
+          "timeout_ms": 5000
+        },
+        {
+          "offset_ms": 310000,
+          "type": "state",
+          "entity_id": "binary_sensor.bedroom_motion",
+          "state": "off",
+          "attributes": {}
+        },
+        {
+          "offset_ms": 600000,
+          "type": "annotation",
+          "message": "Chapter: Goodnight \u2014 Complete"
+        }
       ]
     },
-
     "night": {
       "start_time": "22:05:00",
       "description": "Night quiet. Smoke/CO monitored. ~200 state changes.",
@@ -238,45 +1164,141 @@
         "type": "steady_state",
         "duration_ms": 20400000,
         "rules": [
-          {"entity_pattern": "sensor.*_temperature", "interval_ms": 120000, "noise": {"type": "random_walk", "step": 0.15, "min": 40, "max": 80}},
-          {"entity_pattern": "sensor.power_consumption", "interval_ms": 30000, "noise": {"type": "sinusoidal", "baseline": 350, "amplitude": 50, "period_ms": 7200000}},
-          {"entity_pattern": "binary_sensor.*_motion", "interval_ms": 900000, "noise": {"type": "stochastic", "on_probability": 0.02, "on_duration_ms": 15000}}
+          {
+            "entity_pattern": "sensor.*_temperature",
+            "interval_ms": 120000,
+            "noise": {
+              "type": "random_walk",
+              "step": 0.15,
+              "min": 40,
+              "max": 80
+            }
+          },
+          {
+            "entity_pattern": "sensor.power_consumption",
+            "interval_ms": 30000,
+            "noise": {
+              "type": "sinusoidal",
+              "baseline": 350,
+              "amplitude": 50,
+              "period_ms": 7200000
+            }
+          },
+          {
+            "entity_pattern": "binary_sensor.*_motion",
+            "interval_ms": 900000,
+            "noise": {
+              "type": "stochastic",
+              "on_probability": 0.02,
+              "on_duration_ms": 15000
+            }
+          }
         ]
       },
       "events": [
-        {"offset_ms": 0,          "type": "annotation", "message": "Chapter: Night — monitoring mode"},
-        {"offset_ms": 20400000,   "type": "annotation", "message": "Chapter: Night — Complete"}
+        {
+          "offset_ms": 0,
+          "type": "annotation",
+          "message": "Chapter: Night \u2014 monitoring mode"
+        },
+        {
+          "offset_ms": 20400000,
+          "type": "annotation",
+          "message": "Chapter: Night \u2014 Complete"
+        }
       ]
     },
-
     "outage": {
       "start_time": "03:45:00",
       "description": "Power outage + recovery. The money shot.",
       "events": [
-        {"offset_ms": 0,       "type": "annotation", "message": "Chapter: Outage — 03:45"},
-        {"offset_ms": 60000,   "type": "state", "entity_id": "sensor.power_consumption", "state": "312", "attributes": {}},
-
-        {"offset_ms": 120000,  "type": "annotation", "message": "⚡ 03:47 — POWER OUTAGE"},
-        {"offset_ms": 120000,  "type": "power_outage", "action": "stop_both"},
-
-        {"offset_ms": 120500,  "type": "annotation", "message": "⏱️ Measuring recovery time..."},
-
-        {"offset_ms": 180000,  "type": "annotation", "message": "⚡ 03:48 — Power restored"},
-        {"offset_ms": 180000,  "type": "power_restore", "action": "start_both"},
-
-        {"offset_ms": 180100,  "type": "annotation", "message": "⏱️ Marge should recover in <35s, HA in 90-180s"},
-
-        {"offset_ms": 215000,  "type": "verify_system", "system": "marge", "expected_status": "online", "timeout_ms": 35000},
-        {"offset_ms": 215000,  "type": "annotation", "message": "✅ Marge recovery target: 35s"},
-
-        {"offset_ms": 360000,  "type": "verify_system", "system": "ha", "expected_status": "online", "timeout_ms": 180000},
-        {"offset_ms": 360000,  "type": "annotation", "message": "✅ HA recovery target: 180s"},
-
-        {"offset_ms": 600000,  "type": "state", "entity_id": "sensor.power_consumption", "state": "487", "attributes": {}},
-        {"offset_ms": 600000,  "type": "annotation", "message": "Systems nominal. State restored from persistence."},
-
-        {"offset_ms": 1800000, "type": "annotation", "message": "🏁 Scenario complete. Final metrics collected."},
-        {"offset_ms": 1800000, "type": "collect_final_metrics"}
+        {
+          "offset_ms": 0,
+          "type": "annotation",
+          "message": "Chapter: Outage \u2014 03:45"
+        },
+        {
+          "offset_ms": 60000,
+          "type": "state",
+          "entity_id": "sensor.power_consumption",
+          "state": "312",
+          "attributes": {}
+        },
+        {
+          "offset_ms": 120000,
+          "type": "annotation",
+          "message": "\u26a1 03:47 \u2014 POWER OUTAGE"
+        },
+        {
+          "offset_ms": 120000,
+          "type": "power_outage",
+          "action": "stop_both"
+        },
+        {
+          "offset_ms": 120500,
+          "type": "annotation",
+          "message": "\u23f1\ufe0f Measuring recovery time..."
+        },
+        {
+          "offset_ms": 180000,
+          "type": "annotation",
+          "message": "\u26a1 03:48 \u2014 Power restored"
+        },
+        {
+          "offset_ms": 180000,
+          "type": "power_restore",
+          "action": "start_both"
+        },
+        {
+          "offset_ms": 180100,
+          "type": "annotation",
+          "message": "\u23f1\ufe0f Marge should recover in <35s, HA in 90-180s"
+        },
+        {
+          "offset_ms": 215000,
+          "type": "verify_system",
+          "system": "marge",
+          "expected_status": "online",
+          "timeout_ms": 35000
+        },
+        {
+          "offset_ms": 215000,
+          "type": "annotation",
+          "message": "\u2705 Marge recovery target: 35s"
+        },
+        {
+          "offset_ms": 360000,
+          "type": "verify_system",
+          "system": "ha",
+          "expected_status": "online",
+          "timeout_ms": 180000
+        },
+        {
+          "offset_ms": 360000,
+          "type": "annotation",
+          "message": "\u2705 HA recovery target: 180s"
+        },
+        {
+          "offset_ms": 600000,
+          "type": "state",
+          "entity_id": "sensor.power_consumption",
+          "state": "487",
+          "attributes": {}
+        },
+        {
+          "offset_ms": 600000,
+          "type": "annotation",
+          "message": "Systems nominal. State restored from persistence."
+        },
+        {
+          "offset_ms": 1800000,
+          "type": "annotation",
+          "message": "\ud83c\udfc1 Scenario complete. Final metrics collected."
+        },
+        {
+          "offset_ms": 1800000,
+          "type": "collect_final_metrics"
+        }
       ]
     }
   }
