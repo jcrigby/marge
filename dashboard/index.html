@@ -829,6 +829,20 @@ function renderTimeline() {
     const pct = (mins / 1440) * 100;
     document.getElementById('timeline-fill').style.width = pct + '%';
   }
+
+  // Render chapter markers on the track
+  const track = document.getElementById('timeline-track');
+  track.querySelectorAll('.timeline-marker').forEach(m => m.remove());
+  for (const c of CHAPTERS) {
+    const [h, m] = c.start.split(':').map(Number);
+    const pct = ((h * 60 + m) / 1440) * 100;
+    const marker = document.createElement('div');
+    marker.className = 'timeline-marker';
+    marker.style.left = pct + '%';
+    marker.style.background = c.color;
+    marker.innerHTML = `<span class="timeline-marker-label">${c.name === currentChapter ? c.name : ''}</span>`;
+    track.appendChild(marker);
+  }
 }
 
 // ── Score Card ──────────────────────────────
