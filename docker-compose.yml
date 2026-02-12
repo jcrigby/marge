@@ -1,0 +1,100 @@
+version: "3.8"
+
+# MARGE Demo Stack — Innovation Week
+# Usage: docker compose up -d
+# Dashboard: http://localhost:3000
+# HA:        http://localhost:8123
+# Marge:     http://localhost:8124
+
+services:
+  # ─── Shared MQTT broker for HA ───────────────────────────
+  mosquitto:
+    image: eclipse-mosquitto:2
+    container_name: marge-demo-mosquitto
+    ports:
+      - "1883:1883"
+    volumes:
+      - ./mosquitto/mosquitto.conf:/mosquitto/config/mosquitto.conf
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "mosquitto_sub", "-t", "$$SYS/#", "-C", "1", "-i", "healthcheck", "-W", "3"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  # ─── Home Assistant (the baseline) ───────────────────────
+  ha-legacy:
+    image: ghcr.io/home-assistant/home-assistant:2024.12
+    container_name: marge-demo-ha
+    ports:
+      - "8123:8123"
+    volumes:
+      - ./ha-config:/config
+    environment:
+      - TZ=America/Denver
+    depends_on:
+      mosquitto:
+        condition: service_healthy
+    restart: unless-stopped
+    # Memory tracking: docker stats marge-demo-ha
+    mem_limit: 2g
+
+  # ─── Marge (the challenger) ──────────────────────────────
+  marge:
+    build:
+      context: ./marge-core
+      dockerfile: Dockerfile
+    container_name: marge-demo-marge
+    ports:
+      - "8124:8124"     # REST + WebSocket API
+      - "1884:1884"     # Embedded MQTT broker
+    volumes:
+      - ./ha-config/automations.yaml:/etc/marge/automations.yaml:ro
+      - ./ha-config/scenes.yaml:/etc/marge/scenes.yaml:ro
+    environment:
+      - TZ=America/Denver
+      - MARGE_HTTP_PORT=8124
+      - MARGE_MQTT_PORT=1884
+      - RUST_LOG=info,marge=debug
+    restart: unless-stopped
+    mem_limit: 256m    # Generous limit; should use <30MB
+
+  # ─── Scenario Driver ─────────────────────────────────────
+  scenario-driver:
+    build:
+      context: ./scenario-driver
+      dockerfile: Dockerfile
+    container_name: marge-demo-driver
+    volumes:
+      - ./scenario.json:/app/scenario.json:ro
+    environment:
+      - HA_URL=http://ha-legacy:8123
+      - MARGE_URL=http://marge:8124
+      - HA_MQTT_HOST=mosquitto
+      - HA_MQTT_PORT=1883
+      - MARGE_MQTT_HOST=marge
+      - MARGE_MQTT_PORT=1884
+      - SPEED=10
+      - CHAPTER=dawn
+    depends_on:
+      - ha-legacy
+      - marge
+      - mosquitto
+    # Override with: docker compose run scenario-driver --speed 10 --chapter dawn
+
+  # ─── Dashboard ───────────────────────────────────────────
+  dashboard:
+    build:
+      context: ./dashboard
+      dockerfile: Dockerfile
+    container_name: marge-demo-dashboard
+    ports:
+      - "3000:3000"
+    environment:
+      - HA_WS_URL=ws://ha-legacy:8123/api/websocket
+      - MARGE_WS_URL=ws://marge:8124/api/websocket
+      - HA_REST_URL=http://ha-legacy:8123/api
+      - MARGE_REST_URL=http://marge:8124/api
+    depends_on:
+      - ha-legacy
+      - marge

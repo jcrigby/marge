@@ -1,0 +1,30 @@
+# Build artifacts
+target/
+node_modules/
+dist/
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# IDE
+.vscode/
+.idea/
+
+# HA runtime state (generated after onboarding)
+ha-config/.storage/
+ha-config/home-assistant_v2.db*
+ha-config/tts/
+ha-config/.HA_VERSION
+ha-config/deps/
+ha-config/custom_components/
+
+# Docker
+.docker/
+
+# Environment
+.env
+*.env.local
+
+# OS
+.DS_Store
+Thumbs.db

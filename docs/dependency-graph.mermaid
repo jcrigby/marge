@@ -1,0 +1,117 @@
+graph TD
+    %% ── Shared Artifacts (already done) ──
+    SPEC["📋 Shared Artifacts<br/>Entity list, API contract,<br/>automations.yaml, scenario.json"]
+
+    %% ── Stream A: HA Baseline ──
+    A1["🅰️ A1: Docker + Mosquitto<br/>+ HA config files"]
+    A2["🅰️ A2: Command bridge<br/>(MQTT cmd→state loop)"]
+    A3{{"🅰️ GATE-HA<br/>HA running,<br/>43 entities in /api/states"}}
+
+    SPEC --> A1
+    A1 --> A2
+    A2 --> A3
+
+    %% ── Stream B: Scenario Driver ──
+    B1["🅱️ B1: Scenario driver<br/>script (Python)"]
+    B2["🅱️ B2: Steady-state<br/>generator engine"]
+    B3{{"🅱️ GATE-SCENARIO-HA<br/>Dawn chapter plays,<br/>morning auto fires"}}
+
+    SPEC --> B1
+    B1 --> B2
+    A3 --> B3
+    B2 --> B3
+
+    %% ── Stream C: CTS ──
+    C1["🅲 C1: Test infra<br/>(conftest, clients,<br/>fixtures)"]
+    C2["🅲 C2: State machine<br/>tests (~20)"]
+    C3["🅲 C3: WebSocket<br/>tests (~10)"]
+    C4["🅲 C4: Service call<br/>tests (~15)"]
+    C5["🅲 C5: Entity domain<br/>tests (~40)"]
+    C6["🅲 C6: Automation<br/>trigger/cond/action<br/>tests (~30)"]
+    C7["🅲 C7: Scene tests<br/>(~10)"]
+    C8["🅲 C8: Health/startup<br/>tests (~10)"]
+    C9{{"🅲 GATE-CTS-HA<br/>~150 tests ALL GREEN<br/>against HA-legacy"}}
+
+    SPEC --> C1
+    C1 --> C2
+    C1 --> C3
+    C1 --> C4
+    C1 --> C5
+    C1 --> C6
+    C1 --> C7
+    C1 --> C8
+    A3 --> C9
+    C2 --> C9
+    C3 --> C9
+    C4 --> C9
+    C5 --> C9
+    C6 --> C9
+    C7 --> C9
+    C8 --> C9
+
+    %% ── Stream D: Marge Core ──
+    D1["🅳 D1: Cargo scaffold<br/>+ rumqttd broker"]
+    D2["🅳 D2: State machine<br/>+ REST API"]
+    D3["🅳 D3: WebSocket<br/>event stream"]
+    D4["🅳 D4: Automation<br/>YAML parser"]
+    D5["🅳 D5: Automation engine<br/>triggers/conds/actions"]
+    D6["🅳 D6: Sim-time +<br/>time/sun triggers"]
+    D7["🅳 D7: Scene support"]
+    D8["🅳 D8: Health/metrics<br/>endpoint"]
+    D9["🅳 D9: Dockerfile<br/>+ container build"]
+
+    SPEC --> D1
+    D1 --> D2
+    D2 --> D3
+    D2 --> D5
+    D2 --> D7
+    D2 --> D8
+    D4 --> D5
+    D5 --> D6
+    D1 --> D4
+    D8 --> D9
+
+    %% ── Stream E: Dashboard ──
+    E1["🅴 E1: React scaffold"]
+    E2["🅴 E2: WebSocket<br/>client library"]
+    E3["🅴 E3: ASCII house<br/>component"]
+    E4["🅴 E4: Metrics panel"]
+    E5["🅴 E5: Timeline bar"]
+    E6["🅴 E6: System status<br/>overlay"]
+
+    SPEC --> E1
+    E1 --> E2
+    E1 --> E3
+    E1 --> E4
+    E1 --> E5
+    E2 --> E6
+
+    %% ── Integration Gates ──
+    GATE_CTS_MARGE{{"🔥 GATE-CTS-MARGE<br/>CTS green on Marge<br/>(Ralph loop here)"}}
+    GATE_E2E{{"🔥 GATE-E2E<br/>Scenario plays on BOTH,<br/>dashboard shows it"}}
+    GATE_DEMO{{"🏁 GATE-DEMO<br/>Polish, power outage,<br/>rehearsal"}}
+
+    C9 --> GATE_CTS_MARGE
+    D9 --> GATE_CTS_MARGE
+
+    B3 --> GATE_E2E
+    GATE_CTS_MARGE --> GATE_E2E
+    E6 --> GATE_E2E
+
+    GATE_E2E --> GATE_DEMO
+
+    classDef gate fill:#ff6b6b,stroke:#c0392b,color:#fff,font-weight:bold
+    classDef spec fill:#3498db,stroke:#2980b9,color:#fff
+    classDef streamA fill:#2ecc71,stroke:#27ae60,color:#000
+    classDef streamB fill:#e67e22,stroke:#d35400,color:#fff
+    classDef streamC fill:#9b59b6,stroke:#8e44ad,color:#fff
+    classDef streamD fill:#e74c3c,stroke:#c0392b,color:#fff
+    classDef streamE fill:#1abc9c,stroke:#16a085,color:#000
+
+    class A3,B3,C9,GATE_CTS_MARGE,GATE_E2E,GATE_DEMO gate
+    class SPEC spec
+    class A1,A2 streamA
+    class B1,B2 streamB
+    class C1,C2,C3,C4,C5,C6,C7,C8 streamC
+    class D1,D2,D3,D4,D5,D6,D7,D8,D9 streamD
+    class E1,E2,E3,E4,E5,E6 streamE
