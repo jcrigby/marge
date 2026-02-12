@@ -1300,24 +1300,24 @@
           "message": "\u2705 HA recovery target: 180s"
         },
         {
-          "offset_ms": 600000,
+          "offset_ms": 390000,
           "type": "state",
           "entity_id": "sensor.power_consumption",
           "state": "487",
           "attributes": {}
         },
         {
-          "offset_ms": 600000,
+          "offset_ms": 390000,
           "type": "annotation",
           "message": "Systems nominal. State restored from persistence."
         },
         {
-          "offset_ms": 1800000,
+          "offset_ms": 420000,
           "type": "annotation",
           "message": "\ud83c\udfc1 Scenario complete. Final metrics collected."
         },
         {
-          "offset_ms": 1800000,
+          "offset_ms": 420000,
           "type": "collect_final_metrics"
         }
       ]
