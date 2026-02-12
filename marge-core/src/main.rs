@@ -32,6 +32,9 @@ async fn main() -> anyhow::Result<()> {
     let app_state = Arc::new(AppState {
         state_machine,
         started_at: std::time::Instant::now(),
+        sim_time: std::sync::Mutex::new(String::new()),
+        sim_chapter: std::sync::Mutex::new(String::new()),
+        sim_speed: std::sync::atomic::AtomicU32::new(0),
     });
 
     // Load scenes (D7) — loaded before automations so engine can reference them

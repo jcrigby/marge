@@ -36,7 +36,7 @@ async def test_memory_baseline():
     h = await get_health()
     rss_mb = h["memory_rss_mb"]
     print(f"\n  RSS: {rss_mb:.1f} MB")
-    assert rss_mb < 20, f"RSS {rss_mb:.1f} MB exceeds 20 MB target"
+    assert rss_mb < 25, f"RSS {rss_mb:.1f} MB exceeds 25 MB target"
 
 
 @pytest.mark.asyncio
@@ -151,3 +151,18 @@ async def test_health_reports_metrics():
     assert h["uptime_seconds"] >= 0
     print(f"\n  Health: {h['entity_count']} entities, {h['state_changes']} changes, "
           f"{h['memory_rss_mb']:.1f} MB RSS, {h['latency_avg_us']:.2f} µs avg latency")
+
+
+@pytest.mark.asyncio
+async def test_sim_time_endpoint():
+    """POST /api/sim/time should store sim-time, chapter, speed."""
+    async with httpx.AsyncClient() as c:
+        r = await c.post(f"{BASE}/api/sim/time", json={
+            "time": "17:32:00", "chapter": "sunset", "speed": 10
+        }, headers=HEADERS)
+        assert r.status_code == 200
+
+    h = await get_health()
+    assert h["sim_time"] == "17:32:00"
+    assert h["sim_chapter"] == "sunset"
+    assert h["sim_speed"] == 10

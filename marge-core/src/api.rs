@@ -16,6 +16,9 @@ use crate::state::{EntityState, StateMachine};
 pub struct AppState {
     pub state_machine: StateMachine,
     pub started_at: std::time::Instant,
+    pub sim_time: std::sync::Mutex<String>,
+    pub sim_chapter: std::sync::Mutex<String>,
+    pub sim_speed: std::sync::atomic::AtomicU32,
 }
 
 /// Combined router state
@@ -91,6 +94,7 @@ pub fn router(state: Arc<AppState>, engine: Option<Arc<AutomationEngine>>, scene
         .route("/api/events/:event_type", post(fire_event))
         .route("/api/services/:domain/:service", post(call_service))
         .route("/api/health", get(health))
+        .route("/api/sim/time", post(set_sim_time))
         .with_state(router_state)
 }
 
@@ -348,6 +352,23 @@ async fn call_service(
     })
 }
 
+/// POST /api/sim/time — update sim-time and chapter
+async fn set_sim_time(
+    State(rs): State<RouterState>,
+    Json(body): Json<serde_json::Value>,
+) -> Json<serde_json::Value> {
+    if let Some(time) = body.get("time").and_then(|v| v.as_str()) {
+        *rs.app.sim_time.lock().unwrap() = time.to_string();
+    }
+    if let Some(chapter) = body.get("chapter").and_then(|v| v.as_str()) {
+        *rs.app.sim_chapter.lock().unwrap() = chapter.to_string();
+    }
+    if let Some(speed) = body.get("speed").and_then(|v| v.as_f64()) {
+        rs.app.sim_speed.store(speed as u32, std::sync::atomic::Ordering::Relaxed);
+    }
+    Json(serde_json::json!({"status": "ok"}))
+}
+
 /// GET /api/health — health check with metrics
 async fn health(State(rs): State<RouterState>) -> Json<serde_json::Value> {
     use std::sync::atomic::Ordering;
@@ -369,6 +390,10 @@ async fn health(State(rs): State<RouterState>) -> Json<serde_json::Value> {
     };
     let max_us = max_ns as f64 / 1000.0;
 
+    let sim_time = rs.app.sim_time.lock().unwrap().clone();
+    let sim_chapter = rs.app.sim_chapter.lock().unwrap().clone();
+    let sim_speed = rs.app.sim_speed.load(Ordering::Relaxed);
+
     Json(serde_json::json!({
         "status": "ok",
         "version": env!("CARGO_PKG_VERSION"),
@@ -380,6 +405,9 @@ async fn health(State(rs): State<RouterState>) -> Json<serde_json::Value> {
         "events_fired": events_fired,
         "latency_avg_us": (avg_us * 100.0).round() / 100.0,
         "latency_max_us": (max_us * 100.0).round() / 100.0,
+        "sim_time": sim_time,
+        "sim_chapter": sim_chapter,
+        "sim_speed": sim_speed,
     }))
 }
 
