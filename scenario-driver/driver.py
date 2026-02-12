@@ -68,6 +68,66 @@ def connect_mqtt(host: str, port: int, client_id: str) -> mqtt.Client:
     return client
 
 
+def start_command_bridge(client: mqtt.Client):
+    """Subscribe to MQTT command topics and bridge commands→state for HA.
+
+    When HA fires an automation that calls light.turn_on for an MQTT entity,
+    HA publishes to the command_topic (home/{domain}/{object_id}/set).
+    This bridge listens and publishes the resulting state back to the
+    state_topic, simulating a physical device responding to the command.
+    """
+    def on_message(client, userdata, msg):
+        topic = msg.topic
+        payload = msg.payload.decode("utf-8", errors="replace").strip()
+
+        # Parse: home/{domain}/{object_id}/set
+        parts = topic.split("/")
+        if len(parts) != 4 or parts[0] != "home" or parts[3] != "set":
+            return
+
+        domain = parts[1]
+        object_id = parts[2]
+        state_topic = f"home/{domain}/{object_id}/state"
+
+        # Map commands to state responses
+        if domain == "light":
+            if payload.upper() in ("ON", "TRUE", "1"):
+                client.publish(state_topic, "on", retain=True)
+            elif payload.upper() in ("OFF", "FALSE", "0"):
+                client.publish(state_topic, "off", retain=True)
+        elif domain == "switch":
+            if payload.upper() in ("ON", "TRUE", "1"):
+                client.publish(state_topic, "on", retain=True)
+            else:
+                client.publish(state_topic, "off", retain=True)
+        elif domain == "lock":
+            if payload.upper() == "LOCK":
+                client.publish(state_topic, "locked", retain=True)
+            elif payload.upper() == "UNLOCK":
+                client.publish(state_topic, "unlocked", retain=True)
+        elif domain == "climate":
+            # Mode or temperature set
+            client.publish(state_topic, payload, retain=True)
+        elif domain == "alarm_control_panel":
+            # Command maps: ARM_HOME→armed_home, DISARM→disarmed, etc.
+            cmd_map = {
+                "ARM_HOME": "armed_home",
+                "ARM_AWAY": "armed_away",
+                "ARM_NIGHT": "armed_night",
+                "DISARM": "disarmed",
+            }
+            state = cmd_map.get(payload.upper(), payload.lower())
+            client.publish(state_topic, state, retain=True)
+        elif domain == "media_player":
+            if payload.upper() in ("ON", "PLAY"):
+                client.publish(state_topic, "on", retain=True)
+            elif payload.upper() in ("OFF", "STOP"):
+                client.publish(state_topic, "off", retain=True)
+
+    client.on_message = on_message
+    client.subscribe("home/+/+/set")
+
+
 def entity_to_mqtt_topic(entity_id: str) -> str:
     """Convert entity_id to its MQTT state topic.
 
@@ -87,7 +147,13 @@ async def push_state_mqtt(sut: SUTConnection, entity_id: str, state: str,
     Falls back to REST if MQTT not available."""
     if sut.mqtt_client:
         topic = entity_to_mqtt_topic(entity_id)
-        sut.mqtt_client.publish(topic, state, retain=True)
+        mqtt_state = state
+        # HA MQTT entities expect uppercase ON/OFF for binary sensors
+        if "ha" in sut.name.lower():
+            domain = entity_id.split(".")[0]
+            if domain in ("binary_sensor", "light", "switch"):
+                mqtt_state = state.upper()
+        sut.mqtt_client.publish(topic, mqtt_state, retain=True)
     else:
         await push_state_rest(sut, entity_id, state, attributes)
 
@@ -137,10 +203,27 @@ async def fire_event(sut: SUTConnection, event_type: str,
         print(f"  [{sut.name}] Event fire failed {event_type}: {e}")
 
 
+# Map scenario automation IDs (from YAML 'id' field) to HA entity IDs
+# (derived from YAML 'alias' field by slugifying)
+HA_AUTOMATION_MAP = {
+    "morning_wakeup": "morning_wake_up",
+    "security_alert": "security_alert_motion_while_armed_away",
+    "sunset_lights": "sunset_exterior_and_evening_scene",
+    "goodnight_routine": "goodnight_routine",
+    "lock_verification": "lock_verification_after_goodnight",
+    "smoke_co_emergency": "smoke_co_emergency_response",
+}
+
+
 async def trigger_automation(sut: SUTConnection, automation_id: str):
     """Force-fire an automation (bypasses conditions by default)."""
+    # HA derives entity_ids from alias, not id — map accordingly
+    if "ha" in sut.name.lower():
+        mapped_id = HA_AUTOMATION_MAP.get(automation_id, automation_id)
+    else:
+        mapped_id = automation_id
     await call_service(sut, "automation", "trigger", {
-        "entity_id": f"automation.{automation_id}"
+        "entity_id": f"automation.{mapped_id}"
     })
 
 
@@ -394,6 +477,12 @@ async def play_chapter(suts: list[SUTConnection], chapter_name: str,
             print(f"  [{offset/1000:.0f}s] EVENT: {event_type}")
             for sut in suts:
                 await fire_event(sut, event_type, event_data)
+            # HA's button template entity doesn't trigger automations via events,
+            # so force-trigger goodnight when bedside button is pressed
+            if event_type == "bedside_button_pressed":
+                for sut in suts:
+                    if "ha" in sut.name.lower():
+                        await trigger_automation(sut, "goodnight_routine")
 
         elif etype == "sun":
             sun_event = event.get("event", "")
@@ -608,6 +697,8 @@ async def main():
         ha.http_client = httpx.AsyncClient()
         try:
             ha.mqtt_client = connect_mqtt(ha_mqtt_host, ha_mqtt_port, "marge-driver-ha")
+            start_command_bridge(ha.mqtt_client)
+            print("  Command bridge active for HA MQTT")
         except Exception as e:
             print(f"WARNING: Could not connect to HA MQTT: {e}")
         suts.append(ha)

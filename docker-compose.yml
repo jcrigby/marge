@@ -1,5 +1,3 @@
-version: "3.8"
-
 # MARGE Demo Stack — Innovation Week
 # Usage: docker compose up -d
 # Dashboard: http://localhost:3000
@@ -91,11 +89,7 @@ services:
     container_name: marge-demo-dashboard
     ports:
       - "3000:3000"
-    environment:
-      - HA_WS_URL=ws://ha-legacy:8123/api/websocket
-      - MARGE_WS_URL=ws://marge:8124/api/websocket
-      - HA_REST_URL=http://ha-legacy:8123/api
-      - MARGE_REST_URL=http://marge:8124/api
+    # JS runs in browser → uses localhost URLs (see index.html query params)
     depends_on:
       - ha-legacy
       - marge
