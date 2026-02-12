@@ -16,6 +16,7 @@ use crate::state::{EntityState, StateMachine};
 pub struct AppState {
     pub state_machine: StateMachine,
     pub started_at: std::time::Instant,
+    pub startup_us: std::sync::atomic::AtomicU64,
     pub sim_time: std::sync::Mutex<String>,
     pub sim_chapter: std::sync::Mutex<String>,
     pub sim_speed: std::sync::atomic::AtomicU32,
@@ -230,6 +231,9 @@ async fn call_service(
                 if let Some(ct) = body.get("color_temp") {
                     attrs.insert("color_temp".to_string(), ct.clone());
                 }
+                if let Some(rgb) = body.get("rgb_color") {
+                    attrs.insert("rgb_color".to_string(), rgb.clone());
+                }
                 Some(rs.app.state_machine.set(eid.clone(), "on".to_string(), attrs))
             }
             ("light", "turn_off") => {
@@ -393,6 +397,7 @@ async fn health(State(rs): State<RouterState>) -> Json<serde_json::Value> {
     let sim_time = rs.app.sim_time.lock().unwrap().clone();
     let sim_chapter = rs.app.sim_chapter.lock().unwrap().clone();
     let sim_speed = rs.app.sim_speed.load(Ordering::Relaxed);
+    let startup_us = rs.app.startup_us.load(Ordering::Relaxed);
 
     Json(serde_json::json!({
         "status": "ok",
@@ -401,6 +406,8 @@ async fn health(State(rs): State<RouterState>) -> Json<serde_json::Value> {
         "memory_rss_kb": rss_kb,
         "memory_rss_mb": rss_kb as f64 / 1024.0,
         "uptime_seconds": uptime,
+        "startup_us": startup_us,
+        "startup_ms": (startup_us as f64 / 1000.0 * 100.0).round() / 100.0,
         "state_changes": state_changes,
         "events_fired": events_fired,
         "latency_avg_us": (avg_us * 100.0).round() / 100.0,

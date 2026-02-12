@@ -286,6 +286,9 @@ impl AutomationEngine {
                     if let Some(ct) = data.get("color_temp") {
                         attrs.insert("color_temp".to_string(), ct.clone());
                     }
+                    if let Some(rgb) = data.get("rgb_color") {
+                        attrs.insert("rgb_color".to_string(), rgb.clone());
+                    }
                     self.app.state_machine.set(eid.clone(), "on".to_string(), attrs);
                 }
                 ("light", "turn_off") => {

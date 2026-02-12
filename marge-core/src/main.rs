@@ -32,6 +32,7 @@ async fn main() -> anyhow::Result<()> {
     let app_state = Arc::new(AppState {
         state_machine,
         started_at: std::time::Instant::now(),
+        startup_us: std::sync::atomic::AtomicU64::new(0),
         sim_time: std::sync::Mutex::new(String::new()),
         sim_chapter: std::sync::Mutex::new(String::new()),
         sim_speed: std::sync::atomic::AtomicU32::new(0),
@@ -148,9 +149,14 @@ async fn main() -> anyhow::Result<()> {
         .unwrap_or(8124);
 
     let addr = SocketAddr::from(([0, 0, 0, 0], port));
-    tracing::info!("Listening on {}", addr);
 
     let listener = tokio::net::TcpListener::bind(addr).await?;
+
+    // Record startup time (microseconds for sub-ms precision)
+    let startup_us = app_state.started_at.elapsed().as_micros() as u64;
+    app_state.startup_us.store(startup_us, std::sync::atomic::Ordering::Relaxed);
+    tracing::info!("Listening on {} (startup: {}us / {:.1}ms)", addr, startup_us, startup_us as f64 / 1000.0);
+
     axum::serve(listener, app).await?;
 
     Ok(())
