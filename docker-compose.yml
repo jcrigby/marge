@@ -89,6 +89,8 @@ services:
     container_name: marge-demo-dashboard
     ports:
       - "3000:3000"
+    volumes:
+      - ./ha-config/.ha_token:/usr/share/nginx/html/ha-token.txt:ro
     # JS runs in browser → uses localhost URLs (see index.html query params)
     depends_on:
       - ha-legacy
