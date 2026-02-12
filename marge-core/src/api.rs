@@ -8,11 +8,21 @@ use axum::{
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 
+use crate::automation::AutomationEngine;
+use crate::scene::SceneEngine;
 use crate::state::{EntityState, StateMachine};
 
 /// Shared application state
 pub struct AppState {
     pub state_machine: StateMachine,
+}
+
+/// Combined router state
+#[derive(Clone)]
+struct RouterState {
+    app: Arc<AppState>,
+    engine: Option<Arc<AutomationEngine>>,
+    scenes: Option<Arc<SceneEngine>>,
 }
 
 /// POST /api/states/{entity_id} request body
@@ -63,7 +73,13 @@ struct ServiceResponse {
     changed_states: Vec<EntityState>,
 }
 
-pub fn router(state: Arc<AppState>) -> Router {
+pub fn router(state: Arc<AppState>, engine: Option<Arc<AutomationEngine>>, scenes: Option<Arc<SceneEngine>>) -> Router {
+    let router_state = RouterState {
+        app: state,
+        engine,
+        scenes,
+    };
+
     Router::new()
         // HA-compatible REST API (SSS §5.1.1)
         .route("/api/", get(api_status))
@@ -74,7 +90,7 @@ pub fn router(state: Arc<AppState>) -> Router {
         .route("/api/events/:event_type", post(fire_event))
         .route("/api/services/:domain/:service", post(call_service))
         .route("/api/health", get(health))
-        .with_state(state)
+        .with_state(router_state)
 }
 
 /// GET /api/ — API running check
@@ -104,16 +120,16 @@ async fn api_config() -> Json<ApiConfig> {
 }
 
 /// GET /api/states — return all entity states
-async fn get_states(State(app): State<Arc<AppState>>) -> Json<Vec<EntityState>> {
-    Json(app.state_machine.get_all())
+async fn get_states(State(rs): State<RouterState>) -> Json<Vec<EntityState>> {
+    Json(rs.app.state_machine.get_all())
 }
 
 /// GET /api/states/{entity_id} — return single entity state
 async fn get_state(
-    State(app): State<Arc<AppState>>,
+    State(rs): State<RouterState>,
     Path(entity_id): Path<String>,
 ) -> Result<Json<EntityState>, StatusCode> {
-    app.state_machine
+    rs.app.state_machine
         .get(&entity_id)
         .map(Json)
         .ok_or(StatusCode::NOT_FOUND)
@@ -121,20 +137,27 @@ async fn get_state(
 
 /// POST /api/states/{entity_id} — set entity state (HA-compatible)
 async fn set_state(
-    State(app): State<Arc<AppState>>,
+    State(rs): State<RouterState>,
     Path(entity_id): Path<String>,
     Json(body): Json<SetStateRequest>,
 ) -> impl IntoResponse {
-    let new_state = app.state_machine.set(entity_id, body.state, body.attributes);
+    let new_state = rs.app.state_machine.set(entity_id, body.state, body.attributes);
     (StatusCode::OK, Json(new_state))
 }
 
 /// POST /api/events/{event_type} — fire an event
 async fn fire_event(
+    State(rs): State<RouterState>,
     Path(event_type): Path<String>,
+    body: Option<Json<serde_json::Value>>,
 ) -> Json<EventResponse> {
-    // TODO: Wire into event bus when automation engine lands
     tracing::info!(event_type = %event_type, "Event fired");
+
+    // If automation engine is loaded, let it process the event
+    if let Some(engine) = &rs.engine {
+        engine.on_event(&event_type).await;
+    }
+
     Json(EventResponse {
         message: format!("Event {} fired.", event_type),
     })
@@ -142,11 +165,33 @@ async fn fire_event(
 
 /// POST /api/services/{domain}/{service} — call a service
 async fn call_service(
-    State(app): State<Arc<AppState>>,
+    State(rs): State<RouterState>,
     Path((domain, service)): Path<(String, String)>,
     Json(body): Json<serde_json::Value>,
 ) -> Json<ServiceResponse> {
     tracing::info!(domain = %domain, service = %service, "Service called");
+
+    // Handle automation.trigger specially
+    if domain == "automation" && service == "trigger" {
+        if let Some(engine) = &rs.engine {
+            let entity_id = body.get("entity_id")
+                .and_then(|v| v.as_str())
+                .unwrap_or("");
+            engine.trigger_by_id(entity_id).await;
+        }
+        return Json(ServiceResponse { changed_states: vec![] });
+    }
+
+    // Handle scene.turn_on
+    if domain == "scene" && service == "turn_on" {
+        if let Some(scenes) = &rs.scenes {
+            let entity_id = body.get("entity_id")
+                .and_then(|v| v.as_str())
+                .unwrap_or("");
+            scenes.turn_on(entity_id);
+        }
+        return Json(ServiceResponse { changed_states: vec![] });
+    }
 
     let mut changed = Vec::new();
 
@@ -171,7 +216,7 @@ async fn call_service(
     for eid in entity_ids {
         let result = match (domain.as_str(), service.as_str()) {
             ("light", "turn_on") => {
-                let mut attrs = app.state_machine.get(&eid)
+                let mut attrs = rs.app.state_machine.get(&eid)
                     .map(|s| s.attributes.clone())
                     .unwrap_or_default();
                 if let Some(b) = body.get("brightness") {
@@ -180,92 +225,92 @@ async fn call_service(
                 if let Some(ct) = body.get("color_temp") {
                     attrs.insert("color_temp".to_string(), ct.clone());
                 }
-                Some(app.state_machine.set(eid.clone(), "on".to_string(), attrs))
+                Some(rs.app.state_machine.set(eid.clone(), "on".to_string(), attrs))
             }
             ("light", "turn_off") => {
-                let attrs = app.state_machine.get(&eid)
+                let attrs = rs.app.state_machine.get(&eid)
                     .map(|s| s.attributes.clone())
                     .unwrap_or_default();
-                Some(app.state_machine.set(eid.clone(), "off".to_string(), attrs))
+                Some(rs.app.state_machine.set(eid.clone(), "off".to_string(), attrs))
             }
             ("light", "toggle") => {
-                let current = app.state_machine.get(&eid);
+                let current = rs.app.state_machine.get(&eid);
                 let new_state_str = match current.as_ref().map(|s| s.state.as_str()) {
                     Some("on") => "off",
                     _ => "on",
                 };
                 let attrs = current.map(|s| s.attributes.clone()).unwrap_or_default();
-                Some(app.state_machine.set(eid.clone(), new_state_str.to_string(), attrs))
+                Some(rs.app.state_machine.set(eid.clone(), new_state_str.to_string(), attrs))
             }
             ("switch", "turn_on") => {
-                let attrs = app.state_machine.get(&eid)
+                let attrs = rs.app.state_machine.get(&eid)
                     .map(|s| s.attributes.clone())
                     .unwrap_or_default();
-                Some(app.state_machine.set(eid.clone(), "on".to_string(), attrs))
+                Some(rs.app.state_machine.set(eid.clone(), "on".to_string(), attrs))
             }
             ("switch", "turn_off") => {
-                let attrs = app.state_machine.get(&eid)
+                let attrs = rs.app.state_machine.get(&eid)
                     .map(|s| s.attributes.clone())
                     .unwrap_or_default();
-                Some(app.state_machine.set(eid.clone(), "off".to_string(), attrs))
+                Some(rs.app.state_machine.set(eid.clone(), "off".to_string(), attrs))
             }
             ("lock", "lock") => {
-                let attrs = app.state_machine.get(&eid)
+                let attrs = rs.app.state_machine.get(&eid)
                     .map(|s| s.attributes.clone())
                     .unwrap_or_default();
-                Some(app.state_machine.set(eid.clone(), "locked".to_string(), attrs))
+                Some(rs.app.state_machine.set(eid.clone(), "locked".to_string(), attrs))
             }
             ("lock", "unlock") => {
-                let attrs = app.state_machine.get(&eid)
+                let attrs = rs.app.state_machine.get(&eid)
                     .map(|s| s.attributes.clone())
                     .unwrap_or_default();
-                Some(app.state_machine.set(eid.clone(), "unlocked".to_string(), attrs))
+                Some(rs.app.state_machine.set(eid.clone(), "unlocked".to_string(), attrs))
             }
             ("climate", "set_temperature") => {
-                let mut attrs = app.state_machine.get(&eid)
+                let mut attrs = rs.app.state_machine.get(&eid)
                     .map(|s| s.attributes.clone())
                     .unwrap_or_default();
                 if let Some(temp) = body.get("temperature") {
                     attrs.insert("temperature".to_string(), temp.clone());
                 }
-                let state_str = app.state_machine.get(&eid)
+                let state_str = rs.app.state_machine.get(&eid)
                     .map(|s| s.state.clone())
                     .unwrap_or_else(|| "heat".to_string());
-                Some(app.state_machine.set(eid.clone(), state_str, attrs))
+                Some(rs.app.state_machine.set(eid.clone(), state_str, attrs))
             }
             ("climate", "set_hvac_mode") => {
-                let attrs = app.state_machine.get(&eid)
+                let attrs = rs.app.state_machine.get(&eid)
                     .map(|s| s.attributes.clone())
                     .unwrap_or_default();
                 let mode = body.get("hvac_mode")
                     .and_then(|v| v.as_str())
                     .unwrap_or("off")
                     .to_string();
-                Some(app.state_machine.set(eid.clone(), mode, attrs))
+                Some(rs.app.state_machine.set(eid.clone(), mode, attrs))
             }
             ("alarm_control_panel", "arm_home") => {
-                let attrs = app.state_machine.get(&eid)
+                let attrs = rs.app.state_machine.get(&eid)
                     .map(|s| s.attributes.clone())
                     .unwrap_or_default();
-                Some(app.state_machine.set(eid.clone(), "armed_home".to_string(), attrs))
+                Some(rs.app.state_machine.set(eid.clone(), "armed_home".to_string(), attrs))
             }
             ("alarm_control_panel", "arm_away") => {
-                let attrs = app.state_machine.get(&eid)
+                let attrs = rs.app.state_machine.get(&eid)
                     .map(|s| s.attributes.clone())
                     .unwrap_or_default();
-                Some(app.state_machine.set(eid.clone(), "armed_away".to_string(), attrs))
+                Some(rs.app.state_machine.set(eid.clone(), "armed_away".to_string(), attrs))
             }
             ("alarm_control_panel", "arm_night") => {
-                let attrs = app.state_machine.get(&eid)
+                let attrs = rs.app.state_machine.get(&eid)
                     .map(|s| s.attributes.clone())
                     .unwrap_or_default();
-                Some(app.state_machine.set(eid.clone(), "armed_night".to_string(), attrs))
+                Some(rs.app.state_machine.set(eid.clone(), "armed_night".to_string(), attrs))
             }
             ("alarm_control_panel", "disarm") => {
-                let attrs = app.state_machine.get(&eid)
+                let attrs = rs.app.state_machine.get(&eid)
                     .map(|s| s.attributes.clone())
                     .unwrap_or_default();
-                Some(app.state_machine.set(eid.clone(), "disarmed".to_string(), attrs))
+                Some(rs.app.state_machine.set(eid.clone(), "disarmed".to_string(), attrs))
             }
             ("persistent_notification", "create") => {
                 tracing::info!("Notification: {}", body.get("message").and_then(|v| v.as_str()).unwrap_or(""));
@@ -288,16 +333,16 @@ async fn call_service(
 }
 
 /// GET /api/health — health check with metrics
-async fn health(State(app): State<Arc<AppState>>) -> Json<serde_json::Value> {
+async fn health(State(rs): State<RouterState>) -> Json<serde_json::Value> {
     let pid = std::process::id();
     let rss_kb = read_rss_kb(pid).unwrap_or(0);
 
     Json(serde_json::json!({
         "status": "ok",
         "version": env!("CARGO_PKG_VERSION"),
-        "entity_count": app.state_machine.len(),
+        "entity_count": rs.app.state_machine.len(),
         "memory_rss_kb": rss_kb,
-        "uptime_seconds": 0, // TODO: track actual uptime
+        "uptime_seconds": 0,
     }))
 }
 
