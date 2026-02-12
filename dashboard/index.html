@@ -795,7 +795,13 @@ async function pollMargeHealth() {
     margeHealth = await r.json();
     // Sync sim-time and chapter from Marge health
     if (margeHealth.sim_time) simTimeStr = margeHealth.sim_time;
-    if (margeHealth.sim_chapter) currentChapter = margeHealth.sim_chapter;
+    if (margeHealth.sim_chapter && margeHealth.sim_chapter !== currentChapter) {
+      const oldChapter = currentChapter;
+      currentChapter = margeHealth.sim_chapter;
+      if (oldChapter !== 'idle') {
+        logEvent('marge', `Chapter: ${currentChapter.toUpperCase()}`);
+      }
+    }
     if (margeHealth.sim_speed) {
       document.getElementById('speed-badge').textContent = margeHealth.sim_speed + 'x';
     }
@@ -916,8 +922,10 @@ pollMargeHealth();
 
 setInterval(() => {
   document.getElementById('sim-time').textContent = simTimeStr;
-  document.getElementById('chapter-badge').textContent = currentChapter.toUpperCase() || 'IDLE';
-  renderTimeline();
+  const badge = document.getElementById('chapter-badge');
+  badge.textContent = currentChapter.toUpperCase() || 'IDLE';
+  const chap = CHAPTERS.find(c => c.name === currentChapter);
+  badge.style.background = chap ? chap.color : '#238636';
 }, 1000);
 
 renderHouse();
