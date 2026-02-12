@@ -389,29 +389,158 @@ async def play_chapter(suts: list[SUTConnection], chapter_name: str,
                 )
 
         elif etype == "power_outage":
-            print(f"  [{offset/1000:.0f}s] POWER OUTAGE — stopping containers")
-            # This would be handled by docker commands externally
+            print(f"\n  [{offset/1000:.0f}s] {'='*50}")
+            print(f"  [{offset/1000:.0f}s] POWER OUTAGE — stopping all systems")
+            print(f"  [{offset/1000:.0f}s] {'='*50}")
+            await handle_power_outage(suts)
 
         elif etype == "power_restore":
-            print(f"  [{offset/1000:.0f}s] POWER RESTORED — starting containers")
+            print(f"\n  [{offset/1000:.0f}s] {'='*50}")
+            print(f"  [{offset/1000:.0f}s] POWER RESTORED — starting all systems")
+            print(f"  [{offset/1000:.0f}s] {'='*50}")
+            await handle_power_restore(suts)
 
         elif etype == "verify_system":
             system = event.get("system", "")
-            print(f"  [{offset/1000:.0f}s] VERIFY SYSTEM: {system}")
+            timeout_ms = event.get("timeout_ms", 60000)
+            await verify_system_online(suts, system, timeout_ms)
 
         elif etype == "collect_final_metrics":
-            print(f"  [{offset/1000:.0f}s] COLLECTING FINAL METRICS")
-            for sut in suts:
-                try:
-                    resp = await sut.http_client.get(
-                        f"{sut.rest_url}/api/health" if "marge" in sut.name.lower()
-                        else f"{sut.rest_url}/api/",
-                        headers=sut.headers(),
-                        timeout=5.0,
-                    )
-                    print(f"  [{sut.name}] Health: {resp.status_code}")
-                except Exception as e:
-                    print(f"  [{sut.name}] Health check failed: {e}")
+            print(f"\n  [{offset/1000:.0f}s] {'='*50}")
+            print(f"  [{offset/1000:.0f}s] FINAL METRICS")
+            print(f"  [{offset/1000:.0f}s] {'='*50}")
+            await collect_final_metrics(suts)
+
+
+async def run_shell(cmd: str) -> tuple[int, str]:
+    """Run a shell command and return (exit_code, output)."""
+    import subprocess
+    result = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=30)
+    return result.returncode, result.stdout + result.stderr
+
+
+async def handle_power_outage(suts: list[SUTConnection]):
+    """Stop all SUTs to simulate power outage."""
+    for sut in suts:
+        # Disconnect MQTT before stopping
+        if sut.mqtt_client:
+            try:
+                sut.mqtt_client.loop_stop()
+                sut.mqtt_client.disconnect()
+            except Exception:
+                pass
+            sut.mqtt_client = None
+
+    # Stop services via configured commands
+    ha_stop = os.environ.get("HA_STOP_CMD", "docker stop marge-demo-ha")
+    marge_stop = os.environ.get("MARGE_STOP_CMD", "pkill -9 marge")
+
+    for sut in suts:
+        if "ha" in sut.name.lower():
+            print(f"  Stopping {sut.name}...")
+            code, out = await run_shell(ha_stop)
+            print(f"  {sut.name} stopped (exit={code})")
+            sut._stop_time = time.monotonic()
+        else:
+            print(f"  Stopping {sut.name}...")
+            code, out = await run_shell(marge_stop)
+            print(f"  {sut.name} stopped (exit={code})")
+            sut._stop_time = time.monotonic()
+
+
+async def handle_power_restore(suts: list[SUTConnection]):
+    """Restart all SUTs and begin measuring recovery time."""
+    ha_start = os.environ.get("HA_START_CMD", "docker start marge-demo-ha")
+    marge_start = os.environ.get("MARGE_START_CMD", "")
+
+    for sut in suts:
+        sut._restore_time = time.monotonic()
+        if "ha" in sut.name.lower():
+            print(f"  Starting {sut.name}...")
+            code, out = await run_shell(ha_start)
+            print(f"  {sut.name} start issued (exit={code})")
+        else:
+            if marge_start:
+                print(f"  Starting {sut.name}...")
+                code, out = await run_shell(marge_start)
+                print(f"  {sut.name} start issued (exit={code})")
+            else:
+                print(f"  {sut.name}: no start command configured, assuming external restart")
+
+    # Reconnect MQTT clients
+    await asyncio.sleep(2)
+    for sut in suts:
+        try:
+            client_id = f"marge-driver-{'ha' if 'ha' in sut.name.lower() else 'marge'}-restore"
+            sut.mqtt_client = connect_mqtt(sut.mqtt_host, sut.mqtt_port, client_id)
+        except Exception as e:
+            print(f"  {sut.name} MQTT reconnect pending: {e}")
+
+
+async def verify_system_online(suts: list[SUTConnection], system: str, timeout_ms: int):
+    """Poll a specific system until it responds to health checks."""
+    for sut in suts:
+        name_lower = sut.name.lower()
+        if system == "marge" and "marge" not in name_lower:
+            continue
+        if system == "ha" and "ha" not in name_lower:
+            continue
+
+        health_url = f"{sut.rest_url}/api/health" if "marge" in name_lower else f"{sut.rest_url}/api/"
+        restore_time = getattr(sut, '_restore_time', time.monotonic())
+        deadline = time.monotonic() + (timeout_ms / 1000)
+
+        print(f"  Polling {sut.name} for recovery...")
+        while time.monotonic() < deadline:
+            try:
+                resp = await sut.http_client.get(health_url, headers=sut.headers(), timeout=3.0)
+                if resp.status_code == 200:
+                    recovery_s = time.monotonic() - restore_time
+                    print(f"  {sut.name} ONLINE — recovery time: {recovery_s:.1f}s")
+                    sut._recovery_time = recovery_s
+                    return True
+            except Exception:
+                pass
+            await asyncio.sleep(1.0)
+
+        elapsed = time.monotonic() - restore_time
+        print(f"  {sut.name} STILL OFFLINE after {elapsed:.1f}s (timeout={timeout_ms/1000:.0f}s)")
+        sut._recovery_time = None
+        return False
+
+
+async def collect_final_metrics(suts: list[SUTConnection]):
+    """Collect and display final metrics from all SUTs."""
+    print()
+    for sut in suts:
+        recovery = getattr(sut, '_recovery_time', None)
+        recovery_str = f"{recovery:.1f}s" if recovery else "N/A"
+
+        try:
+            if "marge" in sut.name.lower():
+                resp = await sut.http_client.get(
+                    f"{sut.rest_url}/api/health", headers=sut.headers(), timeout=5.0)
+                if resp.status_code == 200:
+                    h = resp.json()
+                    print(f"  {sut.name}:")
+                    print(f"    Memory:       {h.get('memory_rss_mb', 0):.1f} MB")
+                    print(f"    Entities:     {h.get('entity_count', 0)}")
+                    print(f"    State changes: {h.get('state_changes', 0)}")
+                    print(f"    Avg latency:  {h.get('latency_avg_us', 0):.2f} us")
+                    print(f"    Max latency:  {h.get('latency_max_us', 0):.2f} us")
+                    print(f"    Recovery:     {recovery_str}")
+                    continue
+            else:
+                resp = await sut.http_client.get(
+                    f"{sut.rest_url}/api/", headers=sut.headers(), timeout=5.0)
+                if resp.status_code == 200:
+                    print(f"  {sut.name}:")
+                    print(f"    Status:       Online")
+                    print(f"    Recovery:     {recovery_str}")
+                    continue
+        except Exception as e:
+            pass
+        print(f"  {sut.name}: Offline or unreachable (recovery: {recovery_str})")
 
 
 async def main():
