@@ -610,9 +610,10 @@ function renderMetrics() {
     const mins = Math.floor(h.uptime_seconds / 60);
     const secs = h.uptime_seconds % 60;
     document.getElementById('marge-uptime').textContent = `${mins}m ${secs}s`;
-    // Startup bar (assume <1s)
+    // Startup bar (real measurement from health endpoint)
+    const startMs = h.startup_ms || 0;
     document.getElementById('marge-start-bar').style.width = '1%';
-    document.getElementById('marge-start-val').textContent = '<1s';
+    document.getElementById('marge-start-val').textContent = startMs < 1 ? '<1ms' : `${startMs.toFixed(1)}ms`;
   }
 
   // HA bars (estimated values for demo)
@@ -675,15 +676,15 @@ function showScoreCard() {
   const mem_marge = h.memory_rss_mb || 14;
   const lat_marge = h.latency_avg_us || 3.5;
   const changes_marge = h.state_changes || margeEvents;
+  const startup_marge_ms = h.startup_ms || 0.5;
   const mem_ha = 780;
   const lat_ha = 23000; // 23ms in us
   const startup_ha = 94;
-  const startup_marge = 0.4;
 
   const rows = [
     ['Memory (RSS)',    `${mem_ha} MB`,          `${mem_marge.toFixed(1)} MB`,     `${(mem_ha / mem_marge).toFixed(0)}x smaller`],
     ['Avg Latency',     '~23 ms',                `${lat_marge.toFixed(1)} \u00B5s`, `${(lat_ha / lat_marge).toFixed(0)}x faster`],
-    ['Startup Time',    `~${startup_ha}s`,       `<${startup_marge}s`,             `${(startup_ha / startup_marge).toFixed(0)}x faster`],
+    ['Startup Time',    `~${startup_ha}s`,       `${startup_marge_ms.toFixed(1)} ms`,  `${(startup_ha * 1000 / startup_marge_ms).toFixed(0)}x faster`],
     ['Binary Size',     '~1.2 GB (installed)',    '6.1 MB',                         '200x smaller'],
     ['State Changes',   margeEvents.toLocaleString(), changes_marge.toLocaleString(), 'identical'],
     ['Automations',     '6/6 fired',             '6/6 fired',                      'identical'],

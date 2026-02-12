@@ -11,6 +11,7 @@
     light.living_room_accent:
       state: "on"
       brightness: 120
+      rgb_color: [255, 147, 41]
     light.living_room_lamp:
       state: "on"
       brightness: 150
