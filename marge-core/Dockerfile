@@ -17,9 +17,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates
 COPY --from=builder /build/target/release/marge /usr/local/bin/marge
 
 ENV MARGE_HTTP_PORT=8124 \
+    MARGE_MQTT_PORT=1884 \
     MARGE_AUTOMATIONS_PATH=/etc/marge/automations.yaml \
     MARGE_SCENES_PATH=/etc/marge/scenes.yaml \
     RUST_LOG=info,marge=debug
 
-EXPOSE 8124
+EXPOSE 8124 1884
 CMD ["marge"]
