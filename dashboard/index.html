@@ -165,6 +165,51 @@ body {
 .sc-dismiss {
   margin-top: 12px; text-align: center; font-size: 10px; color: #484f58;
 }
+
+/* ── Outage Overlay ──────────────────── */
+.outage-overlay {
+  display: none; position: fixed; inset: 0; z-index: 900;
+  background: rgba(0,0,0,0.92); justify-content: center; align-items: center;
+  flex-direction: column;
+}
+.outage-overlay.visible { display: flex; }
+.outage-icon {
+  font-size: 72px; margin-bottom: 16px;
+  animation: outage-pulse 1.5s ease-in-out infinite;
+}
+@keyframes outage-pulse {
+  0%,100% { opacity: 0.3; } 50% { opacity: 1; }
+}
+.outage-title {
+  font-size: 36px; font-weight: 900; color: #f85149;
+  letter-spacing: 4px; margin-bottom: 8px;
+}
+.outage-sub {
+  font-size: 14px; color: #8b949e; margin-bottom: 32px;
+}
+.recovery-race {
+  display: flex; gap: 48px; align-items: flex-start;
+}
+.recovery-lane {
+  text-align: center; min-width: 200px;
+}
+.recovery-lane h3 {
+  font-size: 14px; font-weight: 700; letter-spacing: 1px; margin-bottom: 12px;
+}
+.recovery-lane.ha h3 { color: #f0883e; }
+.recovery-lane.marge h3 { color: #58a6ff; }
+.recovery-timer {
+  font-size: 48px; font-weight: 900; font-variant-numeric: tabular-nums;
+}
+.recovery-timer.waiting { color: #484f58; }
+.recovery-timer.recovering { color: #ffd700; }
+.recovery-timer.recovered { color: #3fb950; }
+.recovery-label {
+  font-size: 12px; color: #8b949e; margin-top: 8px; min-height: 20px;
+}
+.recovery-vs {
+  font-size: 28px; color: #30363d; align-self: center; font-weight: 900;
+}
 </style>
 </head>
 <body>
@@ -312,6 +357,26 @@ body {
   </div>
 </div>
 
+<!-- ── Outage Overlay ─────────────────────── -->
+<div class="outage-overlay" id="outage-overlay">
+  <div class="outage-icon">&#x26A0;</div>
+  <div class="outage-title">POWER OUTAGE</div>
+  <div class="outage-sub">Simulated power failure — recovery race in progress</div>
+  <div class="recovery-race">
+    <div class="recovery-lane ha">
+      <h3>HA-legacy</h3>
+      <div class="recovery-timer waiting" id="ha-recovery-timer">--.-s</div>
+      <div class="recovery-label" id="ha-recovery-label">Waiting...</div>
+    </div>
+    <div class="recovery-vs">vs</div>
+    <div class="recovery-lane marge">
+      <h3>Marge</h3>
+      <div class="recovery-timer waiting" id="marge-recovery-timer">--.-s</div>
+      <div class="recovery-label" id="marge-recovery-label">Waiting...</div>
+    </div>
+  </div>
+</div>
+
 <script>
 // ── Configuration ──────────────────────────
 const params = new URLSearchParams(location.search);
@@ -328,6 +393,15 @@ let margeEvents = 0, haEvents = 0;
 let margeHealth = {};
 let currentChapter = 'idle';
 let simTimeStr = '--:--:--';
+
+// ── Outage Tracking ────────────────────────
+let outageActive = false;
+let outageStartTime = null;
+let margeRecoveryTime = null;
+let haRecoveryTime = null;
+let margeWasOnline = false;
+let haWasOnline = false;
+let recoveryTimerInterval = null;
 
 // Chapter definitions for timeline
 const CHAPTERS = [
@@ -527,6 +601,7 @@ function connectWS(url, token, name, stateMap, counterFn) {
       } else if (msg.type === 'auth_ok') {
         statusEl.className = 'status connected';
         statusEl.textContent = `${name === 'ha' ? 'HA' : 'Marge'}: online`;
+        onSystemOnline(name);
         ws.send(JSON.stringify({ id: 1, type: 'subscribe_events', event_type: 'state_changed' }));
         ws.send(JSON.stringify({ id: 2, type: 'get_states' }));
       } else if (msg.type === 'result' && msg.id === 2 && msg.result) {
@@ -552,11 +627,92 @@ function connectWS(url, token, name, stateMap, counterFn) {
     ws.onclose = () => {
       statusEl.className = 'status disconnected';
       statusEl.textContent = `${name === 'ha' ? 'HA' : 'Marge'}: offline`;
-      setTimeout(connect, 3000);
+      onSystemOffline(name);
+      // Reconnect faster during outage to detect recovery quickly
+      setTimeout(connect, outageActive ? 500 : 3000);
     };
     ws.onerror = () => ws.close();
   }
   connect();
+}
+
+// ── Outage Detection + Recovery Race ─────────
+
+function onSystemOffline(name) {
+  if (name === 'marge') margeWasOnline = false;
+  if (name === 'ha') haWasOnline = false;
+
+  // Trigger outage overlay when both systems are down (and we've seen them online before)
+  if (!margeWasOnline && !haWasOnline && !outageActive && (margeEvents > 0 || haEvents > 0)) {
+    startOutage();
+  }
+}
+
+function onSystemOnline(name) {
+  if (name === 'marge') margeWasOnline = true;
+  if (name === 'ha') haWasOnline = true;
+
+  if (outageActive && outageStartTime) {
+    const elapsed = (Date.now() - outageStartTime) / 1000;
+    if (name === 'marge' && margeRecoveryTime === null) {
+      margeRecoveryTime = elapsed;
+      const timerEl = document.getElementById('marge-recovery-timer');
+      timerEl.textContent = margeRecoveryTime.toFixed(1) + 's';
+      timerEl.className = 'recovery-timer recovered';
+      document.getElementById('marge-recovery-label').textContent = 'RECOVERED';
+      logEvent('marge', `Recovered in ${margeRecoveryTime.toFixed(1)}s`);
+    }
+    if (name === 'ha' && haRecoveryTime === null) {
+      haRecoveryTime = elapsed;
+      const timerEl = document.getElementById('ha-recovery-timer');
+      timerEl.textContent = haRecoveryTime.toFixed(1) + 's';
+      timerEl.className = 'recovery-timer recovered';
+      document.getElementById('ha-recovery-label').textContent = 'RECOVERED';
+      logEvent('ha', `Recovered in ${haRecoveryTime.toFixed(1)}s`);
+    }
+
+    // Both recovered — dismiss overlay after 5 seconds
+    if (margeRecoveryTime !== null && haRecoveryTime !== null) {
+      clearInterval(recoveryTimerInterval);
+      setTimeout(() => {
+        document.getElementById('outage-overlay').classList.remove('visible');
+        outageActive = false;
+      }, 5000);
+    }
+  }
+}
+
+function startOutage() {
+  outageActive = true;
+  outageStartTime = Date.now();
+  margeRecoveryTime = null;
+  haRecoveryTime = null;
+
+  const overlay = document.getElementById('outage-overlay');
+  overlay.classList.add('visible');
+
+  // Reset timer displays
+  const margeTimer = document.getElementById('marge-recovery-timer');
+  const haTimer = document.getElementById('ha-recovery-timer');
+  margeTimer.textContent = '0.0s';
+  margeTimer.className = 'recovery-timer recovering';
+  haTimer.textContent = '0.0s';
+  haTimer.className = 'recovery-timer recovering';
+  document.getElementById('marge-recovery-label').textContent = 'Recovering...';
+  document.getElementById('ha-recovery-label').textContent = 'Recovering...';
+
+  logEvent('marge', 'POWER OUTAGE — systems down');
+
+  // Live-update timers
+  recoveryTimerInterval = setInterval(() => {
+    const elapsed = (Date.now() - outageStartTime) / 1000;
+    if (margeRecoveryTime === null) {
+      document.getElementById('marge-recovery-timer').textContent = elapsed.toFixed(1) + 's';
+    }
+    if (haRecoveryTime === null) {
+      document.getElementById('ha-recovery-timer').textContent = elapsed.toFixed(1) + 's';
+    }
+  }, 100);
 }
 
 // ── Render Throttling ───────────────────────
@@ -687,10 +843,18 @@ function showScoreCard() {
   const lat_ha = 23000; // 23ms in us
   const startup_ha = 94;
 
+  // Recovery time row (if outage was run)
+  const haRecStr = haRecoveryTime !== null ? `${haRecoveryTime.toFixed(1)}s` : '~94s';
+  const margeRecStr = margeRecoveryTime !== null ? `${margeRecoveryTime.toFixed(1)}s` : `${startup_marge_ms.toFixed(1)} ms`;
+  const recoveryRatio = haRecoveryTime !== null && margeRecoveryTime !== null
+    ? `${(haRecoveryTime / margeRecoveryTime).toFixed(0)}x faster`
+    : `${(startup_ha * 1000 / startup_marge_ms).toFixed(0)}x faster`;
+
   const rows = [
     ['Memory (RSS)',    `${mem_ha} MB`,          `${mem_marge.toFixed(1)} MB`,     `${(mem_ha / mem_marge).toFixed(0)}x smaller`],
     ['Avg Latency',     '~23 ms',                `${lat_marge.toFixed(1)} \u00B5s`, `${(lat_ha / lat_marge).toFixed(0)}x faster`],
     ['Startup Time',    `~${startup_ha}s`,       `${startup_marge_ms.toFixed(1)} ms`,  `${(startup_ha * 1000 / startup_marge_ms).toFixed(0)}x faster`],
+    ['Recovery Time',   haRecStr,                margeRecStr,                      recoveryRatio],
     ['Binary Size',     '~1.2 GB (installed)',    '6.1 MB',                         '200x smaller'],
     ['State Changes',   margeEvents.toLocaleString(), changes_marge.toLocaleString(), 'identical'],
     ['Automations',     '6/6 fired',             '6/6 fired',                      'identical'],
@@ -716,7 +880,12 @@ document.addEventListener('keydown', (e) => {
     if (overlay.classList.contains('visible')) hideScoreCard();
     else showScoreCard();
   }
-  if (e.key === 'Escape') hideScoreCard();
+  if (e.key === 'Escape') {
+    hideScoreCard();
+    // Also dismiss outage overlay manually if needed
+    document.getElementById('outage-overlay').classList.remove('visible');
+    if (recoveryTimerInterval) clearInterval(recoveryTimerInterval);
+  }
 });
 
 document.getElementById('scorecard-overlay').addEventListener('click', (e) => {
