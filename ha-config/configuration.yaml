@@ -1,0 +1,363 @@
+# MARGE Demo — Home Assistant Configuration
+#
+# IMPORTANT: MQTT broker connection is NOT configured here.
+# Since HA 2022.6, broker config is a "config entry" stored in
+# .storage/core.config_entries. See ha-assumptions-deep-dive.md.
+#
+# First-time bootstrap:
+#   1. docker compose up mosquitto ha-legacy
+#   2. Open http://localhost:8123, complete onboarding wizard
+#   3. Settings → Integrations → Add MQTT → broker: mosquitto, port: 1883
+#   4. Snapshot the .storage/ dir for repeatable deploys:
+#      docker cp marge-demo-ha:/config/.storage ./ha-config/.storage
+#   5. Now future docker compose up will be fully pre-configured.
+
+homeassistant:
+  name: "Marge Demo Home"
+  latitude: 40.3916
+  longitude: -111.8508
+  elevation: 1387
+  unit_system: us_customary
+  time_zone: "America/Denver"
+  currency: USD
+
+# REST API — required for scenario driver, CTS, and dashboard
+api:
+
+logger:
+  default: warning
+  logs:
+    homeassistant.components.automation: info
+    homeassistant.components.mqtt: info
+
+automation: !include automations.yaml
+scene: !include scenes.yaml
+
+# ─── MQTT Entities ─────────────────────────────────────────────
+# These load AFTER the MQTT integration config entry connects to broker.
+# All controllable entities use optimistic: true because there are no
+# physical devices to echo commands back to state topics.
+mqtt:
+
+  # ─── LIGHTS ────────────────────────────────────────────
+  light:
+    - name: "Bedroom"
+      unique_id: "demo_light_bedroom"
+      state_topic: "home/light/bedroom/state"
+      command_topic: "home/light/bedroom/set"
+      brightness_state_topic: "home/light/bedroom/brightness/state"
+      brightness_command_topic: "home/light/bedroom/brightness/set"
+      color_temp_state_topic: "home/light/bedroom/color_temp/state"
+      color_temp_command_topic: "home/light/bedroom/color_temp/set"
+      payload_on: "ON"
+      payload_off: "OFF"
+      optimistic: true
+
+    - name: "Bathroom"
+      unique_id: "demo_light_bathroom"
+      state_topic: "home/light/bathroom/state"
+      command_topic: "home/light/bathroom/set"
+      payload_on: "ON"
+      payload_off: "OFF"
+      optimistic: true
+
+    - name: "Kitchen"
+      unique_id: "demo_light_kitchen"
+      state_topic: "home/light/kitchen/state"
+      command_topic: "home/light/kitchen/set"
+      payload_on: "ON"
+      payload_off: "OFF"
+      optimistic: true
+
+    - name: "Living Room Main"
+      unique_id: "demo_light_living_room_main"
+      state_topic: "home/light/living_room_main/state"
+      command_topic: "home/light/living_room_main/set"
+      brightness_state_topic: "home/light/living_room_main/brightness/state"
+      brightness_command_topic: "home/light/living_room_main/brightness/set"
+      payload_on: "ON"
+      payload_off: "OFF"
+      optimistic: true
+
+    - name: "Living Room Accent"
+      unique_id: "demo_light_living_room_accent"
+      state_topic: "home/light/living_room_accent/state"
+      command_topic: "home/light/living_room_accent/set"
+      brightness_state_topic: "home/light/living_room_accent/brightness/state"
+      brightness_command_topic: "home/light/living_room_accent/brightness/set"
+      payload_on: "ON"
+      payload_off: "OFF"
+      optimistic: true
+
+    - name: "Living Room Lamp"
+      unique_id: "demo_light_living_room_lamp"
+      state_topic: "home/light/living_room_lamp/state"
+      command_topic: "home/light/living_room_lamp/set"
+      brightness_state_topic: "home/light/living_room_lamp/brightness/state"
+      brightness_command_topic: "home/light/living_room_lamp/brightness/set"
+      payload_on: "ON"
+      payload_off: "OFF"
+      optimistic: true
+
+    - name: "Living Room Floor"
+      unique_id: "demo_light_living_room_floor"
+      state_topic: "home/light/living_room_floor/state"
+      command_topic: "home/light/living_room_floor/set"
+      brightness_state_topic: "home/light/living_room_floor/brightness/state"
+      brightness_command_topic: "home/light/living_room_floor/brightness/set"
+      payload_on: "ON"
+      payload_off: "OFF"
+      optimistic: true
+
+    - name: "Porch"
+      unique_id: "demo_light_porch"
+      state_topic: "home/light/porch/state"
+      command_topic: "home/light/porch/set"
+      payload_on: "ON"
+      payload_off: "OFF"
+      optimistic: true
+
+    - name: "Pathway"
+      unique_id: "demo_light_pathway"
+      state_topic: "home/light/pathway/state"
+      command_topic: "home/light/pathway/set"
+      payload_on: "ON"
+      payload_off: "OFF"
+      optimistic: true
+
+  # ─── SWITCHES ──────────────────────────────────────────
+  switch:
+    - name: "Coffee Maker"
+      unique_id: "demo_switch_coffee_maker"
+      state_topic: "home/switch/coffee_maker/state"
+      command_topic: "home/switch/coffee_maker/set"
+      payload_on: "ON"
+      payload_off: "OFF"
+      optimistic: true
+
+  # ─── CLIMATE ───────────────────────────────────────────
+  climate:
+    - name: "Thermostat"
+      unique_id: "demo_climate_thermostat"
+      mode_state_topic: "home/climate/thermostat/mode/state"
+      mode_command_topic: "home/climate/thermostat/mode/set"
+      temperature_state_topic: "home/climate/thermostat/target_temp/state"
+      temperature_command_topic: "home/climate/thermostat/target_temp/set"
+      current_temperature_topic: "home/climate/thermostat/current_temp/state"
+      modes:
+        - "off"
+        - "heat"
+        - "cool"
+        - "heat_cool"
+      min_temp: 55
+      max_temp: 90
+      temp_step: 1
+      optimistic: true
+
+  # ─── LOCKS ─────────────────────────────────────────────
+  lock:
+    - name: "Front Door"
+      unique_id: "demo_lock_front_door"
+      state_topic: "home/lock/front_door/state"
+      command_topic: "home/lock/front_door/set"
+      payload_lock: "LOCK"
+      payload_unlock: "UNLOCK"
+      state_locked: "LOCKED"
+      state_unlocked: "UNLOCKED"
+      optimistic: true
+
+    - name: "Back Door"
+      unique_id: "demo_lock_back_door"
+      state_topic: "home/lock/back_door/state"
+      command_topic: "home/lock/back_door/set"
+      payload_lock: "LOCK"
+      payload_unlock: "UNLOCK"
+      state_locked: "LOCKED"
+      state_unlocked: "UNLOCKED"
+      optimistic: true
+
+  # ─── ALARM CONTROL PANEL ───────────────────────────────
+  alarm_control_panel:
+    - name: "Home"
+      unique_id: "demo_alarm_home"
+      state_topic: "home/alarm/home/state"
+      command_topic: "home/alarm/home/set"
+      payload_disarm: "DISARM"
+      payload_arm_home: "ARM_HOME"
+      payload_arm_away: "ARM_AWAY"
+      payload_arm_night: "ARM_NIGHT"
+
+  # ─── BINARY SENSORS ────────────────────────────────────
+  binary_sensor:
+    - name: "Entryway Motion"
+      unique_id: "demo_binary_sensor_entryway_motion"
+      state_topic: "home/binary_sensor/entryway_motion/state"
+      device_class: motion
+      payload_on: "ON"
+      payload_off: "OFF"
+
+    - name: "Kitchen Motion"
+      unique_id: "demo_binary_sensor_kitchen_motion"
+      state_topic: "home/binary_sensor/kitchen_motion/state"
+      device_class: motion
+      payload_on: "ON"
+      payload_off: "OFF"
+
+    - name: "Living Room Motion"
+      unique_id: "demo_binary_sensor_living_room_motion"
+      state_topic: "home/binary_sensor/living_room_motion/state"
+      device_class: motion
+      payload_on: "ON"
+      payload_off: "OFF"
+
+    - name: "Bedroom Motion"
+      unique_id: "demo_binary_sensor_bedroom_motion"
+      state_topic: "home/binary_sensor/bedroom_motion/state"
+      device_class: motion
+      payload_on: "ON"
+      payload_off: "OFF"
+
+    - name: "Front Door Contact"
+      unique_id: "demo_binary_sensor_front_door_contact"
+      state_topic: "home/binary_sensor/front_door_contact/state"
+      device_class: door
+      payload_on: "ON"
+      payload_off: "OFF"
+
+    - name: "Back Door Contact"
+      unique_id: "demo_binary_sensor_back_door_contact"
+      state_topic: "home/binary_sensor/back_door_contact/state"
+      device_class: door
+      payload_on: "ON"
+      payload_off: "OFF"
+
+    - name: "Garage Door"
+      unique_id: "demo_binary_sensor_garage_door_contact"
+      state_topic: "home/binary_sensor/garage_door_contact/state"
+      device_class: garage_door
+      payload_on: "ON"
+      payload_off: "OFF"
+
+    - name: "Smoke Detector"
+      unique_id: "demo_binary_sensor_smoke_detector"
+      state_topic: "home/binary_sensor/smoke_detector/state"
+      device_class: smoke
+      payload_on: "ON"
+      payload_off: "OFF"
+
+    - name: "CO Detector"
+      unique_id: "demo_binary_sensor_co_detector"
+      state_topic: "home/binary_sensor/co_detector/state"
+      device_class: gas
+      payload_on: "ON"
+      payload_off: "OFF"
+
+  # ─── SENSORS ───────────────────────────────────────────
+  sensor:
+    - name: "Bedroom Temperature"
+      unique_id: "demo_sensor_bedroom_temperature"
+      state_topic: "home/sensor/bedroom_temperature/state"
+      device_class: temperature
+      unit_of_measurement: "°F"
+      state_class: measurement
+
+    - name: "Bedroom Humidity"
+      unique_id: "demo_sensor_bedroom_humidity"
+      state_topic: "home/sensor/bedroom_humidity/state"
+      device_class: humidity
+      unit_of_measurement: "%"
+      state_class: measurement
+
+    - name: "Kitchen Temperature"
+      unique_id: "demo_sensor_kitchen_temperature"
+      state_topic: "home/sensor/kitchen_temperature/state"
+      device_class: temperature
+      unit_of_measurement: "°F"
+      state_class: measurement
+
+    - name: "Kitchen Humidity"
+      unique_id: "demo_sensor_kitchen_humidity"
+      state_topic: "home/sensor/kitchen_humidity/state"
+      device_class: humidity
+      unit_of_measurement: "%"
+      state_class: measurement
+
+    - name: "Living Room Temperature"
+      unique_id: "demo_sensor_living_room_temperature"
+      state_topic: "home/sensor/living_room_temperature/state"
+      device_class: temperature
+      unit_of_measurement: "°F"
+      state_class: measurement
+
+    - name: "Living Room Humidity"
+      unique_id: "demo_sensor_living_room_humidity"
+      state_topic: "home/sensor/living_room_humidity/state"
+      device_class: humidity
+      unit_of_measurement: "%"
+      state_class: measurement
+
+    - name: "Bathroom Temperature"
+      unique_id: "demo_sensor_bathroom_temperature"
+      state_topic: "home/sensor/bathroom_temperature/state"
+      device_class: temperature
+      unit_of_measurement: "°F"
+      state_class: measurement
+
+    - name: "Bathroom Humidity"
+      unique_id: "demo_sensor_bathroom_humidity"
+      state_topic: "home/sensor/bathroom_humidity/state"
+      device_class: humidity
+      unit_of_measurement: "%"
+      state_class: measurement
+
+    - name: "Entryway Temperature"
+      unique_id: "demo_sensor_entryway_temperature"
+      state_topic: "home/sensor/entryway_temperature/state"
+      device_class: temperature
+      unit_of_measurement: "°F"
+      state_class: measurement
+
+    - name: "Exterior Temperature"
+      unique_id: "demo_sensor_exterior_temperature"
+      state_topic: "home/sensor/exterior_temperature/state"
+      device_class: temperature
+      unit_of_measurement: "°F"
+      state_class: measurement
+
+    - name: "Exterior Humidity"
+      unique_id: "demo_sensor_exterior_humidity"
+      state_topic: "home/sensor/exterior_humidity/state"
+      device_class: humidity
+      unit_of_measurement: "%"
+      state_class: measurement
+
+    - name: "Power Consumption"
+      unique_id: "demo_sensor_power_consumption"
+      state_topic: "home/sensor/power_consumption/state"
+      device_class: power
+      unit_of_measurement: "W"
+      state_class: measurement
+
+    - name: "Voltage"
+      unique_id: "demo_sensor_voltage"
+      state_topic: "home/sensor/voltage/state"
+      device_class: voltage
+      unit_of_measurement: "V"
+      state_class: measurement
+
+    - name: "Current"
+      unique_id: "demo_sensor_current"
+      state_topic: "home/sensor/current/state"
+      device_class: current
+      unit_of_measurement: "A"
+      state_class: measurement
+
+# ─── TEMPLATE ENTITIES ──────────────────────────────────────
+# Bedside button fires an event when pressed. Scenario driver triggers
+# goodnight by: POST /api/events/bedside_button_pressed
+template:
+  - button:
+      - name: "Bedside Button"
+        unique_id: "demo_button_bedside"
+        press:
+          - event: bedside_button_pressed

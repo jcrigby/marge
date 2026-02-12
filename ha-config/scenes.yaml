@@ -1,0 +1,45 @@
+# MARGE Demo — Scene Definitions
+
+# ─── Evening Scene ───────────────────────────────────────
+# Applied at sunset: warm living room ambiance
+- id: evening
+  name: "Evening"
+  entities:
+    light.living_room_main:
+      state: "on"
+      brightness: 180
+    light.living_room_accent:
+      state: "on"
+      brightness: 120
+    light.living_room_lamp:
+      state: "on"
+      brightness: 150
+    light.living_room_floor:
+      state: "on"
+      brightness: 80
+
+# ─── Goodnight Scene ────────────────────────────────────
+# All lights off, everything secured
+# NOTE: The goodnight AUTOMATION handles locks/alarm/thermostat.
+# This scene only covers the light states for scene.turn_on calls.
+- id: goodnight
+  name: "Goodnight"
+  entities:
+    light.bedroom:
+      state: "off"
+    light.bathroom:
+      state: "off"
+    light.kitchen:
+      state: "off"
+    light.living_room_main:
+      state: "off"
+    light.living_room_accent:
+      state: "off"
+    light.living_room_lamp:
+      state: "off"
+    light.living_room_floor:
+      state: "off"
+    light.porch:
+      state: "off"
+    light.pathway:
+      state: "off"

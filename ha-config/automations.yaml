@@ -1,0 +1,208 @@
+# MARGE Demo — Automations
+# These 6 automations drive the Day in the Life scenario.
+#
+# How triggers work in the demo:
+#   - State triggers: fire naturally when scenario driver updates entity state
+#   - Time/Sun triggers: scenario driver force-triggers via POST /api/services/automation/trigger
+#     (HA's wall clock won't match sim-time at 10x speed)
+#   - For Marge: all triggers evaluate against sim-time natively
+
+# ─── 1. Morning Wake-Up ─────────────────────────────────
+# 05:30 — Bedroom lights ramp up, thermostat to day mode, coffee on
+- id: morning_wakeup
+  alias: "Morning Wake-Up"
+  description: "Dawn automation: lights, heat, coffee"
+  mode: single
+  triggers:
+    - trigger: time
+      at: "05:30:00"
+  actions:
+    - action: light.turn_on
+      target:
+        entity_id: light.bedroom
+      data:
+        brightness: 51
+        color_temp: 400
+    - action: climate.set_temperature
+      target:
+        entity_id: climate.thermostat
+      data:
+        temperature: 70
+    - action: switch.turn_on
+      target:
+        entity_id: switch.coffee_maker
+
+# ─── 2. Security Alert ──────────────────────────────────
+# Motion in entryway while alarm is armed_away → alert
+# At 06:15 alarm is armed_home so this should NOT fire
+- id: security_alert
+  alias: "Security Alert — Motion While Armed Away"
+  description: "Alert on entryway motion when armed_away"
+  mode: single
+  triggers:
+    - trigger: state
+      entity_id: binary_sensor.entryway_motion
+      to: "on"
+  conditions:
+    - condition: state
+      entity_id: alarm_control_panel.home
+      state: "armed_away"
+  actions:
+    - action: persistent_notification.create
+      data:
+        title: "🚨 Security Alert"
+        message: "Motion detected in entryway while armed away!"
+        notification_id: "security_motion_alert"
+
+# ─── 3. Sunset Lights ───────────────────────────────────
+# Sunset → exterior lights on, evening scene activated
+- id: sunset_lights
+  alias: "Sunset — Exterior and Evening Scene"
+  description: "Turn on exterior lights and living room evening scene at sunset"
+  mode: single
+  triggers:
+    - trigger: sun
+      event: sunset
+  actions:
+    - action: light.turn_on
+      target:
+        entity_id:
+          - light.porch
+          - light.pathway
+    - action: light.turn_on
+      target:
+        entity_id: light.living_room_main
+      data:
+        brightness: 180
+    - action: light.turn_on
+      target:
+        entity_id: light.living_room_accent
+      data:
+        brightness: 120
+    - action: light.turn_on
+      target:
+        entity_id: light.living_room_lamp
+      data:
+        brightness: 150
+    - action: light.turn_on
+      target:
+        entity_id: light.living_room_floor
+      data:
+        brightness: 80
+
+# ─── 4. Goodnight Routine ───────────────────────────────
+# Bedside button → all lights off, doors locked, thermostat night, alarm night
+# NOTE: In HA, the template button fires event "bedside_button_pressed"
+# For the demo, the scenario driver triggers this via state change on
+# a helper entity or via POST /api/services/automation/trigger
+- id: goodnight_routine
+  alias: "Goodnight Routine"
+  description: "Secure the house for the night"
+  mode: single
+  triggers:
+    # Trigger on bedside button event
+    - trigger: event
+      event_type: bedside_button_pressed
+  actions:
+    # All lights off
+    - action: light.turn_off
+      target:
+        entity_id:
+          - light.bedroom
+          - light.bathroom
+          - light.kitchen
+          - light.living_room_main
+          - light.living_room_accent
+          - light.living_room_lamp
+          - light.living_room_floor
+          - light.porch
+          - light.pathway
+    # Lock doors
+    - action: lock.lock
+      target:
+        entity_id:
+          - lock.front_door
+          - lock.back_door
+    # Thermostat to night mode
+    - action: climate.set_temperature
+      target:
+        entity_id: climate.thermostat
+      data:
+        temperature: 66
+    # Arm alarm for night
+    - action: alarm_control_panel.arm_night
+      target:
+        entity_id: alarm_control_panel.home
+    # Coffee maker off (safety)
+    - action: switch.turn_off
+      target:
+        entity_id: switch.coffee_maker
+
+# ─── 5. Lock Verification ───────────────────────────────
+# After alarm set to armed_night, verify all locks
+# If any lock is unlocked → notification
+- id: lock_verification
+  alias: "Lock Verification After Goodnight"
+  description: "Check all locks when alarm goes to night mode"
+  mode: single
+  triggers:
+    - trigger: state
+      entity_id: alarm_control_panel.home
+      to: "armed_night"
+  conditions:
+    - condition: or
+      conditions:
+        - condition: state
+          entity_id: lock.front_door
+          state: "unlocked"
+        - condition: state
+          entity_id: lock.back_door
+          state: "unlocked"
+  actions:
+    - action: persistent_notification.create
+      data:
+        title: "🔓 Lock Alert"
+        message: "A door is still unlocked after Goodnight routine!"
+        notification_id: "lock_verification_alert"
+
+# ─── 6. Smoke/CO Emergency ──────────────────────────────
+# Bonus automation: smoke or CO detected → all lights on, unlock doors
+# Not in original Day in the Life (no fire happens) but demonstrates
+# the safety-critical path
+- id: smoke_co_emergency
+  alias: "Smoke/CO Emergency Response"
+  description: "Emergency: all lights on, unlock doors for evacuation"
+  mode: single
+  triggers:
+    - trigger: state
+      entity_id: binary_sensor.smoke_detector
+      to: "on"
+    - trigger: state
+      entity_id: binary_sensor.co_detector
+      to: "on"
+  actions:
+    # All lights to maximum
+    - action: light.turn_on
+      target:
+        entity_id:
+          - light.bedroom
+          - light.bathroom
+          - light.kitchen
+          - light.living_room_main
+          - light.living_room_accent
+          - light.living_room_lamp
+          - light.living_room_floor
+          - light.porch
+          - light.pathway
+      data:
+        brightness: 255
+    # Unlock all doors for evacuation
+    - action: lock.unlock
+      target:
+        entity_id:
+          - lock.front_door
+          - lock.back_door
+    # Disarm alarm (let them get out)
+    - action: alarm_control_panel.disarm
+      target:
+        entity_id: alarm_control_panel.home
