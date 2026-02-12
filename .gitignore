@@ -28,3 +28,6 @@ ha-config/custom_components/
 # OS
 .DS_Store
 Thumbs.db
+ha-config/.ha_token
+ha-config/home-assistant.log*
+ha-config/blueprints/
