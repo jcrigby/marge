@@ -67,6 +67,7 @@ services:
     container_name: marge-demo-driver
     volumes:
       - ./scenario.json:/app/scenario.json:ro
+      - ./ha-config/.ha_token:/app/.ha_token:ro
     environment:
       - HA_URL=http://ha-legacy:8123
       - MARGE_URL=http://marge:8124

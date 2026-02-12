@@ -1,4 +1,4 @@
-FROM rust:1.83-slim-bookworm AS builder
+FROM rust:1.93-slim-bookworm AS builder
 WORKDIR /build
 
 # Copy manifest first for layer caching
