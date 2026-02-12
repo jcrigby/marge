@@ -166,3 +166,32 @@ async def test_sim_time_endpoint():
     assert h["sim_time"] == "17:32:00"
     assert h["sim_chapter"] == "sunset"
     assert h["sim_speed"] == 10
+
+
+@pytest.mark.asyncio
+async def test_startup_time_recorded():
+    """Health endpoint should report non-zero startup time."""
+    h = await get_health()
+    assert "startup_us" in h
+    assert "startup_ms" in h
+    assert h["startup_us"] > 0, "Startup time should be recorded"
+    assert h["startup_ms"] < 5000, f"Startup {h['startup_ms']} ms seems too slow"
+    print(f"\n  Startup: {h['startup_us']} µs ({h['startup_ms']:.2f} ms)")
+
+
+@pytest.mark.asyncio
+async def test_state_survives_rapid_updates():
+    """State machine should handle rapid updates to same entity without corruption."""
+    entity = "sensor.rapid_test"
+    n = 1000
+    async with httpx.AsyncClient() as c:
+        for i in range(n):
+            await c.post(f"{BASE}/api/states/{entity}",
+                         json={"state": str(i)}, headers=HEADERS)
+
+        r = await c.get(f"{BASE}/api/states/{entity}", headers=HEADERS)
+        assert r.status_code == 200
+        final = r.json()
+
+    assert final["state"] == str(n - 1), \
+        f"Expected state '{n-1}' after {n} rapid updates, got '{final['state']}'"
