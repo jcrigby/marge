@@ -105,3 +105,17 @@ async def test_scene_preserves_unrelated_entities():
     bed = await get_state("light.bedroom")
     assert bed["state"] == "on"
     assert bed["attributes"]["brightness"] == 200
+
+
+@pytest.mark.asyncio
+async def test_evening_scene_applies_rgb_color():
+    """scene.turn_on for evening should set rgb_color on accent light."""
+    await set_state("light.living_room_accent", "off")
+    await asyncio.sleep(0.1)
+
+    await call_service("scene", "turn_on", {"entity_id": "scene.evening"})
+    await asyncio.sleep(0.1)
+
+    accent = await get_state("light.living_room_accent")
+    assert accent["state"] == "on"
+    assert accent["attributes"]["rgb_color"] == [255, 147, 41]
