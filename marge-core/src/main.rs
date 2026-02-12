@@ -1,5 +1,6 @@
 mod api;
 mod automation;
+mod mqtt;
 mod scene;
 mod state;
 mod websocket;
@@ -111,6 +112,21 @@ async fn main() -> anyhow::Result<()> {
                 }
             }
         });
+    }
+
+    // Start embedded MQTT broker
+    let mqtt_port: u16 = std::env::var("MARGE_MQTT_PORT")
+        .ok()
+        .and_then(|p| p.parse().ok())
+        .unwrap_or(1884);
+
+    match mqtt::start_mqtt(app_state.clone(), mqtt_port) {
+        Ok((_broker_handle, _subscriber_handle)) => {
+            tracing::info!("Embedded MQTT broker on port {}", mqtt_port);
+        }
+        Err(e) => {
+            tracing::warn!("Failed to start MQTT broker: {} — running without MQTT", e);
+        }
     }
 
     // Build combined router: REST API + WebSocket
