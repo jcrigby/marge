@@ -17,6 +17,9 @@
     light.living_room_floor:
       state: "on"
       brightness: 80
+    media_player.living_room:
+      state: "on"
+      source: "Music"
 
 # ─── Goodnight Scene ────────────────────────────────────
 # All lights off, everything secured

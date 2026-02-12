@@ -154,7 +154,7 @@ async fn set_state(
 async fn fire_event(
     State(rs): State<RouterState>,
     Path(event_type): Path<String>,
-    body: Option<Json<serde_json::Value>>,
+    _body: Option<Json<serde_json::Value>>,
 ) -> Json<EventResponse> {
     tracing::info!(event_type = %event_type, "Event fired");
 

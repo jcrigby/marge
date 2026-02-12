@@ -9,6 +9,7 @@ use crate::state::StateChangedEvent;
 // ── YAML Deserialization Structs ─────────────────────────
 
 #[derive(Debug, Clone, Deserialize)]
+#[allow(dead_code)]
 pub struct Automation {
     pub id: String,
     #[serde(default)]
@@ -31,6 +32,7 @@ fn default_mode() -> String {
 
 #[derive(Debug, Clone, Deserialize)]
 #[serde(tag = "trigger")]
+#[allow(dead_code)]
 pub enum Trigger {
     #[serde(rename = "state")]
     State {
