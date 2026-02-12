@@ -947,6 +947,13 @@
           "timeout_ms": 5000
         },
         {
+          "offset_ms": 420300,
+          "type": "verify",
+          "entity_id": "media_player.living_room",
+          "expected_state": "on",
+          "timeout_ms": 5000
+        },
+        {
           "offset_ms": 480000,
           "type": "state",
           "entity_id": "binary_sensor.living_room_motion",
@@ -1141,6 +1148,20 @@
           "type": "verify",
           "entity_id": "alarm_control_panel.home",
           "expected_state": "armed_night",
+          "timeout_ms": 5000
+        },
+        {
+          "offset_ms": 301000,
+          "type": "verify",
+          "entity_id": "media_player.living_room",
+          "expected_state": "off",
+          "timeout_ms": 5000
+        },
+        {
+          "offset_ms": 301100,
+          "type": "verify",
+          "entity_id": "switch.coffee_maker",
+          "expected_state": "off",
           "timeout_ms": 5000
         },
         {
