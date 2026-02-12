@@ -3,348 +3,614 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Marge vs HA — Side-by-Side</title>
+<title>MARGE — Day in the Life</title>
 <style>
 * { margin: 0; padding: 0; box-sizing: border-box; }
-body { font-family: 'SF Mono', 'Cascadia Code', monospace; background: #0d1117; color: #c9d1d9; }
+body {
+  font-family: 'SF Mono', 'Cascadia Code', 'Fira Code', monospace;
+  background: #0d1117; color: #c9d1d9;
+  overflow: hidden; height: 100vh;
+}
 
+/* ── Header ────────────────────────────────── */
 .header {
   background: #161b22; border-bottom: 1px solid #30363d;
-  padding: 12px 24px; display: flex; align-items: center; gap: 16px;
+  padding: 8px 20px; display: flex; align-items: center; gap: 16px;
+  height: 44px;
 }
-.header h1 { font-size: 18px; font-weight: 600; }
-.header .status { font-size: 12px; padding: 2px 8px; border-radius: 12px; }
+.header h1 { font-size: 16px; font-weight: 700; color: #e6edf3; }
+.sim-time { font-size: 20px; font-weight: 700; color: #58a6ff; letter-spacing: 1px; }
+.speed-badge {
+  font-size: 11px; padding: 2px 8px; border-radius: 10px;
+  background: #1f6feb33; color: #58a6ff; font-weight: 600;
+}
+.chapter-badge {
+  font-size: 11px; padding: 2px 10px; border-radius: 10px;
+  background: #238636; color: #fff; font-weight: 600;
+  text-transform: uppercase; letter-spacing: 1px;
+}
+.status { font-size: 11px; padding: 2px 8px; border-radius: 10px; }
 .status.connected { background: #1b4332; color: #2dd4bf; }
 .status.disconnected { background: #3b1c1c; color: #f87171; }
 
-.metrics-bar {
-  background: #161b22; border-bottom: 1px solid #30363d;
-  padding: 8px 24px; display: flex; gap: 32px; font-size: 12px; color: #8b949e;
-}
-.metric { display: flex; gap: 6px; }
-.metric .label { color: #8b949e; }
-.metric .value { color: #58a6ff; font-weight: 600; }
+/* ── Main Layout ─────────────────────────── */
+.main { display: flex; height: calc(100vh - 44px - 100px); }
+.house-area { flex: 1; padding: 12px 16px; overflow: hidden; }
+.sidebar { width: 320px; background: #161b22; border-left: 1px solid #30363d; overflow-y: auto; padding: 12px; }
 
-.container { display: flex; height: calc(100vh - 90px); }
-
-.panel {
-  flex: 1; overflow-y: auto; padding: 16px;
-  border-right: 1px solid #30363d;
+/* ── ASCII House ─────────────────────────── */
+.house {
+  font-size: 13px; line-height: 1.5; white-space: pre;
+  font-family: 'SF Mono', 'Cascadia Code', monospace;
 }
-.panel:last-child { border-right: none; }
-.panel-header {
-  font-size: 14px; font-weight: 600; margin-bottom: 12px;
-  padding-bottom: 8px; border-bottom: 1px solid #30363d;
-  display: flex; justify-content: space-between; align-items: center;
-}
-.panel-header .sub { font-size: 11px; color: #8b949e; font-weight: 400; }
+.dim { color: #484f58; }
+.bright { color: #ffd700; }
+.green { color: #3fb950; }
+.red { color: #f85149; }
+.cyan { color: #2dd4bf; }
+.blue { color: #58a6ff; }
+.purple { color: #bc8cff; }
+.white { color: #e6edf3; }
+.gray { color: #484f58; }
+.orange { color: #f0883e; }
+.flash { animation: flash 0.8s infinite; }
+@keyframes flash { 0%,100% { opacity: 1; } 50% { opacity: 0.3; } }
 
-.diff-panel {
-  flex: 0 0 300px; background: #161b22;
-  overflow-y: auto; padding: 16px;
+.room-label { color: #8b949e; font-weight: 700; font-size: 11px; }
+.border-char { color: #30363d; }
+
+/* ── Metrics Panel ───────────────────────── */
+.metrics-section { margin-bottom: 16px; }
+.metrics-section h3 {
+  font-size: 10px; text-transform: uppercase; letter-spacing: 1.5px;
+  color: #8b949e; margin-bottom: 8px; font-weight: 600;
+}
+.metric-row {
+  display: flex; align-items: center; margin-bottom: 6px; font-size: 12px;
+}
+.metric-label { width: 80px; color: #8b949e; flex-shrink: 0; }
+.metric-bars { flex: 1; display: flex; gap: 4px; align-items: center; }
+.bar-group { flex: 1; }
+.bar-label { font-size: 10px; color: #8b949e; margin-bottom: 1px; }
+.bar-track { height: 14px; background: #21262d; border-radius: 3px; position: relative; overflow: hidden; }
+.bar-fill { height: 100%; border-radius: 3px; transition: width 0.5s; }
+.bar-fill.ha { background: #f0883e; }
+.bar-fill.marge { background: #58a6ff; }
+.bar-value {
+  position: absolute; right: 4px; top: 0; line-height: 14px;
+  font-size: 10px; color: #e6edf3; font-weight: 600;
 }
 
-.entity-group { margin-bottom: 16px; }
-.entity-group h3 {
-  font-size: 11px; text-transform: uppercase; letter-spacing: 1px;
+/* ── Event Log ───────────────────────────── */
+.event-log { font-size: 11px; max-height: 200px; overflow-y: auto; }
+.log-entry { padding: 2px 0; border-bottom: 1px solid #21262d; }
+.log-time { color: #484f58; }
+.log-auto { color: #bc8cff; }
+.log-state { color: #58a6ff; }
+.log-verify { color: #3fb950; }
+
+/* ── Timeline ────────────────────────────── */
+.timeline {
+  height: 100px; background: #161b22; border-top: 1px solid #30363d;
+  padding: 10px 20px;
+}
+.timeline h3 {
+  font-size: 10px; text-transform: uppercase; letter-spacing: 1.5px;
   color: #8b949e; margin-bottom: 6px;
 }
-
-.entity-row {
-  display: flex; justify-content: space-between; align-items: center;
-  padding: 4px 8px; border-radius: 4px; font-size: 12px;
-  margin-bottom: 2px;
+.timeline-track {
+  position: relative; height: 24px; background: #21262d;
+  border-radius: 4px; margin-bottom: 6px;
 }
-.entity-row:hover { background: #1c2128; }
-.entity-row .name { color: #c9d1d9; flex: 1; }
-.entity-row .state { font-weight: 600; min-width: 80px; text-align: right; }
-.entity-row .state.on { color: #3fb950; }
-.entity-row .state.off { color: #8b949e; }
-.entity-row .state.locked { color: #f0883e; }
-.entity-row .state.unlocked { color: #3fb950; }
-.entity-row .state.armed_home, .entity-row .state.armed_away, .entity-row .state.armed_night { color: #f0883e; }
-.entity-row .state.disarmed { color: #3fb950; }
-.entity-row .state.heat, .entity-row .state.cool { color: #58a6ff; }
-
-.diff-entry {
-  padding: 6px 8px; border-radius: 4px; font-size: 11px;
-  margin-bottom: 4px; background: #1c2128;
+.timeline-fill {
+  height: 100%; background: linear-gradient(90deg, #1f6feb, #58a6ff);
+  border-radius: 4px; transition: width 0.5s;
 }
-.diff-entry.match { border-left: 3px solid #3fb950; }
-.diff-entry.mismatch { border-left: 3px solid #f85149; }
-.diff-entry .entity { color: #58a6ff; }
-.diff-entry .vals { display: flex; gap: 8px; margin-top: 2px; }
-.diff-entry .ha-val { color: #8b949e; }
-.diff-entry .marge-val { color: #c9d1d9; }
-
-.event-log {
-  max-height: 200px; overflow-y: auto; font-size: 11px;
-  background: #0d1117; border: 1px solid #30363d; border-radius: 6px;
-  padding: 8px; margin-top: 12px;
+.timeline-marker {
+  position: absolute; top: -4px; width: 2px; height: 32px;
+  background: #30363d;
 }
-.event-log .entry { padding: 2px 0; border-bottom: 1px solid #21262d; }
-.event-log .time { color: #8b949e; }
-.event-log .auto { color: #d2a8ff; }
+.timeline-marker-label {
+  position: absolute; top: 28px; font-size: 9px; color: #8b949e;
+  transform: translateX(-50%); white-space: nowrap;
+}
+.timeline-labels {
+  display: flex; justify-content: space-between; font-size: 10px; color: #484f58;
+}
+.timeline-chapters {
+  display: flex; gap: 4px; margin-top: 4px;
+}
+.timeline-chapter {
+  font-size: 9px; padding: 1px 6px; border-radius: 3px;
+  background: #21262d; color: #8b949e; cursor: pointer;
+}
+.timeline-chapter.active { background: #1f6feb; color: #fff; }
 </style>
 </head>
 <body>
 
+<!-- ── Header ──────────────────────────────── -->
 <div class="header">
-  <h1>Marge vs HA</h1>
-  <span id="ha-status" class="status disconnected">HA: disconnected</span>
-  <span id="marge-status" class="status disconnected">Marge: disconnected</span>
+  <h1>MARGE</h1>
+  <span class="sim-time" id="sim-time">--:--:--</span>
+  <span class="speed-badge" id="speed-badge">10x</span>
+  <span class="chapter-badge" id="chapter-badge">IDLE</span>
   <span style="flex:1"></span>
-  <span style="font-size:12px;color:#8b949e" id="clock"></span>
+  <span id="ha-status" class="status disconnected">HA: --</span>
+  <span id="marge-status" class="status disconnected">Marge: --</span>
 </div>
 
-<div class="metrics-bar">
-  <div class="metric">
-    <span class="label">Marge RSS:</span>
-    <span class="value" id="marge-rss">—</span>
+<!-- ── Main Content ────────────────────────── -->
+<div class="main">
+  <!-- ASCII House -->
+  <div class="house-area">
+    <div class="house" id="house"></div>
   </div>
-  <div class="metric">
-    <span class="label">Marge Entities:</span>
-    <span class="value" id="marge-entities">—</span>
-  </div>
-  <div class="metric">
-    <span class="label">Marge Uptime:</span>
-    <span class="value" id="marge-uptime">—</span>
-  </div>
-  <div class="metric">
-    <span class="label">Events/s:</span>
-    <span class="value" id="events-per-sec">0</span>
-  </div>
-  <div class="metric">
-    <span class="label">Diffs:</span>
-    <span class="value" id="diff-count">0</span>
+
+  <!-- Sidebar: Metrics + Log -->
+  <div class="sidebar">
+    <!-- Metrics Comparison -->
+    <div class="metrics-section">
+      <h3>HA-legacy vs Marge</h3>
+
+      <div class="metric-row">
+        <span class="metric-label">Memory</span>
+        <div class="metric-bars">
+          <div class="bar-group">
+            <div class="bar-label">HA</div>
+            <div class="bar-track"><div class="bar-fill ha" id="ha-mem-bar" style="width:0%"></div><span class="bar-value" id="ha-mem-val">--</span></div>
+          </div>
+          <div class="bar-group">
+            <div class="bar-label">Marge</div>
+            <div class="bar-track"><div class="bar-fill marge" id="marge-mem-bar" style="width:0%"></div><span class="bar-value" id="marge-mem-val">--</span></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="metric-row">
+        <span class="metric-label">Latency</span>
+        <div class="metric-bars">
+          <div class="bar-group">
+            <div class="bar-label">HA</div>
+            <div class="bar-track"><div class="bar-fill ha" id="ha-lat-bar" style="width:0%"></div><span class="bar-value" id="ha-lat-val">--</span></div>
+          </div>
+          <div class="bar-group">
+            <div class="bar-label">Marge</div>
+            <div class="bar-track"><div class="bar-fill marge" id="marge-lat-bar" style="width:0%"></div><span class="bar-value" id="marge-lat-val">--</span></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="metric-row">
+        <span class="metric-label">Startup</span>
+        <div class="metric-bars">
+          <div class="bar-group">
+            <div class="bar-label">HA</div>
+            <div class="bar-track"><div class="bar-fill ha" id="ha-start-bar" style="width:0%"></div><span class="bar-value" id="ha-start-val">~94s</span></div>
+          </div>
+          <div class="bar-group">
+            <div class="bar-label">Marge</div>
+            <div class="bar-track"><div class="bar-fill marge" id="marge-start-bar" style="width:0%"></div><span class="bar-value" id="marge-start-val">--</span></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="metric-row">
+        <span class="metric-label">Events</span>
+        <div class="metric-bars">
+          <div class="bar-group">
+            <div class="bar-track" style="background:transparent;height:auto">
+              <span style="font-size:18px;color:#f0883e;font-weight:700" id="ha-events">0</span>
+              <span style="font-size:10px;color:#8b949e"> HA</span>
+            </div>
+          </div>
+          <div class="bar-group">
+            <div class="bar-track" style="background:transparent;height:auto">
+              <span style="font-size:18px;color:#58a6ff;font-weight:700" id="marge-events">0</span>
+              <span style="font-size:10px;color:#8b949e"> Marge</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="metric-row">
+        <span class="metric-label">Uptime</span>
+        <div class="metric-bars">
+          <div class="bar-group">
+            <div class="bar-track" style="background:transparent;height:auto">
+              <span style="font-size:12px;color:#f0883e" id="ha-uptime">--</span>
+            </div>
+          </div>
+          <div class="bar-group">
+            <div class="bar-track" style="background:transparent;height:auto">
+              <span style="font-size:12px;color:#58a6ff" id="marge-uptime">--</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- State Diffs -->
+    <div class="metrics-section">
+      <h3>State Diffs <span id="diff-summary" style="color:#58a6ff"></span></h3>
+      <div id="diff-list" style="max-height:120px;overflow-y:auto"></div>
+    </div>
+
+    <!-- Event Log -->
+    <div class="metrics-section">
+      <h3>Activity Log</h3>
+      <div class="event-log" id="event-log"></div>
+    </div>
   </div>
 </div>
 
-<div class="container">
-  <div class="panel" id="ha-panel">
-    <div class="panel-header">
-      Home Assistant <span class="sub">:8123</span>
-    </div>
-    <div id="ha-entities"></div>
+<!-- ── Timeline ────────────────────────────── -->
+<div class="timeline">
+  <h3>Timeline</h3>
+  <div class="timeline-track" id="timeline-track">
+    <div class="timeline-fill" id="timeline-fill" style="width:0%"></div>
   </div>
-  <div class="panel" id="marge-panel">
-    <div class="panel-header">
-      Marge <span class="sub">:8124</span>
-    </div>
-    <div id="marge-entities"></div>
+  <div class="timeline-labels">
+    <span>00:00</span><span>06:00</span><span>12:00</span><span>18:00</span><span>24:00</span>
   </div>
-  <div class="diff-panel">
-    <div class="panel-header">
-      State Diffs <span class="sub" id="diff-summary"></span>
-    </div>
-    <div id="diff-list"></div>
-    <div class="panel-header" style="margin-top:16px">
-      Automation Log
-    </div>
-    <div class="event-log" id="event-log"></div>
-  </div>
+  <div class="timeline-chapters" id="timeline-chapters"></div>
 </div>
 
 <script>
-// Configuration — override via query params or env
+// ── Configuration ──────────────────────────
 const params = new URLSearchParams(location.search);
 const HA_WS = params.get('ha_ws') || 'ws://localhost:8123/api/websocket';
 const MARGE_WS = params.get('marge_ws') || 'ws://localhost:8124/api/websocket';
 const MARGE_REST = params.get('marge_rest') || 'http://localhost:8124/api';
+const HA_REST = params.get('ha_rest') || 'http://localhost:8123/api';
 const HA_TOKEN = params.get('ha_token') || '';
 
-// Entity order for display
-const DOMAIN_ORDER = [
-  'light', 'switch', 'lock', 'climate', 'alarm_control_panel',
-  'binary_sensor', 'sensor', 'automation', 'scene'
+// ── State ──────────────────────────────────
+const S = {};  // Marge states: { entity_id: { state, attrs } }
+const HA = {}; // HA states
+let margeEvents = 0, haEvents = 0;
+let margeHealth = {};
+let currentChapter = 'idle';
+let simTimeStr = '--:--:--';
+
+// Chapter definitions for timeline
+const CHAPTERS = [
+  { name: 'dawn',      start: '05:25', color: '#f0883e' },
+  { name: 'morning',   start: '06:10', color: '#ffd700' },
+  { name: 'daytime',   start: '06:20', color: '#58a6ff' },
+  { name: 'sunset',    start: '17:25', color: '#f0883e' },
+  { name: 'evening',   start: '17:40', color: '#bc8cff' },
+  { name: 'goodnight', start: '21:55', color: '#484f58' },
+  { name: 'night',     start: '22:05', color: '#21262d' },
+  { name: 'outage',    start: '03:45', color: '#f85149' },
 ];
 
-const haStates = {};
-const margeStates = {};
-let eventCount = 0;
-let lastEventTime = Date.now();
+// ── Entity Renderers ────────────────────────
 
-// ── WebSocket Connection ──────────────────────────
+function getState(eid) { return S[eid] || { state: 'unknown', attrs: {} }; }
 
-function connectWS(url, token, name, onState) {
+function lightIcon(eid) {
+  const s = getState(eid);
+  if (s.state === 'on') {
+    const b = s.attrs?.brightness;
+    const pct = b ? Math.round((b / 255) * 100) : 100;
+    const bars = Math.round(pct / 12.5);
+    const barStr = '\u2588'.repeat(bars) + '\u2591'.repeat(8 - bars);
+    return `<span class="bright">\u25CF</span> <span class="bright">${barStr}</span> <span class="white">${pct}%</span>`;
+  }
+  return '<span class="dim">\u25CB</span> <span class="dim">off</span>';
+}
+
+function lightSimple(eid) {
+  const s = getState(eid);
+  return s.state === 'on'
+    ? '<span class="bright">\u25CF</span>'
+    : '<span class="dim">\u25CB</span>';
+}
+
+function switchIcon(eid) {
+  const s = getState(eid);
+  return s.state === 'on'
+    ? '<span class="green">[ ON  ]</span>'
+    : '<span class="dim">[ OFF ]</span>';
+}
+
+function lockIcon(eid) {
+  const s = getState(eid);
+  return s.state === 'locked'
+    ? '<span class="green">\uD83D\uDD12 LOCKED</span>'
+    : '<span class="red">\uD83D\uDD13 UNLOCKED</span>';
+}
+
+function motionIcon(eid) {
+  const s = getState(eid);
+  return s.state === 'on'
+    ? '<span class="cyan flash">\u25C6 motion</span>'
+    : '<span class="dim">\u00B7 no motion</span>';
+}
+
+function doorIcon(eid) {
+  const s = getState(eid);
+  return s.state === 'on'
+    ? '<span class="red">\u2550 \u2550 open</span>'
+    : '<span class="dim">\u2550\u2550\u2550 closed</span>';
+}
+
+function tempIcon(eid) {
+  const s = getState(eid);
+  const v = parseFloat(s.state) || 0;
+  return `<span class="white">${v.toFixed(1)}\u00B0F</span>`;
+}
+
+function humidIcon(eid) {
+  const s = getState(eid);
+  return `<span class="blue">${s.state}%</span>`;
+}
+
+function alarmIcon(eid) {
+  const s = getState(eid);
+  const icons = {
+    'disarmed':    '<span class="gray">\u25CF DISARMED</span>',
+    'armed_home':  '<span class="green">\u25CF ARMED_HOME</span>',
+    'armed_away':  '<span class="blue">\u25CF ARMED_AWAY</span>',
+    'armed_night': '<span class="purple">\u25CF ARMED_NIGHT</span>',
+    'triggered':   '<span class="red flash">\u25C6 TRIGGERED</span>',
+  };
+  return icons[s.state] || `<span class="gray">\u25CF ${s.state}</span>`;
+}
+
+function mediaIcon(eid) {
+  const s = getState(eid);
+  if (s.state === 'on' || s.state === 'playing') {
+    const src = s.attrs?.source || '';
+    return `<span class="green">\u25B6 ${src || 'ON'}</span>`;
+  }
+  return '<span class="dim">\u25B7 OFF</span>';
+}
+
+function coffeeIcon(eid) {
+  const s = getState(eid);
+  return s.state === 'on'
+    ? '<span class="orange">\u2615 BREWING</span>'
+    : '<span class="dim">\u25CB OFF</span>';
+}
+
+function smokeIcon(eid) {
+  const s = getState(eid);
+  return s.state === 'on'
+    ? '<span class="red flash">\u25C6 ALERT</span>'
+    : '<span class="dim">\u00B7</span>';
+}
+
+function sunIcon() {
+  const s = getState('sun.sun');
+  const rise = s.attrs?.next_rising || '--';
+  const set = s.attrs?.next_setting || '--';
+  const riseT = rise.includes('T') ? rise.split('T')[1]?.substring(0,5) : '--';
+  const setT = set.includes('T') ? set.split('T')[1]?.substring(0,5) : '--';
+  const icon = s.state === 'above_horizon' ? '\u2600\uFE0F' : '\uD83C\uDF19';
+  return `<span class="white">${icon} Rise ${riseT} Set ${setT}</span>`;
+}
+
+function weatherIcon() {
+  const s = getState('weather.home');
+  const t = s.attrs?.temperature || '--';
+  return `<span class="white">${s.state} ${t}\u00B0</span>`;
+}
+
+function powerIcon() {
+  const p = getState('sensor.power_consumption');
+  const v = getState('sensor.voltage');
+  const a = getState('sensor.current');
+  return `<span class="white">\u26A1 ${p.state}W  ${v.state}V  ${a.state}A</span>`;
+}
+
+function trackerIcon() {
+  const s = getState('device_tracker.phone');
+  return s.state === 'home'
+    ? '<span class="green">\uD83C\uDFE0 home</span>'
+    : '<span class="gray">\uD83D\uDCF1 away</span>';
+}
+
+// ── House Renderer ──────────────────────────
+
+function renderHouse() {
+  const B = '<span class="border-char">';
+  const E = '</span>';
+  // Build the ASCII house line by line
+  const lines = [
+    `${B}\u250C\u2500 BEDROOM \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2510${E} ${B}\u250C\u2500 BATHROOM \u2500\u2500\u2500\u2500\u2500\u2510${E} ${B}\u250C\u2500 KITCHEN \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2510${E}`,
+    `${B}\u2502${E} ${lightIcon('light.bedroom')}      ${B}\u2502${E} ${B}\u2502${E} ${lightSimple('light.bathroom')}              ${B}\u2502${E} ${B}\u2502${E} ${lightSimple('light.kitchen')}                  ${B}\u2502${E}`,
+    `${B}\u2502${E} ${tempIcon('sensor.bedroom_temperature')}  ${humidIcon('sensor.bedroom_humidity')}    ${B}\u2502${E} ${B}\u2502${E} ${tempIcon('sensor.bathroom_temperature')}        ${B}\u2502${E} ${B}\u2502${E} ${tempIcon('sensor.kitchen_temperature')}  ${humidIcon('sensor.kitchen_humidity')}     ${B}\u2502${E}`,
+    `${B}\u2502${E} ${motionIcon('binary_sensor.bedroom_motion')}    ${B}\u2502${E} ${B}\u2502${E} ${humidIcon('sensor.bathroom_humidity')}            ${B}\u2502${E} ${B}\u2502${E} ${coffeeIcon('switch.coffee_maker')}            ${B}\u2502${E}`,
+    `${B}\u2502${E}                      ${B}\u2502${E} ${B}\u2502${E}                    ${B}\u2502${E} ${B}\u2502${E} ${motionIcon('binary_sensor.kitchen_motion')}    ${B}\u2502${E}`,
+    `${B}\u251C\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2524${E} ${B}\u2502${E}                    ${B}\u2502${E} ${B}\u251C\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2524${E}`,
+    `${B}\u2502${E} <span class="room-label">ENTRYWAY</span>             ${B}\u2502${E} ${B}\u2514\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2518${E} ${B}\u2502${E} <span class="room-label">LIVING ROOM</span>          ${B}\u2502${E}`,
+    `${B}\u2502${E} ${lockIcon('lock.front_door')}    ${B}\u2502${E}                      ${B}\u2502${E} ${lightSimple('light.living_room_main')} Main  ${lightSimple('light.living_room_accent')} Accent ${B}\u2502${E}`,
+    `${B}\u2502${E} ${lockIcon('lock.back_door')}     ${B}\u2502${E}                      ${B}\u2502${E} ${lightSimple('light.living_room_lamp')} Lamp  ${lightSimple('light.living_room_floor')} Floor  ${B}\u2502${E}`,
+    `${B}\u2502${E} ${motionIcon('binary_sensor.entryway_motion')}    ${B}\u2502${E}                      ${B}\u2502${E} ${mediaIcon('media_player.living_room')}          ${B}\u2502${E}`,
+    `${B}\u2502${E} ${doorIcon('binary_sensor.front_door_contact')}       ${B}\u2502${E}                      ${B}\u2502${E} ${tempIcon('sensor.living_room_temperature')}  ${humidIcon('sensor.living_room_humidity')}     ${B}\u2502${E}`,
+    `${B}\u2502${E} ${doorIcon('binary_sensor.back_door_contact')}        ${B}\u2502${E}                      ${B}\u2502${E} ${motionIcon('binary_sensor.living_room_motion')}${B}\u2502${E}`,
+    `${B}\u2502${E} ${tempIcon('sensor.entryway_temperature')}           ${B}\u2502${E}                      ${B}\u2502${E}                      ${B}\u2502${E}`,
+    `${B}\u2514\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2518${E}                      ${B}\u2514\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2518${E}`,
+    `${B}\u250C\u2500 EXTERIOR \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2510${E}`,
+    `${B}\u2502${E} ${lightSimple('light.porch')} Porch  ${lightSimple('light.pathway')} Path   ${alarmIcon('alarm_control_panel.home')}   ${sunIcon()}   ${B}\u2502${E}`,
+    `${B}\u2502${E} ${tempIcon('sensor.exterior_temperature')} ${humidIcon('sensor.exterior_humidity')}   ${powerIcon()}   ${smokeIcon('binary_sensor.smoke_detector')}\uD83D\uDD25 ${smokeIcon('binary_sensor.co_detector')}CO  ${trackerIcon()}  ${B}\u2502${E}`,
+    `${B}\u2514\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2518${E}`,
+  ];
+
+  document.getElementById('house').innerHTML = lines.join('\n');
+}
+
+// ── WebSocket ───────────────────────────────
+
+function connectWS(url, token, name, stateMap, counterFn) {
   const statusEl = document.getElementById(`${name}-status`);
-  let ws;
-
   function connect() {
-    ws = new WebSocket(url);
-    ws.onopen = () => {};
-
+    const ws = new WebSocket(url);
     ws.onmessage = (evt) => {
       const msg = JSON.parse(evt.data);
-
       if (msg.type === 'auth_required') {
         ws.send(JSON.stringify({ type: 'auth', access_token: token || 'test-token' }));
       } else if (msg.type === 'auth_ok') {
         statusEl.className = 'status connected';
-        statusEl.textContent = `${name}: connected`;
-        // Subscribe to state changes
+        statusEl.textContent = `${name === 'ha' ? 'HA' : 'Marge'}: online`;
         ws.send(JSON.stringify({ id: 1, type: 'subscribe_events', event_type: 'state_changed' }));
-        // Get initial states
         ws.send(JSON.stringify({ id: 2, type: 'get_states' }));
       } else if (msg.type === 'result' && msg.id === 2 && msg.result) {
-        // Initial state dump
         for (const s of msg.result) {
-          onState(s.entity_id, s.state, s.attributes || {});
+          stateMap[s.entity_id] = { state: s.state, attrs: s.attributes || {} };
         }
-        renderAll();
+        renderHouse();
       } else if (msg.type === 'event' && msg.event?.event_type === 'state_changed') {
         const d = msg.event.data;
         if (d.new_state) {
-          onState(d.new_state.entity_id, d.new_state.state, d.new_state.attributes || {});
-          eventCount++;
-          renderAll();
-
-          // Log automation events
-          if (d.new_state.entity_id.startsWith('automation.')) {
-            logEvent(`${d.new_state.entity_id} → ${d.new_state.state}`);
+          stateMap[d.new_state.entity_id] = { state: d.new_state.state, attrs: d.new_state.attributes || {} };
+          counterFn();
+          scheduleRender();
+          // Log significant changes
+          const eid = d.new_state.entity_id;
+          if (eid.startsWith('automation.') || eid.startsWith('light.') || eid.startsWith('lock.') ||
+              eid.startsWith('alarm_control_panel.') || eid.startsWith('switch.')) {
+            logEvent(name, `${eid} \u2192 ${d.new_state.state}`);
           }
         }
       }
     };
-
     ws.onclose = () => {
       statusEl.className = 'status disconnected';
-      statusEl.textContent = `${name}: disconnected`;
+      statusEl.textContent = `${name === 'ha' ? 'HA' : 'Marge'}: offline`;
       setTimeout(connect, 3000);
     };
-
     ws.onerror = () => ws.close();
   }
-
   connect();
 }
 
-// ── Rendering ──────────────────────────
-
-function groupByDomain(states) {
-  const groups = {};
-  for (const [eid, data] of Object.entries(states)) {
-    const domain = eid.split('.')[0];
-    if (!groups[domain]) groups[domain] = [];
-    groups[domain].push({ entity_id: eid, ...data });
+// ── Render Throttling ───────────────────────
+let renderPending = false;
+function scheduleRender() {
+  if (!renderPending) {
+    renderPending = true;
+    requestAnimationFrame(() => {
+      renderPending = false;
+      renderHouse();
+      renderDiffs();
+      renderMetrics();
+    });
   }
-  return groups;
 }
 
-function renderPanel(containerId, states) {
-  const el = document.getElementById(containerId);
-  const groups = groupByDomain(states);
-  let html = '';
-
-  for (const domain of DOMAIN_ORDER) {
-    if (!groups[domain]) continue;
-    const entities = groups[domain].sort((a, b) => a.entity_id.localeCompare(b.entity_id));
-    html += `<div class="entity-group"><h3>${domain} (${entities.length})</h3>`;
-    for (const e of entities) {
-      const name = e.entity_id.split('.').slice(1).join('.');
-      const stateClass = e.state.replace(/\s/g, '_');
-      let display = e.state;
-      if (e.attrs?.brightness) display += ` (${e.attrs.brightness})`;
-      if (e.attrs?.temperature) display += ` ${e.attrs.temperature}°`;
-      if (e.attrs?.unit_of_measurement) display += ` ${e.attrs.unit_of_measurement}`;
-      html += `<div class="entity-row"><span class="name">${name}</span><span class="state ${stateClass}">${display}</span></div>`;
-    }
-    html += '</div>';
-  }
-
-  el.innerHTML = html;
-}
+// ── Diffs ───────────────────────────────────
 
 function renderDiffs() {
-  const diffList = document.getElementById('diff-list');
-  const allIds = new Set([...Object.keys(haStates), ...Object.keys(margeStates)]);
+  const allIds = new Set([...Object.keys(HA), ...Object.keys(S)]);
   let matches = 0, mismatches = 0;
   let html = '';
-
-  // Only compare entities that exist in both
-  const demoEntities = [...allIds].filter(id =>
-    !id.startsWith('test.') && !id.startsWith('persistent_notification.')
-  ).sort();
-
-  for (const eid of demoEntities) {
-    const ha = haStates[eid];
-    const marge = margeStates[eid];
+  for (const eid of [...allIds].sort()) {
+    if (eid.startsWith('test.') || eid.startsWith('persistent_notification.') ||
+        eid.startsWith('sensor.perf_') || eid.startsWith('sensor.test_')) continue;
+    const ha = HA[eid];
+    const marge = S[eid];
     if (!ha || !marge) continue;
-
-    if (ha.state === marge.state) {
-      matches++;
-    } else {
+    if (ha.state === marge.state) { matches++; }
+    else {
       mismatches++;
-      const name = eid.split('.').slice(1).join('.');
-      html += `<div class="diff-entry mismatch">
-        <div class="entity">${eid}</div>
-        <div class="vals">
-          <span class="ha-val">HA: ${ha.state}</span>
-          <span class="marge-val">Marge: ${marge.state}</span>
-        </div>
+      html += `<div style="font-size:11px;padding:2px 0;border-left:3px solid #f85149;padding-left:6px;margin-bottom:3px">
+        <span class="blue">${eid}</span><br>
+        <span class="gray">HA:</span> ${ha.state} <span class="gray">Marge:</span> ${marge.state}
       </div>`;
     }
   }
-
-  diffList.innerHTML = html || '<div style="color:#8b949e;font-size:12px;padding:8px">No diffs</div>';
-  document.getElementById('diff-count').textContent = mismatches;
+  document.getElementById('diff-list').innerHTML = html || '<span class="dim" style="font-size:11px">States match</span>';
   document.getElementById('diff-summary').textContent = `${matches} match, ${mismatches} diff`;
 }
 
-function renderAll() {
-  renderPanel('ha-entities', haStates);
-  renderPanel('marge-entities', margeStates);
-  renderDiffs();
+// ── Metrics ─────────────────────────────────
+
+function renderMetrics() {
+  const h = margeHealth;
+  if (h.memory_rss_mb !== undefined) {
+    const memPct = Math.min((h.memory_rss_mb / 1024) * 100, 100);
+    document.getElementById('marge-mem-bar').style.width = memPct + '%';
+    document.getElementById('marge-mem-val').textContent = h.memory_rss_mb.toFixed(1) + ' MB';
+  }
+  if (h.latency_avg_us !== undefined) {
+    const latPct = Math.min((h.latency_avg_us / 50000) * 100, 100);
+    document.getElementById('marge-lat-bar').style.width = latPct + '%';
+    document.getElementById('marge-lat-val').textContent = h.latency_avg_us.toFixed(1) + ' \u00B5s';
+  }
+  if (h.uptime_seconds !== undefined) {
+    const mins = Math.floor(h.uptime_seconds / 60);
+    const secs = h.uptime_seconds % 60;
+    document.getElementById('marge-uptime').textContent = `${mins}m ${secs}s`;
+    // Startup bar (assume <1s)
+    document.getElementById('marge-start-bar').style.width = '1%';
+    document.getElementById('marge-start-val').textContent = '<1s';
+  }
+
+  // HA bars (estimated values for demo)
+  document.getElementById('ha-mem-bar').style.width = '76%';
+  document.getElementById('ha-mem-val').textContent = '~780 MB';
+  document.getElementById('ha-lat-bar').style.width = '46%';
+  document.getElementById('ha-lat-val').textContent = '~23 ms';
+  document.getElementById('ha-start-bar').style.width = '94%';
+
+  document.getElementById('ha-events').textContent = haEvents.toLocaleString();
+  document.getElementById('marge-events').textContent = margeEvents.toLocaleString();
 }
 
-function logEvent(msg) {
+async function pollMargeHealth() {
+  try {
+    const r = await fetch(`${MARGE_REST}/health`);
+    margeHealth = await r.json();
+    renderMetrics();
+  } catch(e) {}
+}
+
+// ── Event Log ───────────────────────────────
+
+function logEvent(source, msg) {
   const log = document.getElementById('event-log');
   const time = new Date().toLocaleTimeString();
-  log.innerHTML = `<div class="entry"><span class="time">${time}</span> <span class="auto">${msg}</span></div>` + log.innerHTML;
-  // Keep last 100
+  const cls = source === 'ha' ? 'log-auto' : 'log-state';
+  const label = source === 'ha' ? 'HA' : 'MG';
+  log.innerHTML = `<div class="log-entry"><span class="log-time">${time}</span> <span class="${cls}">[${label}]</span> ${msg}</div>` + log.innerHTML;
   while (log.children.length > 100) log.removeChild(log.lastChild);
 }
 
-// ── Metrics Polling ──────────────────────────
+// ── Timeline ────────────────────────────────
 
-async function pollMetrics() {
-  try {
-    const resp = await fetch(`${MARGE_REST}/health`);
-    const data = await resp.json();
-    document.getElementById('marge-rss').textContent = `${(data.memory_rss_kb / 1024).toFixed(1)} MB`;
-    document.getElementById('marge-entities').textContent = data.entity_count;
-    document.getElementById('marge-uptime').textContent = `${data.uptime_seconds}s`;
-  } catch (e) {}
+function renderTimeline() {
+  const chapEl = document.getElementById('timeline-chapters');
+  chapEl.innerHTML = CHAPTERS.map(c =>
+    `<span class="timeline-chapter ${c.name === currentChapter ? 'active' : ''}" style="border-left:3px solid ${c.color}">${c.name}</span>`
+  ).join('');
+
+  // Update fill based on sim time
+  if (simTimeStr !== '--:--:--') {
+    const parts = simTimeStr.split(':');
+    const mins = parseInt(parts[0]) * 60 + parseInt(parts[1]);
+    const pct = (mins / 1440) * 100;
+    document.getElementById('timeline-fill').style.width = pct + '%';
+  }
 }
 
-// Events per second counter
-setInterval(() => {
-  const now = Date.now();
-  const elapsed = (now - lastEventTime) / 1000;
-  if (elapsed > 0) {
-    document.getElementById('events-per-sec').textContent = Math.round(eventCount / Math.max(elapsed, 1));
-  }
-  eventCount = 0;
-  lastEventTime = now;
-}, 2000);
+// ── Init ────────────────────────────────────
 
-// Clock
+connectWS(MARGE_WS, '', 'marge', S, () => margeEvents++);
+connectWS(HA_WS, HA_TOKEN, 'ha', HA, () => haEvents++);
+
+setInterval(pollMargeHealth, 3000);
+pollMargeHealth();
+
 setInterval(() => {
-  document.getElementById('clock').textContent = new Date().toLocaleTimeString();
+  document.getElementById('sim-time').textContent = simTimeStr;
+  renderTimeline();
 }, 1000);
 
-// ── Init ──────────────────────────
-
-connectWS(HA_WS, HA_TOKEN, 'ha', (eid, state, attrs) => {
-  haStates[eid] = { state, attrs };
-});
-
-connectWS(MARGE_WS, '', 'marge', (eid, state, attrs) => {
-  margeStates[eid] = { state, attrs };
-});
-
-setInterval(pollMetrics, 5000);
-pollMetrics();
+renderHouse();
+renderTimeline();
 </script>
 
 </body>

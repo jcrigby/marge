@@ -1,6 +1,7 @@
 use chrono::{DateTime, Utc};
 use dashmap::DashMap;
 use serde::{Deserialize, Serialize};
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
 use tokio::sync::broadcast;
 
@@ -44,10 +45,32 @@ pub struct StateChangedEvent {
     pub new_state: EntityState,
 }
 
+/// Metrics counters for state machine operations
+pub struct Metrics {
+    pub state_changes: AtomicU64,
+    pub events_fired: AtomicU64,
+    /// Cumulative nanoseconds for state transitions (for average calculation)
+    pub total_transition_ns: AtomicU64,
+    /// Max transition time in nanoseconds
+    pub max_transition_ns: AtomicU64,
+}
+
+impl Metrics {
+    fn new() -> Self {
+        Self {
+            state_changes: AtomicU64::new(0),
+            events_fired: AtomicU64::new(0),
+            total_transition_ns: AtomicU64::new(0),
+            max_transition_ns: AtomicU64::new(0),
+        }
+    }
+}
+
 /// The core state machine (SSS STATE-001 through STATE-008)
 pub struct StateMachine {
     states: Arc<DashMap<String, EntityState>>,
     event_tx: broadcast::Sender<StateChangedEvent>,
+    pub metrics: Metrics,
 }
 
 impl StateMachine {
@@ -56,6 +79,7 @@ impl StateMachine {
         Self {
             states: Arc::new(DashMap::new()),
             event_tx,
+            metrics: Metrics::new(),
         }
     }
 
@@ -75,6 +99,7 @@ impl StateMachine {
     /// Set entity state. Returns the old state if it existed.
     /// Fires state_changed event on the event bus (STATE-003).
     pub fn set(&self, entity_id: String, state: String, attributes: serde_json::Map<String, serde_json::Value>) -> EntityState {
+        let start = std::time::Instant::now();
         let now = Utc::now();
         let context = Context::new();
 
@@ -116,6 +141,13 @@ impl StateMachine {
             old_state,
             new_state: new_state.clone(),
         });
+
+        // Record metrics
+        let elapsed_ns = start.elapsed().as_nanos() as u64;
+        self.metrics.state_changes.fetch_add(1, Ordering::Relaxed);
+        self.metrics.events_fired.fetch_add(1, Ordering::Relaxed);
+        self.metrics.total_transition_ns.fetch_add(elapsed_ns, Ordering::Relaxed);
+        self.metrics.max_transition_ns.fetch_max(elapsed_ns, Ordering::Relaxed);
 
         new_state
     }

@@ -313,6 +313,21 @@ async fn call_service(
                     .unwrap_or_default();
                 Some(rs.app.state_machine.set(eid.clone(), "disarmed".to_string(), attrs))
             }
+            ("media_player", "turn_on") => {
+                let mut attrs = rs.app.state_machine.get(&eid)
+                    .map(|s| s.attributes.clone())
+                    .unwrap_or_default();
+                if let Some(source) = body.get("source") {
+                    attrs.insert("source".to_string(), source.clone());
+                }
+                Some(rs.app.state_machine.set(eid.clone(), "on".to_string(), attrs))
+            }
+            ("media_player", "turn_off") => {
+                let attrs = rs.app.state_machine.get(&eid)
+                    .map(|s| s.attributes.clone())
+                    .unwrap_or_default();
+                Some(rs.app.state_machine.set(eid.clone(), "off".to_string(), attrs))
+            }
             ("persistent_notification", "create") => {
                 tracing::info!("Notification: {}", body.get("message").and_then(|v| v.as_str()).unwrap_or(""));
                 None
@@ -335,17 +350,36 @@ async fn call_service(
 
 /// GET /api/health — health check with metrics
 async fn health(State(rs): State<RouterState>) -> Json<serde_json::Value> {
+    use std::sync::atomic::Ordering;
+
     let pid = std::process::id();
     let rss_kb = read_rss_kb(pid).unwrap_or(0);
-
     let uptime = rs.app.started_at.elapsed().as_secs();
+
+    let m = &rs.app.state_machine.metrics;
+    let state_changes = m.state_changes.load(Ordering::Relaxed);
+    let events_fired = m.events_fired.load(Ordering::Relaxed);
+    let total_ns = m.total_transition_ns.load(Ordering::Relaxed);
+    let max_ns = m.max_transition_ns.load(Ordering::Relaxed);
+
+    let avg_us = if state_changes > 0 {
+        (total_ns / state_changes) as f64 / 1000.0
+    } else {
+        0.0
+    };
+    let max_us = max_ns as f64 / 1000.0;
 
     Json(serde_json::json!({
         "status": "ok",
         "version": env!("CARGO_PKG_VERSION"),
         "entity_count": rs.app.state_machine.len(),
         "memory_rss_kb": rss_kb,
+        "memory_rss_mb": rss_kb as f64 / 1024.0,
         "uptime_seconds": uptime,
+        "state_changes": state_changes,
+        "events_fired": events_fired,
+        "latency_avg_us": (avg_us * 100.0).round() / 100.0,
+        "latency_max_us": (max_us * 100.0).round() / 100.0,
     }))
 }
 
