@@ -34,36 +34,7 @@ async fn main() -> anyhow::Result<()> {
         started_at: std::time::Instant::now(),
     });
 
-    // Load automations (D4)
-    let automations_path = std::env::var("MARGE_AUTOMATIONS_PATH")
-        .map(PathBuf::from)
-        .unwrap_or_else(|_| PathBuf::from("/etc/marge/automations.yaml"));
-
-    let engine = if automations_path.exists() {
-        match automation::load_automations(&automations_path) {
-            Ok(automations) => {
-                let engine = Arc::new(AutomationEngine::new(automations, app_state.clone()));
-                // Register automation entities
-                for auto_id in engine.automation_ids() {
-                    app_state.state_machine.set(
-                        format!("automation.{}", auto_id),
-                        "on".to_string(),
-                        Default::default(),
-                    );
-                }
-                Some(engine)
-            }
-            Err(e) => {
-                tracing::error!("Failed to load automations from {:?}: {}", automations_path, e);
-                None
-            }
-        }
-    } else {
-        tracing::info!("No automations file at {:?}", automations_path);
-        None
-    };
-
-    // Load scenes (D7)
+    // Load scenes (D7) — loaded before automations so engine can reference them
     let scenes_path = std::env::var("MARGE_SCENES_PATH")
         .map(PathBuf::from)
         .unwrap_or_else(|_| PathBuf::from("/etc/marge/scenes.yaml"));
@@ -88,6 +59,40 @@ async fn main() -> anyhow::Result<()> {
         }
     } else {
         tracing::info!("No scenes file at {:?}", scenes_path);
+        None
+    };
+
+    // Load automations (D4)
+    let automations_path = std::env::var("MARGE_AUTOMATIONS_PATH")
+        .map(PathBuf::from)
+        .unwrap_or_else(|_| PathBuf::from("/etc/marge/automations.yaml"));
+
+    let engine = if automations_path.exists() {
+        match automation::load_automations(&automations_path) {
+            Ok(automations) => {
+                let mut engine = AutomationEngine::new(automations, app_state.clone());
+                // Wire scene engine into automation engine for scene.turn_on actions
+                if let Some(se) = &scene_engine {
+                    engine.set_scenes(se.clone());
+                }
+                let engine = Arc::new(engine);
+                // Register automation entities
+                for auto_id in engine.automation_ids() {
+                    app_state.state_machine.set(
+                        format!("automation.{}", auto_id),
+                        "on".to_string(),
+                        Default::default(),
+                    );
+                }
+                Some(engine)
+            }
+            Err(e) => {
+                tracing::error!("Failed to load automations from {:?}: {}", automations_path, e);
+                None
+            }
+        }
+    } else {
+        tracing::info!("No automations file at {:?}", automations_path);
         None
     };
 

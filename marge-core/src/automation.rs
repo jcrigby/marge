@@ -3,6 +3,7 @@ use std::path::Path;
 use std::sync::Arc;
 
 use crate::api::AppState;
+use crate::scene::SceneEngine;
 use crate::state::StateChangedEvent;
 
 // ── YAML Deserialization Structs ─────────────────────────
@@ -116,6 +117,7 @@ pub fn load_automations(path: &Path) -> anyhow::Result<Vec<Automation>> {
 pub struct AutomationEngine {
     automations: Vec<Automation>,
     app: Arc<AppState>,
+    scenes: Option<Arc<SceneEngine>>,
 }
 
 impl AutomationEngine {
@@ -126,7 +128,11 @@ impl AutomationEngine {
                 auto.id, auto.alias,
                 auto.triggers.len(), auto.conditions.len(), auto.actions.len());
         }
-        Self { automations, app }
+        Self { automations, app, scenes: None }
+    }
+
+    pub fn set_scenes(&mut self, scenes: Arc<SceneEngine>) {
+        self.scenes = Some(scenes);
     }
 
     /// Evaluate a state_changed event against all automations.
@@ -339,6 +345,26 @@ impl AutomationEngine {
                         .map(|s| s.attributes.clone())
                         .unwrap_or_default();
                     self.app.state_machine.set(eid.clone(), "disarmed".to_string(), attrs);
+                }
+                ("media_player", "turn_on") => {
+                    let mut attrs = self.app.state_machine.get(eid)
+                        .map(|s| s.attributes.clone())
+                        .unwrap_or_default();
+                    if let Some(source) = data.get("source") {
+                        attrs.insert("source".to_string(), source.clone());
+                    }
+                    self.app.state_machine.set(eid.clone(), "on".to_string(), attrs);
+                }
+                ("media_player", "turn_off") => {
+                    let attrs = self.app.state_machine.get(eid)
+                        .map(|s| s.attributes.clone())
+                        .unwrap_or_default();
+                    self.app.state_machine.set(eid.clone(), "off".to_string(), attrs);
+                }
+                ("scene", "turn_on") => {
+                    if let Some(scenes) = &self.scenes {
+                        scenes.turn_on(eid);
+                    }
                 }
                 ("persistent_notification", "create") => {
                     let title = data.get("title").and_then(|v| v.as_str()).unwrap_or("");
