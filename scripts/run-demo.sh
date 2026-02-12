@@ -23,6 +23,13 @@ BLUE='\033[0;34m'
 BOLD='\033[1m'
 NC='\033[0m'
 
+refresh_ha_token() {
+  if curl -sf http://localhost:8123/api/ > /dev/null 2>&1; then
+    bash scripts/ha-refresh-token.sh 2>/dev/null && return 0
+  fi
+  return 1
+}
+
 case "${1:-full}" in
   full|start)
     echo -e "${BOLD}=== Marge Demo — Full Stack ===${NC}"
@@ -112,6 +119,7 @@ case "${1:-full}" in
     echo -e "Chapters: dawn → morning → sunset → goodnight → outage"
     echo ""
 
+    refresh_ha_token || true
     HA_TOKEN=""
     if [ -f ha-config/.ha_token ]; then
       HA_TOKEN=$(cat ha-config/.ha_token)
@@ -160,6 +168,7 @@ case "${1:-full}" in
 
   scenario)
     CHAPTER="${2:-}"
+    refresh_ha_token || true
     HA_TOKEN=""
     if [ -f ha-config/.ha_token ]; then
       HA_TOKEN=$(cat ha-config/.ha_token)
@@ -196,6 +205,7 @@ case "${1:-full}" in
     echo -e "Chapters: dawn → morning → sunset → goodnight → outage"
     echo ""
 
+    refresh_ha_token || true
     HA_TOKEN=""
     if [ -f ha-config/.ha_token ]; then
       HA_TOKEN=$(cat ha-config/.ha_token)
