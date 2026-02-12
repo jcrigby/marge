@@ -5,6 +5,7 @@
 #   ./scripts/run-demo.sh                    # Full stack (HA + Marge + dashboard)
 #   ./scripts/run-demo.sh marge-only         # Just Marge (no Docker)
 #   ./scripts/run-demo.sh scenario [chapter] # Run scenario driver
+#   ./scripts/run-demo.sh highlight          # 15-min highlight reel
 #
 # Prerequisites:
 #   - Docker and docker compose (for full stack)
@@ -123,6 +124,39 @@ case "${1:-full}" in
       python3 scenario-driver/driver.py
     ;;
 
+  highlight)
+    echo -e "${BOLD}=== Highlight Reel (15 min at 10x) ===${NC}"
+    echo -e "Chapters: dawn → morning → sunset → goodnight → outage"
+    echo ""
+
+    HA_TOKEN=""
+    if [ -f ha-config/.ha_token ]; then
+      HA_TOKEN=$(cat ha-config/.ha_token)
+    fi
+
+    MARGE_BIN="$(pwd)/marge-core/target/release/marge"
+    MARGE_START="MARGE_AUTOMATIONS_PATH=$(pwd)/ha-config/automations.yaml MARGE_SCENES_PATH=$(pwd)/ha-config/scenes.yaml MARGE_MQTT_PORT=1884 RUST_LOG=info $MARGE_BIN &"
+
+    for ch in dawn morning sunset goodnight outage; do
+      echo -e "\n${BLUE}>>> Chapter: ${ch}${NC}"
+      env TARGET=both \
+        HA_URL=http://localhost:8123 \
+        HA_TOKEN="$HA_TOKEN" \
+        HA_MQTT_HOST=localhost \
+        HA_MQTT_PORT=1883 \
+        MARGE_URL=http://localhost:8124 \
+        MARGE_MQTT_HOST=localhost \
+        MARGE_MQTT_PORT=1884 \
+        MARGE_START_CMD="$MARGE_START" \
+        SPEED="${SPEED:-10}" \
+        CHAPTER="$ch" \
+        python3 scenario-driver/driver.py
+    done
+
+    echo -e "\n${GREEN}=== Highlight Reel Complete ===${NC}"
+    echo -e "Press S in dashboard for score card"
+    ;;
+
   cts)
     echo -e "${BOLD}=== Running CTS ===${NC}"
     SUT_URL=http://localhost:8124 \
@@ -139,7 +173,7 @@ case "${1:-full}" in
     ;;
 
   *)
-    echo "Usage: $0 {start|full|marge-only|scenario [chapter]|cts|stop}"
+    echo "Usage: $0 {start|full|marge-only|scenario [chapter]|highlight|cts|stop}"
     exit 1
     ;;
 esac
