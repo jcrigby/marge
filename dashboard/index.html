@@ -431,6 +431,16 @@ function coffeeIcon(eid) {
     : '<span class="dim">\u25CB OFF</span>';
 }
 
+function climateIcon(eid) {
+  const s = getState(eid);
+  const temp = s.attrs?.temperature;
+  const setpoint = temp !== undefined ? `${temp}\u00B0F` : '--';
+  if (s.state === 'heat') return `<span class="orange">\u2668 ${setpoint}</span>`;
+  if (s.state === 'cool') return `<span class="cyan">\u2744 ${setpoint}</span>`;
+  if (s.state === 'off') return `<span class="dim">\u2668 OFF</span>`;
+  return `<span class="white">\u2668 ${setpoint}</span>`;
+}
+
 function smokeIcon(eid) {
   const s = getState(eid);
   return s.state === 'on'
@@ -490,7 +500,7 @@ function renderHouse() {
     `${B}\u2502${E} ${tempIcon('sensor.entryway_temperature')}           ${B}\u2502${E}                      ${B}\u2502${E}                      ${B}\u2502${E}`,
     `${B}\u2514\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2518${E}                      ${B}\u2514\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2518${E}`,
     `${B}\u250C\u2500 EXTERIOR \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2510${E}`,
-    `${B}\u2502${E} ${lightSimple('light.porch')} Porch  ${lightSimple('light.pathway')} Path   ${alarmIcon('alarm_control_panel.home')}   ${sunIcon()}   ${B}\u2502${E}`,
+    `${B}\u2502${E} ${lightSimple('light.porch')} Porch  ${lightSimple('light.pathway')} Path   ${climateIcon('climate.thermostat')}   ${alarmIcon('alarm_control_panel.home')}   ${sunIcon()}   ${B}\u2502${E}`,
     `${B}\u2502${E} ${tempIcon('sensor.exterior_temperature')} ${humidIcon('sensor.exterior_humidity')}   ${powerIcon()}   ${smokeIcon('binary_sensor.smoke_detector')}\uD83D\uDD25 ${smokeIcon('binary_sensor.co_detector')}CO  ${trackerIcon()}  ${B}\u2502${E}`,
     `${B}\u2514\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2518${E}`,
   ];
