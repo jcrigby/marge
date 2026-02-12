@@ -377,6 +377,26 @@ body {
   </div>
 </div>
 
+<!-- ── Help Overlay ───────────────────────── -->
+<div class="scorecard-overlay" id="help-overlay">
+  <div class="scorecard" style="max-width:400px">
+    <h2>KEYBOARD SHORTCUTS</h2>
+    <table class="sc-table" style="text-align:left">
+      <tbody>
+        <tr><td style="padding:6px 16px;color:#58a6ff;font-weight:700">S</td><td style="padding:6px 16px">Toggle score card</td></tr>
+        <tr><td style="padding:6px 16px;color:#58a6ff;font-weight:700">?</td><td style="padding:6px 16px">Toggle this help</td></tr>
+        <tr><td style="padding:6px 16px;color:#58a6ff;font-weight:700">Esc</td><td style="padding:6px 16px">Dismiss overlay</td></tr>
+      </tbody>
+    </table>
+    <div class="sc-footer" style="margin-top:12px">
+      Dashboard: <span style="color:#58a6ff">http://localhost:3000</span><br>
+      HA: <span style="color:#f0883e">http://localhost:8123</span><br>
+      Marge: <span style="color:#3fb950">http://localhost:8124</span>
+    </div>
+    <div class="sc-dismiss">Press ? or click to dismiss</div>
+  </div>
+</div>
+
 <script>
 // ── Configuration ──────────────────────────
 const params = new URLSearchParams(location.search);
@@ -908,9 +928,13 @@ document.addEventListener('keydown', (e) => {
     if (overlay.classList.contains('visible')) hideScoreCard();
     else showScoreCard();
   }
+  if (e.key === '?') {
+    const help = document.getElementById('help-overlay');
+    help.classList.toggle('visible');
+  }
   if (e.key === 'Escape') {
     hideScoreCard();
-    // Also dismiss outage overlay manually if needed
+    document.getElementById('help-overlay').classList.remove('visible');
     document.getElementById('outage-overlay').classList.remove('visible');
     if (recoveryTimerInterval) clearInterval(recoveryTimerInterval);
   }
@@ -918,6 +942,11 @@ document.addEventListener('keydown', (e) => {
 
 document.getElementById('scorecard-overlay').addEventListener('click', (e) => {
   if (e.target === document.getElementById('scorecard-overlay')) hideScoreCard();
+});
+document.getElementById('help-overlay').addEventListener('click', (e) => {
+  if (e.target === document.getElementById('help-overlay')) {
+    document.getElementById('help-overlay').classList.remove('visible');
+  }
 });
 
 // ── Init ────────────────────────────────────
