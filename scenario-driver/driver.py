@@ -593,7 +593,7 @@ async def main():
 
         # Try reading token from file
         if not ha_token:
-            for token_path in ["./ha-config/.ha_token", "/config/.ha_token"]:
+            for token_path in ["./ha-config/.ha_token", "/config/.ha_token", "/app/.ha_token"]:
                 if Path(token_path).exists():
                     ha_token = Path(token_path).read_text().strip()
                     break
