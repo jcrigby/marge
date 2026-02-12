@@ -445,6 +445,10 @@ async def play_chapter(suts: list[SUTConnection], chapter_name: str,
 
         if etype == "annotation":
             print(f"  [{offset/1000:.0f}s] {event['message']}")
+            # Push annotation to SUTs so dashboard can display it
+            for sut in suts:
+                await push_state_rest(sut, "sensor.scenario_annotation",
+                                      event["message"], {"friendly_name": "Scenario"})
 
         elif etype == "state":
             entity_id = event["entity_id"]
@@ -524,6 +528,11 @@ async def play_chapter(suts: list[SUTConnection], chapter_name: str,
             print(f"  [{offset/1000:.0f}s] FINAL METRICS")
             print(f"  [{offset/1000:.0f}s] {'='*50}")
             await collect_final_metrics(suts)
+            # Push completion annotation for dashboard auto-score-card
+            for sut in suts:
+                await push_state_rest(sut, "sensor.scenario_annotation",
+                                      "Scenario Complete — Press S for Score Card",
+                                      {"friendly_name": "Scenario"})
 
 
 async def run_shell(cmd: str) -> tuple[int, str]:

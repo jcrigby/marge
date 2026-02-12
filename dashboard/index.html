@@ -33,8 +33,18 @@ body {
 .status.connected { background: #1b4332; color: #2dd4bf; }
 .status.disconnected { background: #3b1c1c; color: #f87171; }
 
+/* ── Annotation Banner ────────────────────── */
+.annotation-banner {
+  background: #1f6feb22; border-bottom: 1px solid #1f6feb44;
+  padding: 6px 20px; font-size: 14px; color: #e6edf3;
+  text-align: center; font-weight: 600; letter-spacing: 0.5px;
+  height: 32px; line-height: 20px; overflow: hidden;
+  transition: opacity 0.5s;
+}
+.annotation-banner.empty { opacity: 0.3; }
+
 /* ── Main Layout ─────────────────────────── */
-.main { display: flex; height: calc(100vh - 44px - 100px); }
+.main { display: flex; height: calc(100vh - 44px - 32px - 100px); }
 .house-area { flex: 1; padding: 12px 16px; overflow: hidden; }
 .sidebar { width: 320px; background: #161b22; border-left: 1px solid #30363d; overflow-y: auto; padding: 12px; }
 
@@ -83,11 +93,20 @@ body {
 
 /* ── Event Log ───────────────────────────── */
 .event-log { font-size: 11px; max-height: 200px; overflow-y: auto; }
-.log-entry { padding: 2px 0; border-bottom: 1px solid #21262d; }
-.log-time { color: #484f58; }
+.log-entry { padding: 2px 0; border-bottom: 1px solid #21262d; display: flex; gap: 4px; align-items: baseline; }
+.log-time { color: #484f58; flex-shrink: 0; }
 .log-auto { color: #bc8cff; }
 .log-state { color: #58a6ff; }
 .log-verify { color: #3fb950; }
+.log-source { font-size: 9px; padding: 0 3px; border-radius: 2px; font-weight: 700; flex-shrink: 0; }
+.log-source.ha { background: #f0883e22; color: #f0883e; }
+.log-source.marge { background: #58a6ff22; color: #58a6ff; }
+.log-source.sys { background: #f8514922; color: #f85149; }
+.log-domain-icon { flex-shrink: 0; width: 14px; text-align: center; }
+.log-msg { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.log-entry.automation { border-left: 2px solid #bc8cff; padding-left: 4px; }
+.log-entry.outage { border-left: 2px solid #f85149; padding-left: 4px; background: #f8514908; }
+.event-rate { font-size: 11px; color: #3fb950; float: right; font-weight: 600; }
 
 /* ── Timeline ────────────────────────────── */
 .timeline {
@@ -225,6 +244,9 @@ body {
   <span id="marge-status" class="status disconnected">Marge: --</span>
 </div>
 
+<!-- ── Annotation Banner ───────────────────── -->
+<div class="annotation-banner empty" id="annotation-banner">Waiting for scenario...</div>
+
 <!-- ── Main Content ────────────────────────── -->
 <div class="main">
   <!-- ASCII House -->
@@ -323,7 +345,7 @@ body {
 
     <!-- Event Log -->
     <div class="metrics-section">
-      <h3>Activity Log</h3>
+      <h3>Event Stream <span class="event-rate" id="event-rate"></span></h3>
       <div class="event-log" id="event-log"></div>
     </div>
   </div>
@@ -412,8 +434,11 @@ const HA = {}; // HA states
 let margeEvents = 0, haEvents = 0;
 let margeHealth = {};
 let haConnectTime = null;
+let haLatencyMs = null;
+let cachedHAToken = null;
 let currentChapter = 'idle';
 let simTimeStr = '--:--:--';
+let eventTimestamps = []; // for events/sec calculation
 
 // ── Outage Tracking ────────────────────────
 let outageActive = false;
@@ -637,11 +662,31 @@ function connectWS(url, token, name, stateMap, counterFn) {
           stateMap[d.new_state.entity_id] = { state: d.new_state.state, attrs: d.new_state.attributes || {} };
           counterFn();
           scheduleRender();
-          // Log significant changes
+          // Show annotation banner
           const eid = d.new_state.entity_id;
-          if (eid.startsWith('automation.') || eid.startsWith('light.') || eid.startsWith('lock.') ||
-              eid.startsWith('alarm_control_panel.') || eid.startsWith('switch.')) {
-            logEvent(name, `${eid} \u2192 ${d.new_state.state}`);
+          if (eid === 'sensor.scenario_annotation' && name === 'marge') {
+            const banner = document.getElementById('annotation-banner');
+            banner.textContent = d.new_state.state;
+            banner.classList.remove('empty');
+            // Fade after 15 seconds
+            clearTimeout(banner._fadeTimer);
+            banner._fadeTimer = setTimeout(() => banner.classList.add('empty'), 15000);
+            // Auto-show score card when scenario completes
+            if (d.new_state.state.includes('Scenario Complete')) {
+              setTimeout(showScoreCard, 3000);
+            }
+          }
+          // Structured event logging
+          const domain = eid.split('.')[0];
+          const oldState = d.old_state?.state;
+          const newState = d.new_state.state;
+          if (domain === 'automation') {
+            logEvent(name, `${eid} \u2192 ${newState}`, 'automation');
+          } else if (['light', 'switch', 'lock', 'alarm_control_panel', 'media_player', 'climate'].includes(domain)) {
+            const arrow = oldState ? `${oldState} \u2192 ${newState}` : `\u2192 ${newState}`;
+            logEvent(name, `${eid}: ${arrow}`);
+          } else if (domain === 'scene') {
+            logEvent(name, `${eid} activated`, 'automation');
           }
         }
       }
@@ -682,7 +727,7 @@ function onSystemOnline(name) {
       timerEl.textContent = margeRecoveryTime.toFixed(1) + 's';
       timerEl.className = 'recovery-timer recovered';
       document.getElementById('marge-recovery-label').textContent = 'RECOVERED';
-      logEvent('marge', `Recovered in ${margeRecoveryTime.toFixed(1)}s`);
+      logEvent('marge', `Recovered in ${margeRecoveryTime.toFixed(1)}s`, 'outage');
     }
     if (name === 'ha' && haRecoveryTime === null) {
       haRecoveryTime = elapsed;
@@ -690,7 +735,7 @@ function onSystemOnline(name) {
       timerEl.textContent = haRecoveryTime.toFixed(1) + 's';
       timerEl.className = 'recovery-timer recovered';
       document.getElementById('ha-recovery-label').textContent = 'RECOVERED';
-      logEvent('ha', `Recovered in ${haRecoveryTime.toFixed(1)}s`);
+      logEvent('ha', `Recovered in ${haRecoveryTime.toFixed(1)}s`, 'outage');
     }
 
     // Both recovered — dismiss overlay after 5 seconds
@@ -723,7 +768,7 @@ function startOutage() {
   document.getElementById('marge-recovery-label').textContent = 'Recovering...';
   document.getElementById('ha-recovery-label').textContent = 'Recovering...';
 
-  logEvent('marge', 'POWER OUTAGE — systems down');
+  logEvent('sys', 'POWER OUTAGE — systems down', 'outage');
 
   // Live-update timers
   recoveryTimerInterval = setInterval(() => {
@@ -759,7 +804,8 @@ function renderDiffs() {
   let html = '';
   for (const eid of [...allIds].sort()) {
     if (eid.startsWith('test.') || eid.startsWith('persistent_notification.') ||
-        eid.startsWith('sensor.perf_') || eid.startsWith('sensor.test_')) continue;
+        eid.startsWith('sensor.perf_') || eid.startsWith('sensor.test_') ||
+        eid === 'sensor.scenario_annotation') continue;
     const ha = HA[eid];
     const marge = S[eid];
     if (!ha || !marge) continue;
@@ -800,11 +846,17 @@ function renderMetrics() {
     document.getElementById('marge-start-val').textContent = startMs < 1 ? '<1ms' : `${startMs.toFixed(1)}ms`;
   }
 
-  // HA bars (measured from Docker rehearsal: docker stats marge-demo-ha)
+  // HA bars (memory measured from Docker rehearsal: docker stats marge-demo-ha)
   document.getElementById('ha-mem-bar').style.width = '16%';
   document.getElementById('ha-mem-val').textContent = '~160 MB';
-  document.getElementById('ha-lat-bar').style.width = '46%';
-  document.getElementById('ha-lat-val').textContent = '~23 ms';
+  if (haLatencyMs !== null) {
+    const haLatPct = Math.min((haLatencyMs / 100) * 100, 100);
+    document.getElementById('ha-lat-bar').style.width = haLatPct + '%';
+    document.getElementById('ha-lat-val').textContent = haLatencyMs.toFixed(0) + ' ms';
+  } else {
+    document.getElementById('ha-lat-bar').style.width = '46%';
+    document.getElementById('ha-lat-val').textContent = '~23 ms';
+  }
   document.getElementById('ha-start-bar').style.width = '94%';
 
   if (haConnectTime) {
@@ -826,7 +878,7 @@ async function pollMargeHealth() {
       const oldChapter = currentChapter;
       currentChapter = margeHealth.sim_chapter;
       if (oldChapter !== 'idle') {
-        logEvent('marge', `Chapter: ${currentChapter.toUpperCase()}`);
+        logEvent('sys', `Chapter: ${currentChapter.toUpperCase()}`, 'automation');
       }
     }
     if (margeHealth.sim_speed) {
@@ -836,15 +888,53 @@ async function pollMargeHealth() {
   } catch(e) {}
 }
 
+async function pollHALatency() {
+  try {
+    const haToken = await loadHAToken();
+    const t0 = performance.now();
+    const r = await fetch(`${HA_REST}/`, {
+      headers: haToken ? { 'Authorization': `Bearer ${haToken}` } : {}
+    });
+    if (r.ok) haLatencyMs = performance.now() - t0;
+  } catch(e) {}
+}
+
 // ── Event Log ───────────────────────────────
 
-function logEvent(source, msg) {
+const DOMAIN_ICONS = {
+  'light': '\uD83D\uDCA1', 'switch': '\u26A1', 'lock': '\uD83D\uDD12',
+  'climate': '\uD83C\uDF21', 'alarm_control_panel': '\uD83D\uDEA8',
+  'media_player': '\uD83C\uDFB5', 'automation': '\u2699\uFE0F',
+  'binary_sensor': '\uD83D\uDCE1', 'sensor': '\uD83D\uDCCA',
+  'scene': '\uD83C\uDFA8', 'button': '\uD83D\uDD18',
+};
+
+function logEvent(source, msg, type) {
   const log = document.getElementById('event-log');
-  const time = new Date().toLocaleTimeString();
-  const cls = source === 'ha' ? 'log-auto' : 'log-state';
-  const label = source === 'ha' ? 'HA' : 'MG';
-  log.innerHTML = `<div class="log-entry"><span class="log-time">${time}</span> <span class="${cls}">[${label}]</span> ${msg}</div>` + log.innerHTML;
-  while (log.children.length > 100) log.removeChild(log.lastChild);
+  const time = new Date().toLocaleTimeString('en-US', { hour12: false });
+  const srcClass = source === 'ha' ? 'ha' : source === 'sys' ? 'sys' : 'marge';
+  const srcLabel = source === 'ha' ? 'HA' : source === 'sys' ? 'SYS' : 'MG';
+  const entryClass = type === 'automation' ? ' automation' : type === 'outage' ? ' outage' : '';
+
+  // Extract domain for icon
+  const domainMatch = msg.match(/^(\w+)\./);
+  const domain = domainMatch ? domainMatch[1] : '';
+  const icon = DOMAIN_ICONS[domain] || '\u2022';
+
+  const entry = document.createElement('div');
+  entry.className = `log-entry${entryClass}`;
+  entry.innerHTML = `<span class="log-time">${time}</span><span class="log-source ${srcClass}">${srcLabel}</span><span class="log-domain-icon">${icon}</span><span class="log-msg">${msg}</span>`;
+  log.prepend(entry);
+  while (log.children.length > 150) log.removeChild(log.lastChild);
+
+  // Track event rate
+  eventTimestamps.push(Date.now());
+}
+
+function getEventRate() {
+  const now = Date.now();
+  eventTimestamps = eventTimestamps.filter(t => now - t < 5000);
+  return (eventTimestamps.length / 5).toFixed(1);
 }
 
 // ── Timeline ────────────────────────────────
@@ -888,7 +978,7 @@ function showScoreCard() {
   const startup_marge_ms = h.startup_ms || 0.5;
   // HA measured baselines from Docker rehearsal (docker stats)
   const mem_ha = 160;   // MB RSS in Docker container
-  const lat_ha = 23000; // ~23ms median from HA benchmarks
+  const lat_ha = haLatencyMs !== null ? haLatencyMs * 1000 : 23000; // live or fallback ~23ms
   const startup_ha = 94;
 
   // Recovery time row (if outage was run)
@@ -900,12 +990,12 @@ function showScoreCard() {
 
   const rows = [
     ['Memory (RSS)',    `~${mem_ha} MB`,          `${mem_marge.toFixed(1)} MB`,     `${(mem_ha / mem_marge).toFixed(0)}x smaller`],
-    ['Avg Latency',     '~23 ms',                `${lat_marge.toFixed(1)} \u00B5s`, `${(lat_ha / lat_marge).toFixed(0)}x faster`],
+    ['Avg Latency',     haLatencyMs !== null ? `${haLatencyMs.toFixed(0)} ms` : '~23 ms', `${lat_marge.toFixed(1)} \u00B5s`, `${(lat_ha / lat_marge).toFixed(0)}x faster`],
     ['Startup Time',    `~${startup_ha}s`,       `${startup_marge_ms.toFixed(1)} ms`,  `${(startup_ha * 1000 / startup_marge_ms).toFixed(0)}x faster`],
     ['Recovery Time',   haRecStr,                margeRecStr,                      recoveryRatio],
     ['Binary Size',     '~1.2 GB (installed)',    '6.1 MB',                         '200x smaller'],
     ['Events Seen',     haEvents.toLocaleString(), changes_marge.toLocaleString(), haEvents > 0 ? 'both processing' : '\u2014'],
-    ['Verifications',   '18/21 (86%)',           '21/21 (100%)',                   'Marge: 100%'],
+    ['Verifications',   '17/21 (81%)',           '21/21 (100%)',                   'Marge: 100%'],
     ['Dependencies',    'Python + 3800 packages', 'Zero (static binary)',          '\u2014'],
     ['Language',        'Python 3.12',           'Rust',                           '\u2014'],
   ];
@@ -951,22 +1041,42 @@ document.getElementById('help-overlay').addEventListener('click', (e) => {
 
 // ── Init ────────────────────────────────────
 
-connectWS(MARGE_WS, '', 'marge', S, () => margeEvents++);
-connectWS(HA_WS, HA_TOKEN, 'ha', HA, () => haEvents++);
+async function loadHAToken() {
+  if (cachedHAToken !== null) return cachedHAToken;
+  if (HA_TOKEN) { cachedHAToken = HA_TOKEN; return HA_TOKEN; }
+  try {
+    const r = await fetch('/ha-token.txt');
+    if (r.ok) { cachedHAToken = (await r.text()).trim(); return cachedHAToken; }
+  } catch(e) {}
+  cachedHAToken = '';
+  return '';
+}
 
-setInterval(pollMargeHealth, 3000);
-pollMargeHealth();
+(async function init() {
+  const haToken = await loadHAToken();
+  connectWS(MARGE_WS, '', 'marge', S, () => margeEvents++);
+  connectWS(HA_WS, haToken, 'ha', HA, () => haEvents++);
 
-setInterval(() => {
-  document.getElementById('sim-time').textContent = simTimeStr;
-  const badge = document.getElementById('chapter-badge');
-  badge.textContent = currentChapter.toUpperCase() || 'IDLE';
-  const chap = CHAPTERS.find(c => c.name === currentChapter);
-  badge.style.background = chap ? chap.color : '#238636';
-}, 1000);
+  setInterval(pollMargeHealth, 3000);
+  pollMargeHealth();
+  setInterval(pollHALatency, 5000);
+  pollHALatency();
 
-renderHouse();
-renderTimeline();
+  setInterval(() => {
+    document.getElementById('sim-time').textContent = simTimeStr;
+    const badge = document.getElementById('chapter-badge');
+    badge.textContent = currentChapter.toUpperCase() || 'IDLE';
+    const chap = CHAPTERS.find(c => c.name === currentChapter);
+    badge.style.background = chap ? chap.color : '#238636';
+    renderTimeline();
+    // Update event rate
+    const rate = getEventRate();
+    document.getElementById('event-rate').textContent = rate > 0 ? `${rate}/s` : '';
+  }, 1000);
+
+  renderHouse();
+  renderTimeline();
+})();
 </script>
 
 </body>
