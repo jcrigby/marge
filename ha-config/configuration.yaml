@@ -180,12 +180,13 @@ mqtt:
   alarm_control_panel:
     - name: "Home"
       unique_id: "demo_alarm_home"
-      state_topic: "home/alarm/home/state"
-      command_topic: "home/alarm/home/set"
+      state_topic: "home/alarm_control_panel/home/state"
+      command_topic: "home/alarm_control_panel/home/set"
       payload_disarm: "DISARM"
       payload_arm_home: "ARM_HOME"
       payload_arm_away: "ARM_AWAY"
       payload_arm_night: "ARM_NIGHT"
+      optimistic: true
 
   # ─── BINARY SENSORS ────────────────────────────────────
   binary_sensor:

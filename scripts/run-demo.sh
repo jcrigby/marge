@@ -2,10 +2,12 @@
 # run-demo.sh — Run the Marge Innovation Week demo
 #
 # Usage:
-#   ./scripts/run-demo.sh                    # Full stack (HA + Marge + dashboard)
+#   ./scripts/run-demo.sh                    # Full stack (HA + Marge standalone + dashboard)
+#   ./scripts/run-demo.sh docker             # Full stack (all containers via docker compose)
 #   ./scripts/run-demo.sh marge-only         # Just Marge (no Docker)
 #   ./scripts/run-demo.sh scenario [chapter] # Run scenario driver
-#   ./scripts/run-demo.sh highlight          # 15-min highlight reel
+#   ./scripts/run-demo.sh highlight          # 15-min highlight reel (standalone Marge)
+#   ./scripts/run-demo.sh docker-highlight   # 15-min highlight reel (Docker Marge)
 #
 # Prerequisites:
 #   - Docker and docker compose (for full stack)
@@ -71,6 +73,71 @@ case "${1:-full}" in
     echo ""
     echo -e "${BLUE}To run CTS:${NC}"
     echo "  SUT_URL=http://localhost:8124 SUT_WS_URL=ws://localhost:8124/api/websocket SUT_TOKEN=test-token python3 -m pytest tests/ -v"
+    ;;
+
+  docker)
+    echo -e "${BOLD}=== Marge Demo — Full Docker Stack ===${NC}"
+    echo ""
+
+    # Build all images
+    echo -e "${BLUE}Building Docker images...${NC}"
+    docker compose build 2>&1 | grep -E "Built|Building" | head -10
+    echo ""
+
+    # Start everything
+    echo -e "${BLUE}Starting all services...${NC}"
+    docker compose up -d mosquitto ha-legacy marge dashboard 2>&1 | tail -5
+    sleep 3
+
+    # Check HA onboarding
+    if curl -sf http://localhost:8123/api/onboarding 2>/dev/null | python3 -c "import sys,json; d=json.load(sys.stdin); exit(0 if any(not s['done'] for s in d) else 1)" 2>/dev/null; then
+      echo -e "${BLUE}Running HA onboarding...${NC}"
+      bash scripts/ha-onboard.sh 2>&1 | tail -5
+    fi
+
+    echo ""
+    echo -e "${BOLD}=== All Services Running ===${NC}"
+    docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}" | grep marge-demo
+    echo ""
+    echo -e "  Dashboard:  ${GREEN}http://localhost:3000${NC}"
+    echo -e "  HA:         http://localhost:8123"
+    echo -e "  Marge:      http://localhost:8124"
+    echo ""
+    echo -e "${BLUE}To run highlight reel:${NC}"
+    echo "  ./scripts/run-demo.sh docker-highlight"
+    ;;
+
+  docker-highlight)
+    echo -e "${BOLD}=== Highlight Reel — Docker Mode (15 min at 10x) ===${NC}"
+    echo -e "Chapters: dawn → morning → sunset → goodnight → outage"
+    echo ""
+
+    HA_TOKEN=""
+    if [ -f ha-config/.ha_token ]; then
+      HA_TOKEN=$(cat ha-config/.ha_token)
+    fi
+
+    for ch in dawn morning sunset goodnight outage; do
+      echo -e "\n${BLUE}>>> Chapter: ${ch}${NC}"
+      env TARGET=both \
+        HA_URL=http://localhost:8123 \
+        HA_TOKEN="$HA_TOKEN" \
+        HA_MQTT_HOST=localhost \
+        HA_MQTT_PORT=1883 \
+        MARGE_URL=http://localhost:8124 \
+        MARGE_MQTT_HOST=localhost \
+        MARGE_MQTT_PORT=1884 \
+        HA_STOP_CMD="docker stop marge-demo-ha" \
+        HA_START_CMD="docker start marge-demo-ha" \
+        MARGE_STOP_CMD="docker stop marge-demo-marge" \
+        MARGE_START_CMD="docker start marge-demo-marge" \
+        SPEED="${SPEED:-10}" \
+        CHAPTER="$ch" \
+        python3 scenario-driver/driver.py
+    done
+
+    echo -e "\n${GREEN}=== Highlight Reel Complete ===${NC}"
+    echo -e "Press S in dashboard for score card"
     ;;
 
   marge-only)
@@ -173,7 +240,7 @@ case "${1:-full}" in
     ;;
 
   *)
-    echo "Usage: $0 {start|full|marge-only|scenario [chapter]|highlight|cts|stop}"
+    echo "Usage: $0 {start|full|docker|marge-only|scenario [chapter]|highlight|docker-highlight|cts|stop}"
     exit 1
     ;;
 esac
