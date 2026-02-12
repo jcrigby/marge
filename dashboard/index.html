@@ -359,9 +359,14 @@ function lightIcon(eid) {
 
 function lightSimple(eid) {
   const s = getState(eid);
-  return s.state === 'on'
-    ? '<span class="bright">\u25CF</span>'
-    : '<span class="dim">\u25CB</span>';
+  if (s.state === 'on') {
+    const rgb = s.attrs?.rgb_color;
+    if (rgb && Array.isArray(rgb) && rgb.length === 3) {
+      return `<span style="color:rgb(${rgb[0]},${rgb[1]},${rgb[2]})">\u25CF</span>`;
+    }
+    return '<span class="bright">\u25CF</span>';
+  }
+  return '<span class="dim">\u25CB</span>';
 }
 
 function switchIcon(eid) {
@@ -497,6 +502,7 @@ function renderHouse() {
     `${B}\u2502${E} ${motionIcon('binary_sensor.entryway_motion')}    ${B}\u2502${E}                      ${B}\u2502${E} ${mediaIcon('media_player.living_room')}          ${B}\u2502${E}`,
     `${B}\u2502${E} ${doorIcon('binary_sensor.front_door_contact')}       ${B}\u2502${E}                      ${B}\u2502${E} ${tempIcon('sensor.living_room_temperature')}  ${humidIcon('sensor.living_room_humidity')}     ${B}\u2502${E}`,
     `${B}\u2502${E} ${doorIcon('binary_sensor.back_door_contact')}        ${B}\u2502${E}                      ${B}\u2502${E} ${motionIcon('binary_sensor.living_room_motion')}${B}\u2502${E}`,
+    `${B}\u2502${E} ${doorIcon('binary_sensor.garage_door_contact')} garage ${B}\u2502${E}                      ${B}\u2502${E}                      ${B}\u2502${E}`,
     `${B}\u2502${E} ${tempIcon('sensor.entryway_temperature')}           ${B}\u2502${E}                      ${B}\u2502${E}                      ${B}\u2502${E}`,
     `${B}\u2514\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2518${E}                      ${B}\u2514\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2518${E}`,
     `${B}\u250C\u2500 EXTERIOR \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2510${E}`,
