@@ -21,7 +21,7 @@ BOLD='\033[1m'
 NC='\033[0m'
 
 case "${1:-full}" in
-  full)
+  full|start)
     echo -e "${BOLD}=== Marge Demo — Full Stack ===${NC}"
     echo ""
 
@@ -105,6 +105,10 @@ case "${1:-full}" in
     echo -e "${BOLD}=== Running Scenario ===${NC}"
     echo -e "Chapter: ${CHAPTER:-all}"
 
+    # Marge start command for outage recovery
+    MARGE_BIN="$(pwd)/marge-core/target/release/marge"
+    MARGE_START="MARGE_AUTOMATIONS_PATH=$(pwd)/ha-config/automations.yaml MARGE_SCENES_PATH=$(pwd)/ha-config/scenes.yaml MARGE_MQTT_PORT=1884 RUST_LOG=info $MARGE_BIN &"
+
     env TARGET=both \
       HA_URL=http://localhost:8123 \
       HA_TOKEN="$HA_TOKEN" \
@@ -113,6 +117,7 @@ case "${1:-full}" in
       MARGE_URL=http://localhost:8124 \
       MARGE_MQTT_HOST=localhost \
       MARGE_MQTT_PORT=1884 \
+      MARGE_START_CMD="$MARGE_START" \
       SPEED="${SPEED:-10}" \
       ${CHAPTER_ENV} \
       python3 scenario-driver/driver.py
@@ -134,7 +139,7 @@ case "${1:-full}" in
     ;;
 
   *)
-    echo "Usage: $0 {full|marge-only|scenario [chapter]|cts|stop}"
+    echo "Usage: $0 {start|full|marge-only|scenario [chapter]|cts|stop}"
     exit 1
     ;;
 esac
