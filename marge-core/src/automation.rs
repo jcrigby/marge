@@ -383,12 +383,10 @@ impl AutomationEngine {
         }
 
         // Handle actions with no entity targets (e.g., persistent_notification)
-        if entity_ids.is_empty() {
-            if domain == "persistent_notification" && service == "create" {
-                let title = data.get("title").and_then(|v| v.as_str()).unwrap_or("");
-                let message = data.get("message").and_then(|v| v.as_str()).unwrap_or("");
-                tracing::info!("NOTIFICATION: {} — {}", title, message);
-            }
+        if entity_ids.is_empty() && domain == "persistent_notification" && service == "create" {
+            let title = data.get("title").and_then(|v| v.as_str()).unwrap_or("");
+            let message = data.get("message").and_then(|v| v.as_str()).unwrap_or("");
+            tracing::info!("NOTIFICATION: {} — {}", title, message);
         }
     }
 
