@@ -53,7 +53,7 @@ async fn handle_ws(mut socket: WebSocket, app: Arc<AppState>) {
     let auth_req = serde_json::to_string(&WsOutgoing::AuthRequired {
         ha_version: env!("CARGO_PKG_VERSION").to_string(),
     }).unwrap();
-    if socket.send(Message::Text(auth_req.into())).await.is_err() {
+    if socket.send(Message::Text(auth_req)).await.is_err() {
         return;
     }
 
@@ -70,7 +70,7 @@ async fn handle_ws(mut socket: WebSocket, app: Arc<AppState>) {
             let auth_ok = serde_json::to_string(&WsOutgoing::AuthOk {
                 ha_version: env!("CARGO_PKG_VERSION").to_string(),
             }).unwrap();
-            if socket.send(Message::Text(auth_ok.into())).await.is_err() {
+            if socket.send(Message::Text(auth_ok)).await.is_err() {
                 return;
             }
         }
@@ -117,7 +117,7 @@ async fn handle_ws(mut socket: WebSocket, app: Arc<AppState>) {
                                     ws_result(id, false, Some(serde_json::json!({"message": "Unknown command"})))
                                 }
                             };
-                            if socket.send(Message::Text(resp.into())).await.is_err() {
+                            if socket.send(Message::Text(resp)).await.is_err() {
                                 break;
                             }
                         }
@@ -134,7 +134,7 @@ async fn handle_ws(mut socket: WebSocket, app: Arc<AppState>) {
                         id: sub_id,
                         event: make_state_changed_event(&event),
                     }).unwrap();
-                    if socket.send(Message::Text(ws_event.into())).await.is_err() {
+                    if socket.send(Message::Text(ws_event)).await.is_err() {
                         return;
                     }
                 }
