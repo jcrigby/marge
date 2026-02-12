@@ -1,0 +1,45 @@
+[package]
+name = "marge"
+version = "0.1.0"
+edition = "2021"
+description = "Home automation core — the one who actually keeps the house running"
+
+[dependencies]
+# Async runtime
+tokio = { version = "1", features = ["full"] }
+
+# HTTP server + WebSocket
+axum = { version = "0.7", features = ["ws"] }
+tower-http = { version = "0.5", features = ["cors", "trace"] }
+
+# Serialization
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+serde_yaml = "0.9"
+
+# Concurrent state
+dashmap = "6"
+
+# MQTT broker (embedded)
+rumqttd = "0.19"
+rumqttc = "0.24"
+
+# Logging
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+# Time
+chrono = { version = "0.4", features = ["serde"] }
+
+# Unique IDs
+uuid = { version = "1", features = ["v4"] }
+
+# Error handling
+anyhow = "1"
+thiserror = "1"
+
+[profile.release]
+opt-level = 3
+lto = true
+strip = true
+codegen-units = 1
