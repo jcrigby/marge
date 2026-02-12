@@ -15,6 +15,7 @@ use crate::state::{EntityState, StateMachine};
 /// Shared application state
 pub struct AppState {
     pub state_machine: StateMachine,
+    pub started_at: std::time::Instant,
 }
 
 /// Combined router state
@@ -337,12 +338,14 @@ async fn health(State(rs): State<RouterState>) -> Json<serde_json::Value> {
     let pid = std::process::id();
     let rss_kb = read_rss_kb(pid).unwrap_or(0);
 
+    let uptime = rs.app.started_at.elapsed().as_secs();
+
     Json(serde_json::json!({
         "status": "ok",
         "version": env!("CARGO_PKG_VERSION"),
         "entity_count": rs.app.state_machine.len(),
         "memory_rss_kb": rss_kb,
-        "uptime_seconds": 0,
+        "uptime_seconds": uptime,
     }))
 }
 

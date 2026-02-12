@@ -28,7 +28,10 @@ async fn main() -> anyhow::Result<()> {
     // Initialize state machine (SSS §4.1.2)
     let state_machine = state::StateMachine::new(4096);
 
-    let app_state = Arc::new(AppState { state_machine });
+    let app_state = Arc::new(AppState {
+        state_machine,
+        started_at: std::time::Instant::now(),
+    });
 
     // Load automations (D4)
     let automations_path = std::env::var("MARGE_AUTOMATIONS_PATH")
