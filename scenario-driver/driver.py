@@ -303,6 +303,26 @@ class GeneratorEngine:
         return current
 
 
+async def push_sim_time(suts: list[SUTConnection], sim_time: str,
+                        chapter: str = "", speed: float = 0):
+    """Push sim-time/chapter to SUTs that support it (Marge)."""
+    body = {"time": sim_time}
+    if chapter:
+        body["chapter"] = chapter
+    if speed:
+        body["speed"] = speed
+    for sut in suts:
+        try:
+            await sut.http_client.post(
+                f"{sut.rest_url}/api/sim/time",
+                headers=sut.headers(),
+                json=body,
+                timeout=2.0,
+            )
+        except Exception:
+            pass  # HA doesn't have this endpoint — that's fine
+
+
 async def play_chapter(suts: list[SUTConnection], chapter_name: str,
                        chapter: dict, speed: float, scenario: dict,
                        driver_state: DriverState):
@@ -312,6 +332,9 @@ async def play_chapter(suts: list[SUTConnection], chapter_name: str,
     print(f"  {chapter.get('description', '')}")
     print(f"  Speed: {speed}x")
     print(f"{'='*60}")
+
+    # Push chapter start to SUTs
+    await push_sim_time(suts, chapter.get("sim_start", ""), chapter_name, speed)
 
     events = list(chapter.get("events", []))
 
@@ -357,6 +380,8 @@ async def play_chapter(suts: list[SUTConnection], chapter_name: str,
         elif etype == "time_tick":
             sim_time = event.get("sim_time", "")
             print(f"  [{offset/1000:.0f}s] SIM TIME: {sim_time}")
+            # Push sim-time to SUTs for dashboard display
+            await push_sim_time(suts, sim_time)
             # Force-trigger time-based automations at their scheduled times
             automations_to_fire = event.get("trigger_automations", [])
             for auto_id in automations_to_fire:
