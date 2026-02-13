@@ -54,6 +54,9 @@ class SUTConnection:
 class DriverState:
     """Tracks current entity states for the generator engine."""
     values: dict = field(default_factory=dict)
+    # Verification counters per SUT name
+    verify_ok: dict = field(default_factory=lambda: {})
+    verify_fail: dict = field(default_factory=lambda: {})
 
 
 def load_scenario(path: str) -> dict:
@@ -159,7 +162,7 @@ async def push_state_mqtt(sut: SUTConnection, entity_id: str, state: str,
 
 
 async def push_state_rest(sut: SUTConnection, entity_id: str, state: str,
-                          attributes: Optional[dict] = None):
+                          attributes: Optional[dict] = None, silent: bool = False):
     """Push state via REST API (for non-MQTT entities like sun.sun)."""
     body = {"state": state}
     if attributes:
@@ -172,7 +175,8 @@ async def push_state_rest(sut: SUTConnection, entity_id: str, state: str,
             timeout=5.0,
         )
     except Exception as e:
-        print(f"  [{sut.name}] REST push failed for {entity_id}: {e}")
+        if not silent:
+            print(f"  [{sut.name}] REST push failed for {entity_id}: {e}")
 
 
 async def call_service(sut: SUTConnection, domain: str, service: str,
@@ -227,11 +231,17 @@ async def trigger_automation(sut: SUTConnection, automation_id: str):
     })
 
 
+# Global verification counters: { sut_name: { "ok": N, "fail": N } }
+verify_counts = {}
+
 async def verify_state(sut: SUTConnection, entity_id: str,
                        expected_state: Optional[str] = None,
                        expected_attributes: Optional[dict] = None,
                        timeout_ms: int = 5000):
     """Verify an entity has the expected state, polling until timeout."""
+    if sut.name not in verify_counts:
+        verify_counts[sut.name] = {"ok": 0, "fail": 0}
+
     deadline = time.monotonic() + (timeout_ms / 1000)
     while time.monotonic() < deadline:
         try:
@@ -252,6 +262,7 @@ async def verify_state(sut: SUTConnection, entity_id: str,
                             break
                 if state_ok and attrs_ok:
                     print(f"  [{sut.name}] VERIFY OK: {entity_id} = {data.get('state')}")
+                    verify_counts[sut.name]["ok"] += 1
                     return True
         except Exception:
             pass
@@ -259,6 +270,7 @@ async def verify_state(sut: SUTConnection, entity_id: str,
 
     print(f"  [{sut.name}] VERIFY FAIL: {entity_id} "
           f"expected_state={expected_state} expected_attrs={expected_attributes}")
+    verify_counts[sut.name]["fail"] += 1
     return False
 
 
@@ -448,7 +460,8 @@ async def play_chapter(suts: list[SUTConnection], chapter_name: str,
             # Push annotation to SUTs so dashboard can display it
             for sut in suts:
                 await push_state_rest(sut, "sensor.scenario_annotation",
-                                      event["message"], {"friendly_name": "Scenario"})
+                                      event["message"], {"friendly_name": "Scenario"},
+                                      silent=True)
 
         elif etype == "state":
             entity_id = event["entity_id"]
@@ -505,6 +518,21 @@ async def play_chapter(suts: list[SUTConnection], chapter_name: str,
                     expected_attributes=event.get("expected_attributes"),
                     timeout_ms=event.get("timeout_ms", 5000),
                 )
+            # Push live verification scores to Marge for dashboard
+            for sut in suts:
+                c = verify_counts.get(sut.name, {"ok": 0, "fail": 0})
+                total = c["ok"] + c["fail"]
+                label = "ha" if "ha" in sut.name.lower() else "marge"
+                marge_sut = next((s for s in suts if "marge" in s.name.lower()), None)
+                if marge_sut:
+                    try:
+                        await push_state_rest(
+                            marge_sut, f"sensor.verify_{label}",
+                            f"{c['ok']}/{total}",
+                            {"friendly_name": f"{sut.name} Verifications",
+                             "ok": c["ok"], "fail": c["fail"], "total": total})
+                    except Exception:
+                        pass
 
         elif etype == "power_outage":
             print(f"\n  [{offset/1000:.0f}s] {'='*50}")
@@ -532,7 +560,8 @@ async def play_chapter(suts: list[SUTConnection], chapter_name: str,
             for sut in suts:
                 await push_state_rest(sut, "sensor.scenario_annotation",
                                       "Scenario Complete — Press S for Score Card",
-                                      {"friendly_name": "Scenario"})
+                                      {"friendly_name": "Scenario"},
+                                      silent=True)
 
 
 async def run_shell(cmd: str) -> tuple[int, str]:
