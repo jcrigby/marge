@@ -908,3 +908,57 @@ async def test_token_delete_nonexistent_returns_404(rest):
         headers=rest._headers(),
     )
     assert resp.status_code == 404
+
+
+# ── Template with state_attr ────────────────────────
+
+
+@pytest.mark.asyncio
+async def test_template_state_attr(rest):
+    """Template can access entity attributes via state_attr()."""
+    await rest.set_state("sensor.attr_cts", "72", {"unit_of_measurement": "F", "device_class": "temperature"})
+    resp = await rest.client.post(
+        f"{rest.base_url}/api/template",
+        headers=rest._headers(),
+        json={"template": "{{ state_attr('sensor.attr_cts', 'unit_of_measurement') }}"},
+    )
+    assert resp.status_code == 200
+    assert resp.text.strip() == "F"
+
+
+@pytest.mark.asyncio
+async def test_template_is_state(rest):
+    """Template is_state() returns true/false."""
+    await rest.set_state("light.is_state_cts", "on")
+    resp = await rest.client.post(
+        f"{rest.base_url}/api/template",
+        headers=rest._headers(),
+        json={"template": "{{ is_state('light.is_state_cts', 'on') }}"},
+    )
+    assert resp.status_code == 200
+    assert resp.text.strip().lower() == "true"
+
+
+# ── Health endpoint ─────────────────────────────────
+
+
+def test_health_response_fields(client):
+    """GET /api/health returns all expected metric fields."""
+    resp = client.get("/api/health")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["status"] == "ok"
+    assert "version" in data
+    assert "entity_count" in data
+    assert "memory_rss_mb" in data
+    assert "startup_ms" in data
+    assert "latency_avg_us" in data
+    assert "state_changes" in data
+    assert "uptime_seconds" in data
+
+
+def test_health_startup_under_5ms(client):
+    """Marge starts up in under 5ms."""
+    resp = client.get("/api/health")
+    data = resp.json()
+    assert data["startup_ms"] < 5.0, f"Startup took {data['startup_ms']}ms"
