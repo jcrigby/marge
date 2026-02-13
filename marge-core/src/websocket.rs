@@ -168,6 +168,11 @@ async fn handle_ws(
                                     tracing::info!(event_type = %event_type, "WS event fired");
                                     ws_result(id, true, None)
                                 }
+                                "get_services" => {
+                                    let registry = services.read().unwrap();
+                                    let svc_list = registry.list_domains_json();
+                                    ws_result(id, true, Some(svc_list))
+                                }
                                 "get_config" => {
                                     let config = serde_json::json!({
                                         "location_name": "Marge Demo Home",
@@ -187,7 +192,11 @@ async fn handle_ws(
                                     ws_result(id, true, Some(config))
                                 }
                                 "ping" => {
-                                    ws_result(id, true, None)
+                                    // HA-compatible pong response
+                                    serde_json::to_string(&serde_json::json!({
+                                        "id": id,
+                                        "type": "pong",
+                                    })).unwrap_or_default()
                                 }
                                 _ => {
                                     tracing::debug!(msg_type = %incoming.msg_type, "Unknown WS message type");

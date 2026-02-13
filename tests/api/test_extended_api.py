@@ -1229,9 +1229,7 @@ async def test_websocket_ping_pong():
         msg = await asyncio.wait_for(ws.recv(), timeout=5)
         data = json.loads(msg)
         assert data["id"] == 99
-        assert data["type"] in ("pong", "result")
-        if data["type"] == "result":
-            assert data["success"] is True
+        assert data["type"] == "pong"
 
 
 # ── Fire custom event ────────────────────────────────────
@@ -1261,3 +1259,51 @@ def test_services_list_contains_common_domains(client):
     domains = [d.get("domain", "") for d in data]
     assert "light" in domains
     assert "switch" in domains
+
+
+@pytest.mark.asyncio
+async def test_websocket_get_services():
+    """WebSocket get_services returns service domains."""
+    import websockets
+    import json
+
+    async with websockets.connect("ws://localhost:8124/api/websocket") as ws:
+        msg = await asyncio.wait_for(ws.recv(), timeout=5)
+        data = json.loads(msg)
+        if data["type"] == "auth_required":
+            await ws.send(json.dumps({"type": "auth", "access_token": ""}))
+            msg = await asyncio.wait_for(ws.recv(), timeout=5)
+
+        await ws.send(json.dumps({"id": 10, "type": "get_services"}))
+        msg = await asyncio.wait_for(ws.recv(), timeout=5)
+        data = json.loads(msg)
+        assert data["id"] == 10
+        assert data["success"] is True
+        services = data["result"]
+        assert isinstance(services, list)
+        domains = [s["domain"] for s in services]
+        assert "light" in domains
+
+
+@pytest.mark.asyncio
+async def test_websocket_get_config():
+    """WebSocket get_config returns location and version."""
+    import websockets
+    import json
+
+    async with websockets.connect("ws://localhost:8124/api/websocket") as ws:
+        msg = await asyncio.wait_for(ws.recv(), timeout=5)
+        data = json.loads(msg)
+        if data["type"] == "auth_required":
+            await ws.send(json.dumps({"type": "auth", "access_token": ""}))
+            msg = await asyncio.wait_for(ws.recv(), timeout=5)
+
+        await ws.send(json.dumps({"id": 11, "type": "get_config"}))
+        msg = await asyncio.wait_for(ws.recv(), timeout=5)
+        data = json.loads(msg)
+        assert data["id"] == 11
+        assert data["success"] is True
+        config = data["result"]
+        assert "location_name" in config
+        assert "version" in config
+        assert "latitude" in config

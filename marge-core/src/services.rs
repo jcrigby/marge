@@ -519,4 +519,21 @@ impl ServiceRegistry {
         }
         result
     }
+
+    /// Return services as JSON array matching HA WebSocket format
+    pub fn list_domains_json(&self) -> serde_json::Value {
+        let services = self.list_services();
+        let mut arr = Vec::new();
+        for (domain, svcs) in &services {
+            let mut svc_map = serde_json::Map::new();
+            for svc in svcs {
+                svc_map.insert(svc.clone(), serde_json::json!({"description": ""}));
+            }
+            arr.push(serde_json::json!({
+                "domain": domain,
+                "services": svc_map,
+            }));
+        }
+        serde_json::Value::Array(arr)
+    }
 }

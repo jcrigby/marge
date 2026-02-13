@@ -191,7 +191,8 @@ class WSClient:
             "type": "ping",
         }))
         result = json.loads(await self.ws.recv())
-        return result.get("success", False)
+        # HA returns type=pong, also accept type=result with success=true
+        return result.get("type") == "pong" or result.get("success", False)
 
     async def close(self):
         if self.ws:
