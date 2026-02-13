@@ -67,6 +67,19 @@ fn open_db(path: &Path) -> rusqlite::Result<Connection> {
             name       TEXT NOT NULL,
             token_value TEXT NOT NULL UNIQUE,
             created_at TEXT NOT NULL
+        );
+
+        CREATE TABLE IF NOT EXISTS devices (
+            device_id    TEXT PRIMARY KEY,
+            name         TEXT NOT NULL,
+            manufacturer TEXT NOT NULL DEFAULT '',
+            model        TEXT NOT NULL DEFAULT '',
+            area_id      TEXT NOT NULL DEFAULT ''
+        );
+        CREATE TABLE IF NOT EXISTS device_entities (
+            entity_id TEXT PRIMARY KEY,
+            device_id TEXT NOT NULL,
+            FOREIGN KEY(device_id) REFERENCES devices(device_id)
         );",
     )?;
 
@@ -505,6 +518,78 @@ pub fn delete_token(db_path: &Path, id: &str) -> anyhow::Result<bool> {
         params![id],
     )?;
     Ok(deleted > 0)
+}
+
+/// ── Device Registry ──────────────────────────────────
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct Device {
+    pub device_id: String,
+    pub name: String,
+    pub manufacturer: String,
+    pub model: String,
+    pub area_id: String,
+}
+
+/// List all devices.
+pub fn list_devices(db_path: &Path) -> anyhow::Result<Vec<Device>> {
+    let conn = open_db(db_path)?;
+    let mut stmt = conn.prepare("SELECT device_id, name, manufacturer, model, area_id FROM devices")?;
+    let devices = stmt.query_map([], |row| {
+        Ok(Device {
+            device_id: row.get(0)?,
+            name: row.get(1)?,
+            manufacturer: row.get(2)?,
+            model: row.get(3)?,
+            area_id: row.get(4)?,
+        })
+    })?.filter_map(|r| r.ok()).collect();
+    Ok(devices)
+}
+
+/// Create or update a device.
+pub fn upsert_device(db_path: &Path, device: &Device) -> anyhow::Result<()> {
+    let conn = open_db(db_path)?;
+    conn.execute(
+        "INSERT INTO devices (device_id, name, manufacturer, model, area_id)
+         VALUES (?1, ?2, ?3, ?4, ?5)
+         ON CONFLICT(device_id) DO UPDATE SET
+            name = excluded.name,
+            manufacturer = excluded.manufacturer,
+            model = excluded.model,
+            area_id = excluded.area_id",
+        params![device.device_id, device.name, device.manufacturer, device.model, device.area_id],
+    )?;
+    Ok(())
+}
+
+/// Delete a device and unassign all its entities.
+pub fn delete_device(db_path: &Path, device_id: &str) -> anyhow::Result<()> {
+    let conn = open_db(db_path)?;
+    conn.execute("DELETE FROM device_entities WHERE device_id = ?1", params![device_id])?;
+    conn.execute("DELETE FROM devices WHERE device_id = ?1", params![device_id])?;
+    Ok(())
+}
+
+/// Assign an entity to a device.
+pub fn assign_entity_device(db_path: &Path, entity_id: &str, device_id: &str) -> anyhow::Result<()> {
+    let conn = open_db(db_path)?;
+    conn.execute(
+        "INSERT INTO device_entities (entity_id, device_id) VALUES (?1, ?2)
+         ON CONFLICT(entity_id) DO UPDATE SET device_id = excluded.device_id",
+        params![entity_id, device_id],
+    )?;
+    Ok(())
+}
+
+/// Load all entity-to-device mappings.
+pub fn load_device_entities(db_path: &Path) -> anyhow::Result<Vec<(String, String)>> {
+    let conn = open_db(db_path)?;
+    let mut stmt = conn.prepare("SELECT entity_id, device_id FROM device_entities")?;
+    let mappings = stmt.query_map([], |row| {
+        Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?))
+    })?.filter_map(|r| r.ok()).collect();
+    Ok(mappings)
 }
 
 fn purge_history(conn: &Connection, retention_days: u32) -> rusqlite::Result<usize> {

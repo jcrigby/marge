@@ -236,6 +236,12 @@
   color: var(--text-dim);
 }
 
+/* ── Recent change indicator ─────────────── */
+.recent-change > .card {
+  border-color: var(--accent);
+  box-shadow: 0 0 8px rgba(108, 140, 255, 0.2);
+}
+
 /* ── Automation firing flash ──────────────── */
 .card.is-firing {
   animation: fire-flash 0.6s ease-out;
