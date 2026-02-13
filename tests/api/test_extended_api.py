@@ -473,3 +473,121 @@ async def test_fan_set_percentage(rest):
     state = await rest.get_state("fan.ceiling")
     assert state["state"] == "on"
     assert state["attributes"]["percentage"] == 75
+
+
+# ── Automation Config API ──────────────────────────────
+
+
+@pytest.mark.asyncio
+async def test_automation_config_returns_list(rest):
+    """GET /api/config/automation/config returns a list of automations."""
+    resp = await rest.client.get(
+        f"{rest.base_url}/api/config/automation/config",
+        headers=rest._headers(),
+    )
+    assert resp.status_code == 200
+    data = resp.json()
+    assert isinstance(data, list)
+    assert len(data) >= 1
+    # Each entry should have id, alias, and trigger info
+    auto = data[0]
+    assert "id" in auto
+    assert "alias" in auto
+    assert "trigger_count" in auto
+    assert "action_count" in auto
+    assert "enabled" in auto
+
+
+@pytest.mark.asyncio
+async def test_automation_config_has_metadata(rest):
+    """Automation config includes runtime metadata fields."""
+    resp = await rest.client.get(
+        f"{rest.base_url}/api/config/automation/config",
+        headers=rest._headers(),
+    )
+    data = resp.json()
+    auto = data[0]
+    assert "total_triggers" in auto
+    assert isinstance(auto["total_triggers"], int)
+    assert "last_triggered" in auto
+    assert "mode" in auto
+
+
+@pytest.mark.asyncio
+async def test_automation_reload(rest):
+    """POST /api/config/core/reload reloads automations successfully."""
+    resp = await rest.client.post(
+        f"{rest.base_url}/api/config/core/reload",
+        headers=rest._headers(),
+    )
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["result"] == "ok"
+    assert data["automations_reloaded"] >= 1
+
+
+@pytest.mark.asyncio
+async def test_automation_entity_has_friendly_name(rest):
+    """Automation entities have friendly_name attribute set from alias."""
+    resp = await rest.client.get(
+        f"{rest.base_url}/api/config/automation/config",
+        headers=rest._headers(),
+    )
+    automations = resp.json()
+    if len(automations) == 0:
+        pytest.skip("No automations loaded")
+    auto = automations[0]
+
+    state = await rest.get_state(f"automation.{auto['id']}")
+    assert state is not None
+    assert "friendly_name" in state["attributes"]
+    assert state["attributes"]["friendly_name"] == auto["alias"]
+
+
+@pytest.mark.asyncio
+async def test_automation_trigger_updates_metadata(rest):
+    """Triggering an automation updates last_triggered and current count."""
+    resp = await rest.client.get(
+        f"{rest.base_url}/api/config/automation/config",
+        headers=rest._headers(),
+    )
+    automations = resp.json()
+    if len(automations) == 0:
+        pytest.skip("No automations loaded")
+    auto = automations[0]
+    initial_count = auto["total_triggers"]
+
+    # Trigger the automation
+    await rest.call_service("automation", "trigger", {"entity_id": f"automation.{auto['id']}"})
+    await asyncio.sleep(0.5)
+
+    # Check metadata was updated
+    resp2 = await rest.client.get(
+        f"{rest.base_url}/api/config/automation/config",
+        headers=rest._headers(),
+    )
+    updated = next(a for a in resp2.json() if a["id"] == auto["id"])
+    assert updated["total_triggers"] == initial_count + 1
+    assert updated["last_triggered"] is not None
+
+
+# ── WebSocket get_config ──────────────────────────────
+
+
+@pytest.mark.asyncio
+async def test_ws_get_config(ws):
+    """WebSocket get_config returns system configuration."""
+    import json
+    msg_id = 200
+    await ws.ws.send(json.dumps({
+        "id": msg_id,
+        "type": "get_config",
+    }))
+    result = json.loads(await ws.ws.recv())
+    assert result["id"] == msg_id
+    assert result["success"] is True
+    config = result["result"]
+    assert "location_name" in config
+    assert "version" in config
+    assert "time_zone" in config
+    assert "latitude" in config

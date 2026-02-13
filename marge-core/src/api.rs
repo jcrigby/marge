@@ -36,6 +36,7 @@ struct RouterState {
     services: Arc<std::sync::RwLock<ServiceRegistry>>,
     auth: Arc<AuthConfig>,
     db_path: PathBuf,
+    automations_path: PathBuf,
 }
 
 /// POST /api/states/{entity_id} request body
@@ -93,6 +94,7 @@ pub fn router(
     services: Arc<std::sync::RwLock<ServiceRegistry>>,
     auth: Arc<AuthConfig>,
     db_path: PathBuf,
+    automations_path: PathBuf,
 ) -> Router {
     let router_state = RouterState {
         app: state,
@@ -101,6 +103,7 @@ pub fn router(
         services,
         auth,
         db_path,
+        automations_path,
     };
 
     Router::new()
@@ -128,6 +131,9 @@ pub fn router(
         .route("/api/template", post(render_template))
         // Event type listing (HA-compatible)
         .route("/api/events", get(list_events))
+        // Automation config + reload
+        .route("/api/config/automation/config", get(list_automations))
+        .route("/api/config/core/reload", post(reload_automations))
         .with_state(router_state)
 }
 
@@ -630,6 +636,74 @@ async fn render_template(
             tracing::warn!("Template render error: {}", e);
             StatusCode::BAD_REQUEST
         })
+}
+
+/// GET /api/config/automation/config — list all automations with metadata
+async fn list_automations(
+    State(rs): State<RouterState>,
+    headers: HeaderMap,
+) -> Result<Json<Vec<serde_json::Value>>, StatusCode> {
+    check_auth(&rs, &headers)?;
+
+    match &rs.engine {
+        Some(engine) => {
+            let infos = engine.get_automations_info();
+            let result: Vec<serde_json::Value> = infos
+                .into_iter()
+                .map(|info| {
+                    serde_json::json!({
+                        "id": info.id,
+                        "alias": info.alias,
+                        "description": info.description,
+                        "mode": info.mode,
+                        "trigger_count": info.trigger_count,
+                        "condition_count": info.condition_count,
+                        "action_count": info.action_count,
+                        "last_triggered": info.last_triggered,
+                        "total_triggers": info.total_triggers,
+                        "enabled": info.enabled,
+                    })
+                })
+                .collect();
+            Ok(Json(result))
+        }
+        None => Ok(Json(vec![])),
+    }
+}
+
+/// POST /api/config/core/reload — reload automations from disk (HA-compatible)
+async fn reload_automations(
+    State(rs): State<RouterState>,
+    headers: HeaderMap,
+) -> Result<Json<serde_json::Value>, StatusCode> {
+    check_auth(&rs, &headers)?;
+
+    match &rs.engine {
+        Some(engine) => {
+            match engine.reload() {
+                Ok(count) => {
+                    tracing::info!("Reloaded {} automations", count);
+                    Ok(Json(serde_json::json!({
+                        "result": "ok",
+                        "automations_reloaded": count,
+                    })))
+                }
+                Err(e) => {
+                    tracing::error!("Automation reload failed: {}", e);
+                    Ok(Json(serde_json::json!({
+                        "result": "error",
+                        "message": format!("{}", e),
+                    })))
+                }
+            }
+        }
+        None => {
+            Ok(Json(serde_json::json!({
+                "result": "ok",
+                "automations_reloaded": 0,
+            })))
+        }
+    }
 }
 
 /// Read RSS from /proc/self/status on Linux
