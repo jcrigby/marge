@@ -648,6 +648,87 @@
   color: var(--text);
   word-break: break-all;
 }
+.attr-val-clickable {
+  cursor: pointer;
+  border-bottom: 1px dashed var(--text-dim);
+}
+.attr-val-clickable:hover {
+  color: var(--accent);
+}
+.attr-edit-row {
+  display: flex;
+  gap: 0.3rem;
+  align-items: center;
+}
+.attr-edit-input {
+  flex: 1;
+  background: var(--bg-card);
+  border: 1px solid var(--accent);
+  color: var(--text);
+  padding: 0.2rem 0.4rem;
+  border-radius: 3px;
+  font-family: monospace;
+  font-size: 0.75rem;
+}
+.attr-edit-btn {
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-dim);
+  padding: 0.15rem 0.4rem;
+  border-radius: 3px;
+  cursor: pointer;
+  font-size: 0.7rem;
+}
+.attr-edit-btn:hover {
+  color: var(--text);
+  border-color: var(--accent);
+}
+.svc-call-btn {
+  margin-top: 0.3rem;
+  font-size: 0.8rem;
+}
+.svc-dialog {
+  margin-top: 0.5rem;
+  padding: 0.5rem;
+  border: 1px solid var(--border-subtle);
+  border-radius: 6px;
+  background: var(--bg-card);
+}
+.svc-dialog h4 {
+  margin: 0 0 0.4rem;
+  font-size: 0.85rem;
+}
+.svc-row {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  margin-bottom: 0.3rem;
+}
+.svc-row label {
+  width: 60px;
+  font-size: 0.75rem;
+  color: var(--text-dim);
+  flex-shrink: 0;
+}
+.svc-row input,
+.svc-row textarea {
+  flex: 1;
+  background: var(--bg);
+  border: 1px solid var(--border-subtle);
+  color: var(--text);
+  padding: 0.25rem 0.4rem;
+  border-radius: 3px;
+  font-family: monospace;
+  font-size: 0.75rem;
+}
+.svc-row textarea {
+  resize: vertical;
+}
+.svc-error {
+  color: #f44;
+  font-size: 0.75rem;
+  margin-bottom: 0.3rem;
+}
 .detail-history {
   max-height: 200px;
   overflow-y: auto;
