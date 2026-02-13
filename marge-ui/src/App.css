@@ -1579,6 +1579,18 @@
   padding-top: 0.5rem;
 }
 
+.log-search {
+  padding: 0.3rem 0.5rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg-card);
+  color: var(--text);
+  font-size: 0.75rem;
+  width: 140px;
+}
+.log-search::placeholder {
+  color: var(--text-dim);
+}
 .log-domain-filter {
   padding: 0.3rem 0.5rem;
   border: 1px solid var(--border);

@@ -35,6 +35,7 @@ export default function EventLog({ entities }: { entities: EntityState[] }) {
   const [log, setLog] = useState<LogEntry[]>([]);
   const [paused, setPaused] = useState(false);
   const [filterDomain, setFilterDomain] = useState('');
+  const [filterText, setFilterText] = useState('');
   const [showHistory, setShowHistory] = useState(true);
   const prevStates = useRef<Map<string, string>>(new Map());
   const logRef = useRef<HTMLDivElement>(null);
@@ -110,11 +111,34 @@ export default function EventLog({ entities }: { entities: EntityState[] }) {
     filtered = filtered.filter((e) => e.source === 'live');
   }
 
+  if (filterText) {
+    const q = filterText.toLowerCase();
+    filtered = filtered.filter((e) =>
+      e.entity_id.toLowerCase().includes(q) ||
+      e.to_state.toLowerCase().includes(q) ||
+      e.from_state.toLowerCase().includes(q)
+    );
+  }
+
   // Unique domains in log
   const logDomains = [...new Set(log.map((e) => e.domain))].sort();
 
   const liveCount = log.filter((e) => e.source === 'live').length;
   const histCount = log.filter((e) => e.source === 'history').length;
+
+  const exportCsv = () => {
+    const header = 'time,entity_id,domain,from_state,to_state,source';
+    const rows = filtered.map((e) =>
+      `${e.time},${e.entity_id},${e.domain},${e.from_state},${e.to_state},${e.source}`
+    );
+    const blob = new Blob([header + '\n' + rows.join('\n')], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `marge-events-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
 
   return (
     <div className="event-log">
@@ -124,6 +148,13 @@ export default function EventLog({ entities }: { entities: EntityState[] }) {
           <span className="domain-count">{filtered.length}</span>
         </h2>
         <div className="automation-header-actions">
+          <input
+            type="text"
+            className="log-search"
+            placeholder="Search events..."
+            value={filterText}
+            onChange={(e) => setFilterText(e.target.value)}
+          />
           {logDomains.length > 1 && (
             <select
               className="log-domain-filter"
@@ -148,6 +179,9 @@ export default function EventLog({ entities }: { entities: EntityState[] }) {
             onClick={() => setPaused(!paused)}
           >
             {paused ? 'Resume' : 'Pause'}
+          </button>
+          <button className="reload-btn" onClick={exportCsv} title="Export as CSV">
+            Export
           </button>
           <button
             className="reload-btn"
