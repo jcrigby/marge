@@ -850,3 +850,61 @@ async def test_services_includes_automation(rest):
     assert "turn_on" in svcs
     assert "turn_off" in svcs
     assert "toggle" in svcs
+
+
+# ── Long-Lived Access Tokens ──────────────────────────
+
+
+@pytest.mark.asyncio
+async def test_token_crud(rest):
+    """Tokens can be created, listed, and deleted."""
+    # Create
+    resp = await rest.client.post(
+        f"{rest.base_url}/api/auth/tokens",
+        headers=rest._headers(),
+        json={"name": "CTS Test Token"},
+    )
+    assert resp.status_code == 200
+    data = resp.json()
+    assert "id" in data
+    assert "token" in data  # only shown on creation
+    assert data["name"] == "CTS Test Token"
+    assert data["token"].startswith("marge_")
+    token_id = data["id"]
+
+    # List
+    resp = await rest.client.get(
+        f"{rest.base_url}/api/auth/tokens",
+        headers=rest._headers(),
+    )
+    assert resp.status_code == 200
+    tokens = resp.json()
+    assert any(t["id"] == token_id for t in tokens)
+    # Token values should NOT be exposed in listing
+    for t in tokens:
+        assert t.get("token") is None
+
+    # Delete
+    resp = await rest.client.delete(
+        f"{rest.base_url}/api/auth/tokens/{token_id}",
+        headers=rest._headers(),
+    )
+    assert resp.status_code == 200
+
+    # Verify deleted
+    resp = await rest.client.get(
+        f"{rest.base_url}/api/auth/tokens",
+        headers=rest._headers(),
+    )
+    tokens = resp.json()
+    assert not any(t["id"] == token_id for t in tokens)
+
+
+@pytest.mark.asyncio
+async def test_token_delete_nonexistent_returns_404(rest):
+    """Deleting a nonexistent token returns 404."""
+    resp = await rest.client.delete(
+        f"{rest.base_url}/api/auth/tokens/tok_nonexistent",
+        headers=rest._headers(),
+    )
+    assert resp.status_code == 404

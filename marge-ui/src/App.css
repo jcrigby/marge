@@ -496,6 +496,14 @@
   overflow-y: auto;
   font-size: 0.8rem;
 }
+
+/* ── History chart (SVG) ──────────────────── */
+.history-chart {
+  width: 100%;
+  height: 140px;
+  border-radius: 6px;
+  background: var(--bg);
+}
 .history-row {
   display: flex;
   justify-content: space-between;

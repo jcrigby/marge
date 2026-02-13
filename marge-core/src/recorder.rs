@@ -50,7 +50,24 @@ fn open_db(path: &Path) -> rusqlite::Result<Connection> {
         CREATE INDEX IF NOT EXISTS idx_history_entity
             ON state_history(entity_id, recorded_at);
         CREATE INDEX IF NOT EXISTS idx_history_recorded
-            ON state_history(recorded_at);",
+            ON state_history(recorded_at);
+
+        CREATE TABLE IF NOT EXISTS areas (
+            area_id TEXT PRIMARY KEY,
+            name    TEXT NOT NULL
+        );
+        CREATE TABLE IF NOT EXISTS area_entities (
+            entity_id TEXT PRIMARY KEY,
+            area_id   TEXT NOT NULL,
+            FOREIGN KEY(area_id) REFERENCES areas(area_id)
+        );
+
+        CREATE TABLE IF NOT EXISTS access_tokens (
+            id         TEXT PRIMARY KEY,
+            name       TEXT NOT NULL,
+            token_value TEXT NOT NULL UNIQUE,
+            created_at TEXT NOT NULL
+        );",
     )?;
 
     Ok(conn)
@@ -372,21 +389,9 @@ pub struct StatsBucket {
 
 /// ── Area Registry (persisted in SQLite) ──────────────────
 
-/// Open or create the areas table.
+/// Load all areas from the database.
 pub fn init_areas(db_path: &Path) -> anyhow::Result<Vec<Area>> {
     let conn = open_db(db_path)?;
-    conn.execute_batch(
-        "CREATE TABLE IF NOT EXISTS areas (
-            area_id TEXT PRIMARY KEY,
-            name    TEXT NOT NULL
-        );
-        CREATE TABLE IF NOT EXISTS area_entities (
-            entity_id TEXT PRIMARY KEY,
-            area_id   TEXT NOT NULL,
-            FOREIGN KEY(area_id) REFERENCES areas(area_id)
-        );"
-    )?;
-
     let mut stmt = conn.prepare("SELECT area_id, name FROM areas")?;
     let areas = stmt.query_map([], |row| {
         Ok(Area {
@@ -449,6 +454,57 @@ pub fn unassign_entity_area(db_path: &Path, entity_id: &str) -> anyhow::Result<(
 pub struct Area {
     pub area_id: String,
     pub name: String,
+}
+
+/// ── Long-Lived Access Tokens (Phase 4 §4.3) ────────────
+
+/// Token record stored in SQLite.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct StoredToken {
+    pub id: String,
+    pub name: String,
+    pub token_hash: String,
+    pub created_at: String,
+}
+
+/// Load all stored access tokens from the database.
+pub fn init_tokens(db_path: &Path) -> anyhow::Result<Vec<(String, StoredToken)>> {
+    let conn = open_db(db_path)?;
+    let mut stmt = conn.prepare("SELECT id, name, token_value, created_at FROM access_tokens")?;
+    let tokens = stmt.query_map([], |row| {
+        Ok((
+            row.get::<_, String>(2)?, // token_value
+            StoredToken {
+                id: row.get(0)?,
+                name: row.get(1)?,
+                token_hash: row.get(2)?,
+                created_at: row.get(3)?,
+            },
+        ))
+    })?.filter_map(|r| r.ok()).collect();
+    Ok(tokens)
+}
+
+/// Store a new long-lived access token.
+pub fn store_token(db_path: &Path, id: &str, name: &str, token_value: &str) -> anyhow::Result<()> {
+    let conn = open_db(db_path)?;
+    let now = chrono::Utc::now().to_rfc3339();
+    conn.execute(
+        "INSERT INTO access_tokens (id, name, token_value, created_at)
+         VALUES (?1, ?2, ?3, ?4)",
+        params![id, name, token_value, now],
+    )?;
+    Ok(())
+}
+
+/// Delete a long-lived access token by ID.
+pub fn delete_token(db_path: &Path, id: &str) -> anyhow::Result<bool> {
+    let conn = open_db(db_path)?;
+    let deleted = conn.execute(
+        "DELETE FROM access_tokens WHERE id = ?1",
+        params![id],
+    )?;
+    Ok(deleted > 0)
 }
 
 fn purge_history(conn: &Connection, retention_days: u32) -> rusqlite::Result<usize> {
