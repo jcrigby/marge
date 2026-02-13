@@ -1,5 +1,5 @@
 import type { EntityState, StateChangedEvent } from './types';
-import { toastError } from './Toast';
+import { toastSuccess, toastError } from './Toast';
 
 export type ConnectionStatus = 'connecting' | 'connected' | 'disconnected';
 type Listener = (entities: Map<string, EntityState>) => void;
@@ -135,9 +135,12 @@ export function callService(domain: string, service: string, entityId: string, d
   // Prefer WebSocket when connected (lower latency)
   if (ws && ws.readyState === WebSocket.OPEN) {
     const id = msgId++;
+    const label = `${domain}.${service}`;
     pendingCalls.set(id, (success) => {
-      if (!success) {
-        toastError(`${domain}.${service} failed`);
+      if (success) {
+        toastSuccess(label);
+      } else {
+        toastError(`${label} failed`);
       }
     });
     ws.send(JSON.stringify({
@@ -151,6 +154,7 @@ export function callService(domain: string, service: string, entityId: string, d
   }
 
   // Fallback to REST
+  const label = `${domain}.${service}`;
   const token = getToken();
   const headers: Record<string, string> = { 'Content-Type': 'application/json' };
   if (token) headers['Authorization'] = `Bearer ${token}`;
@@ -159,6 +163,7 @@ export function callService(domain: string, service: string, entityId: string, d
     headers,
     body: JSON.stringify({ entity_id: entityId, ...data }),
   }).then((r) => {
-    if (!r.ok) toastError(`${domain}.${service} failed (${r.status})`);
-  }).catch((e) => toastError(`${domain}.${service}: ${e.message}`));
+    if (r.ok) toastSuccess(label);
+    else toastError(`${label} failed (${r.status})`);
+  }).catch((e) => toastError(`${label}: ${e.message}`));
 }

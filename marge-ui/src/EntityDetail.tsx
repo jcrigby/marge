@@ -1,7 +1,11 @@
 import { useEffect, useState } from 'react';
 import type { EntityState } from './types';
-import { getDomain } from './types';
+import { getDomain, getEntityName } from './types';
 import { callService } from './ws';
+
+function getFriendlyName(entity: EntityState): string {
+  return (entity.attributes.friendly_name as string) || getEntityName(entity.entity_id);
+}
 
 interface Props {
   entity: EntityState;
@@ -357,7 +361,10 @@ export default function EntityDetail({ entity, onClose }: Props) {
     <div className="detail-overlay" onClick={onClose}>
       <div className="detail-panel" onClick={(e) => e.stopPropagation()}>
         <div className="detail-header">
-          <h3>{entity.entity_id}</h3>
+          <div className="detail-title">
+            <h3>{getFriendlyName(entity)}</h3>
+            <span className="detail-entity-id">{entity.entity_id}</span>
+          </div>
           <button className="detail-close" onClick={onClose}>X</button>
         </div>
 

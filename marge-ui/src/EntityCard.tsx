@@ -17,6 +17,20 @@ function relativeTime(iso: string): string {
   return `${days}d ago`;
 }
 
+function getFriendlyName(entity: EntityState): string {
+  return (entity.attributes.friendly_name as string) || getEntityName(entity.entity_id);
+}
+
+// Shared name block: friendly name + entity_id subtitle + last changed
+function CardNameBlock({ entity }: { entity: EntityState }) {
+  return (
+    <span className="card-name-block">
+      <span className="card-name">{getFriendlyName(entity)}</span>
+      <span className="card-entity-id">{entity.entity_id}</span>
+    </span>
+  );
+}
+
 const DOMAIN_ICONS: Record<string, string> = {
   light: '\u{1F4A1}',
   switch: '\u{1F50C}',
@@ -57,7 +71,7 @@ function ToggleCard({ entity }: { entity: EntityState }) {
     <div className={`card card-toggle ${isOn ? 'is-on' : 'is-off'}`}>
       <div className="card-header" onClick={toggle}>
         <span className="card-icon">{domainIcon(domain)}</span>
-        <span className="card-name">{getEntityName(entity.entity_id)}</span>
+        <CardNameBlock entity={entity} />
         <span className={`card-state ${isOn ? 'state-on' : 'state-off'}`}>
           {entity.state}
         </span>
@@ -74,6 +88,7 @@ function ToggleCard({ entity }: { entity: EntityState }) {
           <span className="slider-label">{Math.round((brightness / 255) * 100)}%</span>
         </div>
       )}
+      <div className="card-timestamp">{relativeTime(entity.last_changed)}</div>
     </div>
   );
 }
@@ -89,7 +104,7 @@ function SensorCard({ entity }: { entity: EntityState }) {
     <div className="card card-sensor">
       <div className="card-header">
         <span className="card-icon">{domainIcon(domain)}</span>
-        <span className="card-name">{getEntityName(entity.entity_id)}</span>
+        <CardNameBlock entity={entity} />
       </div>
       <div className="card-value">
         <span className="value-number">{entity.state}</span>
@@ -97,6 +112,27 @@ function SensorCard({ entity }: { entity: EntityState }) {
       </div>
       {isNumeric && <Sparkline entityId={entity.entity_id} />}
       {deviceClass && <div className="card-meta">{deviceClass}</div>}
+      <div className="card-timestamp">{relativeTime(entity.last_changed)}</div>
+    </div>
+  );
+}
+
+// Binary sensor card with visual on/off state
+function BinarySensorCard({ entity }: { entity: EntityState }) {
+  const isOn = entity.state === 'on';
+  const deviceClass = (entity.attributes.device_class as string) || '';
+
+  return (
+    <div className={`card card-binary-sensor ${isOn ? 'is-on' : 'is-off'}`}>
+      <div className="card-header">
+        <span className="card-icon">{isOn ? '\u{1F7E2}' : '\u{26AA}'}</span>
+        <CardNameBlock entity={entity} />
+        <span className={`card-state ${isOn ? 'state-on' : 'state-off'}`}>
+          {entity.state}
+        </span>
+      </div>
+      {deviceClass && <div className="card-meta">{deviceClass}</div>}
+      <div className="card-timestamp">{relativeTime(entity.last_changed)}</div>
     </div>
   );
 }
@@ -112,9 +148,10 @@ function LockCard({ entity }: { entity: EntityState }) {
     <div className={`card card-lock ${isLocked ? 'is-locked' : 'is-unlocked'}`}>
       <div className="card-header" onClick={toggle}>
         <span className="card-icon">{isLocked ? '\u{1F512}' : '\u{1F513}'}</span>
-        <span className="card-name">{getEntityName(entity.entity_id)}</span>
+        <CardNameBlock entity={entity} />
         <span className="card-state">{entity.state}</span>
       </div>
+      <div className="card-timestamp">{relativeTime(entity.last_changed)}</div>
     </div>
   );
 }
@@ -126,7 +163,7 @@ function CoverCard({ entity }: { entity: EntityState }) {
     <div className={`card card-cover ${isOpen ? 'is-open' : 'is-closed'}`}>
       <div className="card-header">
         <span className="card-icon">{domainIcon('cover')}</span>
-        <span className="card-name">{getEntityName(entity.entity_id)}</span>
+        <CardNameBlock entity={entity} />
         <span className="card-state">{entity.state}</span>
       </div>
       <div className="card-actions">
@@ -134,6 +171,7 @@ function CoverCard({ entity }: { entity: EntityState }) {
         <button onClick={() => callService('cover', 'stop_cover', entity.entity_id)}>Stop</button>
         <button onClick={() => callService('cover', 'close_cover', entity.entity_id)}>Close</button>
       </div>
+      <div className="card-timestamp">{relativeTime(entity.last_changed)}</div>
     </div>
   );
 }
@@ -158,7 +196,7 @@ function ClimateCard({ entity }: { entity: EntityState }) {
     <div className="card card-climate">
       <div className="card-header">
         <span className="card-icon">{domainIcon('climate')}</span>
-        <span className="card-name">{getEntityName(entity.entity_id)}</span>
+        <CardNameBlock entity={entity} />
         <span className="card-state">{hvacMode}</span>
       </div>
       <div className="card-value">
@@ -205,7 +243,7 @@ function FanCard({ entity }: { entity: EntityState }) {
     <div className={`card card-fan ${isOn ? 'is-on' : 'is-off'}`}>
       <div className="card-header" onClick={toggle}>
         <span className="card-icon">{domainIcon('fan')}</span>
-        <span className="card-name">{getEntityName(entity.entity_id)}</span>
+        <CardNameBlock entity={entity} />
         <span className={`card-state ${isOn ? 'state-on' : 'state-off'}`}>
           {entity.state}
         </span>
@@ -230,7 +268,6 @@ function FanCard({ entity }: { entity: EntityState }) {
 function AutomationCard({ entity }: { entity: EntityState }) {
   const domain = getDomain(entity.entity_id);
   const [firing, setFiring] = useState(false);
-  const friendlyName = (entity.attributes.friendly_name as string) || getEntityName(entity.entity_id);
   const lastTriggered = entity.attributes.last_triggered as string | undefined;
   const triggerCount = entity.attributes.current as number | undefined;
 
@@ -248,7 +285,7 @@ function AutomationCard({ entity }: { entity: EntityState }) {
     <div className={`card card-automation ${firing ? 'is-firing' : ''}`}>
       <div className="card-header">
         <span className="card-icon">{domainIcon(domain)}</span>
-        <span className="card-name">{friendlyName}</span>
+        <CardNameBlock entity={entity} />
         <span className={`card-state ${entity.state === 'on' ? 'state-on' : 'state-off'}`}>
           {entity.state}
         </span>
@@ -289,7 +326,7 @@ function AlarmCard({ entity }: { entity: EntityState }) {
     <div className={`card card-alarm ${isArmed ? 'is-armed' : ''} ${isTriggered ? 'is-triggered' : ''}`}>
       <div className="card-header">
         <span className="card-icon">{domainIcon('alarm_control_panel')}</span>
-        <span className="card-name">{getEntityName(entity.entity_id)}</span>
+        <CardNameBlock entity={entity} />
         <span className={`card-state ${isArmed ? 'state-armed' : ''} ${isTriggered ? 'state-triggered' : ''}`}>
           {state.replace(/_/g, ' ')}
         </span>
@@ -325,7 +362,7 @@ function InputNumberCard({ entity }: { entity: EntityState }) {
     <div className="card card-input-number">
       <div className="card-header">
         <span className="card-icon">{domainIcon('input_number')}</span>
-        <span className="card-name">{getEntityName(entity.entity_id)}</span>
+        <CardNameBlock entity={entity} />
       </div>
       <div className="card-value">
         <span className="value-number">{entity.state}</span>
@@ -358,7 +395,7 @@ function InputSelectCard({ entity }: { entity: EntityState }) {
     <div className="card card-input-select">
       <div className="card-header">
         <span className="card-icon">{domainIcon('input_select')}</span>
-        <span className="card-name">{getEntityName(entity.entity_id)}</span>
+        <CardNameBlock entity={entity} />
       </div>
       <div className="card-select-wrap">
         <select
@@ -391,7 +428,7 @@ function InputTextCard({ entity }: { entity: EntityState }) {
     <div className="card card-input-text">
       <div className="card-header">
         <span className="card-icon">{domainIcon('input_text')}</span>
-        <span className="card-name">{getEntityName(entity.entity_id)}</span>
+        <CardNameBlock entity={entity} />
       </div>
       {editing ? (
         <div className="card-text-input">
@@ -423,9 +460,10 @@ function GenericCard({ entity }: { entity: EntityState }) {
     <div className="card card-generic">
       <div className="card-header">
         <span className="card-icon">{domainIcon(domain)}</span>
-        <span className="card-name">{getEntityName(entity.entity_id)}</span>
+        <CardNameBlock entity={entity} />
         <span className="card-state">{entity.state}</span>
       </div>
+      <div className="card-timestamp">{relativeTime(entity.last_changed)}</div>
     </div>
   );
 }
@@ -439,8 +477,9 @@ function CardInner({ entity }: { entity: EntityState }) {
     case 'input_boolean':
       return <ToggleCard entity={entity} />;
     case 'sensor':
-    case 'binary_sensor':
       return <SensorCard entity={entity} />;
+    case 'binary_sensor':
+      return <BinarySensorCard entity={entity} />;
     case 'input_number':
       return <InputNumberCard entity={entity} />;
     case 'input_select':
