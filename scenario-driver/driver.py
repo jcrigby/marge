@@ -765,6 +765,24 @@ async def main():
 
     print(f"\nTargets: {', '.join(s.name for s in suts)}")
 
+    # Load previous verification scores (for cross-chapter accumulation)
+    marge_sut = next((s for s in suts if "marge" in s.name.lower()), None)
+    if marge_sut:
+        for sut in suts:
+            label = "ha" if "ha" in sut.name.lower() else "marge"
+            try:
+                resp = await marge_sut.http_client.get(
+                    f"{marge_sut.rest_url}/api/states/sensor.verify_{label}",
+                    timeout=3.0)
+                if resp.status_code == 200:
+                    attrs = resp.json().get("attributes", {})
+                    verify_counts[sut.name] = {
+                        "ok": attrs.get("ok", 0),
+                        "fail": attrs.get("fail", 0),
+                    }
+            except Exception:
+                pass
+
     # Push initial state
     await push_initial_state(suts, scenario)
 
