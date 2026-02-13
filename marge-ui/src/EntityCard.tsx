@@ -469,8 +469,10 @@ export default function EntityCard({ entity }: { entity: EntityState }) {
   const updated = entity.last_updated
     ? `Updated ${relativeTime(entity.last_updated)}`
     : '';
+  const recentMs = Date.now() - new Date(entity.last_changed).getTime();
+  const isRecent = recentMs >= 0 && recentMs < 30000;
   return (
-    <div title={updated}>
+    <div title={updated} className={isRecent ? 'recent-change' : ''}>
       <CardInner entity={entity} />
     </div>
   );

@@ -145,6 +145,11 @@ pub fn router(
         .route("/api/areas/:area_id/entities", get(list_area_entities))
         .route("/api/areas/:area_id/entities/:entity_id", post(assign_entity_to_area))
         .route("/api/areas/:area_id/entities/:entity_id", axum::routing::delete(unassign_entity_from_area))
+        // Device registry
+        .route("/api/devices", get(list_devices_handler))
+        .route("/api/devices", post(create_device_handler))
+        .route("/api/devices/:device_id", axum::routing::delete(delete_device_handler))
+        .route("/api/devices/:device_id/entities/:entity_id", post(assign_entity_device_handler))
         // Long-lived access tokens
         .route("/api/auth/tokens", get(list_tokens))
         .route("/api/auth/tokens", post(create_token))
@@ -917,6 +922,119 @@ async fn unassign_entity_from_area(
     let db_path = rs.db_path.clone();
     tokio::task::spawn_blocking(move || {
         crate::recorder::unassign_entity_area(&db_path, &entity_id)
+    })
+    .await
+    .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
+    .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+    Ok(Json(serde_json::json!({"result": "ok"})))
+}
+
+/// GET /api/devices — list all devices with their entities
+async fn list_devices_handler(
+    State(rs): State<RouterState>,
+    headers: HeaderMap,
+) -> Result<Json<Vec<serde_json::Value>>, StatusCode> {
+    check_auth(&rs, &headers)?;
+
+    let db_path = rs.db_path.clone();
+    let result = tokio::task::spawn_blocking(move || {
+        let devices = crate::recorder::list_devices(&db_path)?;
+        let mappings = crate::recorder::load_device_entities(&db_path)?;
+        Ok::<_, anyhow::Error>((devices, mappings))
+    })
+    .await
+    .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
+    .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+    let (devices, mappings) = result;
+    let response: Vec<serde_json::Value> = devices.iter().map(|dev| {
+        let entity_ids: Vec<&str> = mappings.iter()
+            .filter(|(_, did)| *did == dev.device_id)
+            .map(|(eid, _)| eid.as_str())
+            .collect();
+        serde_json::json!({
+            "device_id": dev.device_id,
+            "name": dev.name,
+            "manufacturer": dev.manufacturer,
+            "model": dev.model,
+            "area_id": dev.area_id,
+            "entity_count": entity_ids.len(),
+            "entities": entity_ids,
+        })
+    }).collect();
+
+    Ok(Json(response))
+}
+
+/// POST /api/devices — create or update a device
+async fn create_device_handler(
+    State(rs): State<RouterState>,
+    headers: HeaderMap,
+    Json(body): Json<serde_json::Value>,
+) -> Result<Json<serde_json::Value>, StatusCode> {
+    check_auth(&rs, &headers)?;
+
+    let device_id = body.get("device_id").and_then(|v| v.as_str())
+        .ok_or(StatusCode::BAD_REQUEST)?
+        .to_string();
+    let name = body.get("name").and_then(|v| v.as_str())
+        .ok_or(StatusCode::BAD_REQUEST)?
+        .to_string();
+    let manufacturer = body.get("manufacturer").and_then(|v| v.as_str())
+        .unwrap_or("")
+        .to_string();
+    let model = body.get("model").and_then(|v| v.as_str())
+        .unwrap_or("")
+        .to_string();
+    let area_id = body.get("area_id").and_then(|v| v.as_str())
+        .unwrap_or("")
+        .to_string();
+
+    let db_path = rs.db_path.clone();
+    let device = crate::recorder::Device {
+        device_id, name, manufacturer, model, area_id,
+    };
+    tokio::task::spawn_blocking(move || {
+        crate::recorder::upsert_device(&db_path, &device)
+    })
+    .await
+    .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
+    .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+    Ok(Json(serde_json::json!({"result": "ok"})))
+}
+
+/// DELETE /api/devices/{device_id}
+async fn delete_device_handler(
+    State(rs): State<RouterState>,
+    headers: HeaderMap,
+    Path(device_id): Path<String>,
+) -> Result<Json<serde_json::Value>, StatusCode> {
+    check_auth(&rs, &headers)?;
+
+    let db_path = rs.db_path.clone();
+    tokio::task::spawn_blocking(move || {
+        crate::recorder::delete_device(&db_path, &device_id)
+    })
+    .await
+    .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
+    .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+    Ok(Json(serde_json::json!({"result": "ok"})))
+}
+
+/// POST /api/devices/{device_id}/entities/{entity_id} — assign entity to device
+async fn assign_entity_device_handler(
+    State(rs): State<RouterState>,
+    headers: HeaderMap,
+    Path((device_id, entity_id)): Path<(String, String)>,
+) -> Result<Json<serde_json::Value>, StatusCode> {
+    check_auth(&rs, &headers)?;
+
+    let db_path = rs.db_path.clone();
+    tokio::task::spawn_blocking(move || {
+        crate::recorder::assign_entity_device(&db_path, &entity_id, &device_id)
     })
     .await
     .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?

@@ -1020,6 +1020,81 @@ async def test_input_boolean_toggle(rest):
 # ── Config Endpoint ─────────────────────────────────
 
 
+# ── Device Registry ──────────────────────────────────
+
+
+@pytest.mark.asyncio
+async def test_device_crud(rest):
+    """Devices can be created, listed, and deleted."""
+    # Create
+    resp = await rest.client.post(
+        f"{rest.base_url}/api/devices",
+        headers=rest._headers(),
+        json={
+            "device_id": "cts_dev_001",
+            "name": "CTS Test Device",
+            "manufacturer": "Acme",
+            "model": "Widget v2",
+        },
+    )
+    assert resp.status_code == 200
+
+    # List
+    resp = await rest.client.get(
+        f"{rest.base_url}/api/devices",
+        headers=rest._headers(),
+    )
+    assert resp.status_code == 200
+    devices = resp.json()
+    dev = next((d for d in devices if d["device_id"] == "cts_dev_001"), None)
+    assert dev is not None
+    assert dev["name"] == "CTS Test Device"
+    assert dev["manufacturer"] == "Acme"
+    assert dev["model"] == "Widget v2"
+
+    # Delete
+    resp = await rest.client.delete(
+        f"{rest.base_url}/api/devices/cts_dev_001",
+        headers=rest._headers(),
+    )
+    assert resp.status_code == 200
+
+
+@pytest.mark.asyncio
+async def test_device_entity_assignment(rest):
+    """Entities can be assigned to devices."""
+    await rest.set_state("sensor.dev_cts", "42")
+    await rest.client.post(
+        f"{rest.base_url}/api/devices",
+        headers=rest._headers(),
+        json={"device_id": "cts_dev_assign", "name": "Assign Device"},
+    )
+
+    # Assign entity
+    resp = await rest.client.post(
+        f"{rest.base_url}/api/devices/cts_dev_assign/entities/sensor.dev_cts",
+        headers=rest._headers(),
+    )
+    assert resp.status_code == 200
+
+    # Verify in device listing
+    resp = await rest.client.get(
+        f"{rest.base_url}/api/devices",
+        headers=rest._headers(),
+    )
+    devices = resp.json()
+    dev = next((d for d in devices if d["device_id"] == "cts_dev_assign"), None)
+    assert dev is not None
+    assert "sensor.dev_cts" in dev["entities"]
+    assert dev["entity_count"] == 1
+
+    # Cleanup
+    await rest.client.delete(
+        f"{rest.base_url}/api/devices/cts_dev_assign",
+        headers=rest._headers(),
+    )
+
+
 def test_config_response(client):
     """GET /api/config returns location and unit system."""
     resp = client.get("/api/config")
