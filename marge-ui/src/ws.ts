@@ -1,11 +1,14 @@
 import type { EntityState, StateChangedEvent } from './types';
+import { toastError } from './Toast';
 
 export type ConnectionStatus = 'connecting' | 'connected' | 'disconnected';
 type Listener = (entities: Map<string, EntityState>) => void;
 type StatusListener = (status: ConnectionStatus) => void;
+type ResultCallback = (success: boolean, result?: unknown) => void;
 
 let ws: WebSocket | null = null;
 let msgId = 1;
+const pendingCalls = new Map<number, ResultCallback>();
 const entities = new Map<string, EntityState>();
 const listeners = new Set<Listener>();
 const statusListeners = new Set<StatusListener>();
@@ -60,7 +63,12 @@ export function connect(): void {
         ws!.close();
         break;
 
-      case 'result':
+      case 'result': {
+        const cb = pendingCalls.get(msg.id);
+        if (cb) {
+          pendingCalls.delete(msg.id);
+          cb(msg.success, msg.result);
+        }
         if (msg.success && Array.isArray(msg.result)) {
           // Response to get_states
           entities.clear();
@@ -70,6 +78,7 @@ export function connect(): void {
           notify();
         }
         break;
+      }
 
       case 'event': {
         const data = msg.event as StateChangedEvent;
@@ -125,8 +134,14 @@ export function subscribeStatus(fn: StatusListener): () => void {
 export function callService(domain: string, service: string, entityId: string, data?: Record<string, unknown>): void {
   // Prefer WebSocket when connected (lower latency)
   if (ws && ws.readyState === WebSocket.OPEN) {
+    const id = msgId++;
+    pendingCalls.set(id, (success) => {
+      if (!success) {
+        toastError(`${domain}.${service} failed`);
+      }
+    });
     ws.send(JSON.stringify({
-      id: msgId++,
+      id,
       type: 'call_service',
       domain,
       service,
@@ -143,5 +158,7 @@ export function callService(domain: string, service: string, entityId: string, d
     method: 'POST',
     headers,
     body: JSON.stringify({ entity_id: entityId, ...data }),
-  }).catch(console.error);
+  }).then((r) => {
+    if (!r.ok) toastError(`${domain}.${service} failed (${r.status})`);
+  }).catch((e) => toastError(`${domain}.${service}: ${e.message}`));
 }

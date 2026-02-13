@@ -7,6 +7,8 @@ import EntityCard from './EntityCard'
 import EntityDetail from './EntityDetail'
 import AutomationList from './AutomationList'
 import AreaManager from './AreaManager'
+import Settings from './Settings'
+import ToastContainer from './Toast'
 import './App.css'
 
 // Domain display order — most interactive first
@@ -119,7 +121,7 @@ function App() {
   const [theme, setTheme] = useState<'dark' | 'light'>(() =>
     (localStorage.getItem('marge_theme') as 'dark' | 'light') || 'dark'
   );
-  const [activeTab, setActiveTab] = useState<'entities' | 'automations' | 'areas'>('entities');
+  const [activeTab, setActiveTab] = useState<'entities' | 'automations' | 'areas' | 'settings'>('entities');
   const filterRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -242,6 +244,12 @@ function App() {
         >
           Areas
         </button>
+        <button
+          className={`tab-btn ${activeTab === 'settings' ? 'active' : ''}`}
+          onClick={() => setActiveTab('settings')}
+        >
+          Settings
+        </button>
       </nav>
 
       {activeTab === 'entities' && (
@@ -287,12 +295,18 @@ function App() {
         <AreaManager />
       )}
 
+      {activeTab === 'settings' && (
+        <Settings health={health} />
+      )}
+
       {selectedEntity && (() => {
         const entity = entities.find((e) => e.entity_id === selectedEntity);
         return entity ? (
           <EntityDetail entity={entity} onClose={() => setSelectedEntity(null)} />
         ) : null;
       })()}
+
+      <ToastContainer />
     </div>
   );
 }
