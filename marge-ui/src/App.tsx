@@ -176,6 +176,31 @@ function readUrlParams(): { tab: TabName; q: string; domain: string | null } {
   };
 }
 
+function ConfirmDialog({ message, onConfirm, onCancel }: {
+  message: string; onConfirm: () => void; onCancel: () => void;
+}) {
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onCancel();
+      if (e.key === 'Enter') onConfirm();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onConfirm, onCancel]);
+
+  return (
+    <div className="confirm-overlay" onClick={onCancel}>
+      <div className="confirm-panel" onClick={(e) => e.stopPropagation()}>
+        <p>{message}</p>
+        <div className="confirm-actions">
+          <button className="confirm-btn confirm-btn-danger" onClick={onConfirm}>Delete</button>
+          <button className="confirm-btn" onClick={onCancel}>Cancel</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function App() {
   const initial = readUrlParams();
   const [entities, setEntities] = useState<EntityState[]>([]);
@@ -191,7 +216,30 @@ function App() {
   const [groupMode, setGroupMode] = useState<GroupMode>('domain');
   const [areas, setAreas] = useState<AreaInfo[]>([]);
   const [showHelp, setShowHelp] = useState(false);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [confirmDelete, setConfirmDelete] = useState(false);
   const filterRef = useRef<HTMLInputElement>(null);
+
+  const toggleSelect = useCallback((entityId: string) => {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(entityId)) next.delete(entityId);
+      else next.add(entityId);
+      return next;
+    });
+  }, []);
+
+  const clearSelection = useCallback(() => setSelected(new Set()), []);
+
+  const deleteSelected = useCallback(() => {
+    const ids = [...selected];
+    Promise.all(ids.map((id) =>
+      fetch(`/api/states/${id}`, { method: 'DELETE' })
+    )).then(() => {
+      setSelected(new Set());
+      setConfirmDelete(false);
+    });
+  }, [selected]);
 
   // Sync state to URL params
   useEffect(() => {
@@ -306,6 +354,11 @@ function App() {
     }
     return list;
   }, [entities, filter, domainFilter]);
+
+  const selectAll = useCallback(() => {
+    const ids = filtered();
+    setSelected(new Set(ids.map((e) => e.entity_id)));
+  }, [filtered]);
 
   // Summary stats for quick status strip
   const summary = useMemo(() => {
@@ -466,6 +519,17 @@ function App() {
             </div>
           </div>
 
+          {selected.size > 0 && (
+            <div className="bulk-bar">
+              <span>{selected.size} selected</span>
+              <button className="bulk-btn" onClick={selectAll}>Select All</button>
+              <button className="bulk-btn" onClick={clearSelection}>Clear</button>
+              <button className="bulk-btn bulk-btn-danger" onClick={() => setConfirmDelete(true)}>
+                Delete Selected
+              </button>
+            </div>
+          )}
+
           <main className="entity-groups">
             {[...groups.entries()].map(([domain, domainEntities]) => (
               <section key={domain} className="domain-group">
@@ -475,7 +539,13 @@ function App() {
                 </h2>
                 <div className="entity-grid">
                   {domainEntities.map((entity) => (
-                    <div key={entity.entity_id} className="entity-grid-item">
+                    <div key={entity.entity_id} className={`entity-grid-item ${selected.has(entity.entity_id) ? 'selected' : ''}`}>
+                      <input
+                        type="checkbox"
+                        className="entity-checkbox"
+                        checked={selected.has(entity.entity_id)}
+                        onChange={() => toggleSelect(entity.entity_id)}
+                      />
                       <EntityCard entity={entity} />
                       <button
                         className="card-expand-btn"
@@ -564,6 +634,14 @@ function App() {
             </div>
           </div>
         </div>
+      )}
+
+      {confirmDelete && (
+        <ConfirmDialog
+          message={`Delete ${selected.size} entity${selected.size !== 1 ? 'ies' : ''}? This cannot be undone.`}
+          onConfirm={deleteSelected}
+          onCancel={() => setConfirmDelete(false)}
+        />
       )}
 
       <ToastContainer />
