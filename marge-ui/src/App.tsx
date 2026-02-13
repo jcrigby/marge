@@ -9,6 +9,7 @@ import AutomationList from './AutomationList'
 import AreaManager from './AreaManager'
 import DeviceManager from './DeviceManager'
 import EventLog from './EventLog'
+import LabelManager from './LabelManager'
 import Settings from './Settings'
 import ToastContainer from './Toast'
 import './App.css'
@@ -170,7 +171,7 @@ function App() {
   const [theme, setTheme] = useState<'dark' | 'light'>(() =>
     (localStorage.getItem('marge_theme') as 'dark' | 'light') || 'dark'
   );
-  const [activeTab, setActiveTab] = useState<'entities' | 'automations' | 'areas' | 'devices' | 'logs' | 'settings'>('entities');
+  const [activeTab, setActiveTab] = useState<'entities' | 'automations' | 'areas' | 'devices' | 'labels' | 'logs' | 'settings'>('entities');
   const [groupMode, setGroupMode] = useState<GroupMode>('domain');
   const [areas, setAreas] = useState<AreaInfo[]>([]);
   const [showHelp, setShowHelp] = useState(false);
@@ -238,13 +239,14 @@ function App() {
           filterRef.current?.blur();
         }
       }
-      // Tab switching: 1-6
+      // Tab switching: 1-7
       if (e.key === '1') setActiveTab('entities');
       if (e.key === '2') setActiveTab('automations');
       if (e.key === '3') setActiveTab('areas');
       if (e.key === '4') setActiveTab('devices');
-      if (e.key === '5') setActiveTab('logs');
-      if (e.key === '6') setActiveTab('settings');
+      if (e.key === '5') setActiveTab('labels');
+      if (e.key === '6') setActiveTab('logs');
+      if (e.key === '7') setActiveTab('settings');
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
@@ -345,6 +347,12 @@ function App() {
           onClick={() => setActiveTab('devices')}
         >
           Devices
+        </button>
+        <button
+          className={`tab-btn ${activeTab === 'labels' ? 'active' : ''}`}
+          onClick={() => setActiveTab('labels')}
+        >
+          Labels
         </button>
         <button
           className={`tab-btn ${activeTab === 'logs' ? 'active' : ''}`}
@@ -465,6 +473,10 @@ function App() {
         <DeviceManager allEntityIds={entities.map((e) => e.entity_id)} />
       )}
 
+      {activeTab === 'labels' && (
+        <LabelManager allEntityIds={entities.map((e) => e.entity_id)} />
+      )}
+
       {activeTab === 'logs' && (
         <EventLog entities={entities} />
       )}
@@ -494,8 +506,9 @@ function App() {
                 <div className="help-row"><kbd>2</kbd><span>Automations</span></div>
                 <div className="help-row"><kbd>3</kbd><span>Areas</span></div>
                 <div className="help-row"><kbd>4</kbd><span>Devices</span></div>
-                <div className="help-row"><kbd>5</kbd><span>Logs</span></div>
-                <div className="help-row"><kbd>6</kbd><span>Settings</span></div>
+                <div className="help-row"><kbd>5</kbd><span>Labels</span></div>
+                <div className="help-row"><kbd>6</kbd><span>Logs</span></div>
+                <div className="help-row"><kbd>7</kbd><span>Settings</span></div>
               </div>
               <div className="help-section">
                 <h4>Actions</h4>
