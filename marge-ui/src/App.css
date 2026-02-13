@@ -173,6 +173,13 @@
   padding-top: 0.25rem;
 }
 
+/* ── Sparkline chart ───────────────────────── */
+.sparkline {
+  display: block;
+  width: 100%;
+  margin-top: 0.25rem;
+}
+
 /* ── Slider (light brightness) ─────────────── */
 .card-slider {
   display: flex;
