@@ -654,3 +654,118 @@ def test_prometheus_metrics_automation_counts(client):
     resp = client.get("/metrics")
     text = resp.text
     assert "marge_automation_triggers_total" in text
+
+
+# ── Automation Enable/Disable ──────────────────────────
+
+
+@pytest.mark.asyncio
+async def test_automation_turn_off_disables(rest):
+    """automation.turn_off disables an automation (state becomes off)."""
+    resp = await rest.client.get(
+        f"{rest.base_url}/api/config/automation/config",
+        headers=rest._headers(),
+    )
+    automations = resp.json()
+    if not automations:
+        pytest.skip("No automations loaded")
+    auto = automations[0]
+
+    await rest.call_service("automation", "turn_off", {"entity_id": f"automation.{auto['id']}"})
+    state = await rest.get_state(f"automation.{auto['id']}")
+    assert state["state"] == "off"
+
+    # Re-enable for other tests
+    await rest.call_service("automation", "turn_on", {"entity_id": f"automation.{auto['id']}"})
+    state = await rest.get_state(f"automation.{auto['id']}")
+    assert state["state"] == "on"
+
+
+@pytest.mark.asyncio
+async def test_automation_toggle(rest):
+    """automation.toggle toggles the enabled state."""
+    resp = await rest.client.get(
+        f"{rest.base_url}/api/config/automation/config",
+        headers=rest._headers(),
+    )
+    automations = resp.json()
+    if not automations:
+        pytest.skip("No automations loaded")
+    auto = automations[0]
+
+    # Toggle off
+    await rest.call_service("automation", "toggle", {"entity_id": f"automation.{auto['id']}"})
+    state = await rest.get_state(f"automation.{auto['id']}")
+    first_state = state["state"]
+
+    # Toggle back
+    await rest.call_service("automation", "toggle", {"entity_id": f"automation.{auto['id']}"})
+    state = await rest.get_state(f"automation.{auto['id']}")
+    second_state = state["state"]
+
+    assert first_state != second_state
+
+
+# ── Statistics API ──────────────────────────────────────
+
+
+@pytest.mark.asyncio
+async def test_statistics_returns_list(rest):
+    """GET /api/statistics/:entity_id returns hourly aggregated stats."""
+    entity = "sensor.stats_test"
+    # Set some numeric states
+    for val in ["10", "20", "30", "40", "50"]:
+        await rest.set_state(entity, val)
+        await asyncio.sleep(0.2)
+    await asyncio.sleep(0.5)
+
+    resp = await rest.client.get(
+        f"{rest.base_url}/api/statistics/{entity}",
+        headers=rest._headers(),
+    )
+    assert resp.status_code == 200
+    data = resp.json()
+    assert isinstance(data, list)
+    assert len(data) >= 1
+    bucket = data[0]
+    assert "hour" in bucket
+    assert "min" in bucket
+    assert "max" in bucket
+    assert "mean" in bucket
+    assert "count" in bucket
+    assert bucket["min"] >= 10
+    assert bucket["max"] <= 50
+    assert bucket["count"] >= 5
+
+
+@pytest.mark.asyncio
+async def test_statistics_empty_for_non_numeric(rest):
+    """Non-numeric entities return empty statistics."""
+    await rest.set_state("sensor.text_stat", "hello")
+    await asyncio.sleep(0.5)
+    resp = await rest.client.get(
+        f"{rest.base_url}/api/statistics/sensor.text_stat",
+        headers=rest._headers(),
+    )
+    assert resp.status_code == 200
+    assert resp.json() == []
+
+
+# ── Automation Services in /api/services ────────────────
+
+
+@pytest.mark.asyncio
+async def test_services_includes_automation(rest):
+    """Services listing includes automation domain with trigger/turn_on/turn_off."""
+    resp = await rest.client.get(
+        f"{rest.base_url}/api/services",
+        headers=rest._headers(),
+    )
+    data = resp.json()
+    auto_entry = next((e for e in data if e["domain"] == "automation"), None)
+    assert auto_entry is not None
+    svcs = auto_entry["services"]
+    assert "trigger" in svcs
+    assert "turn_on" in svcs
+    assert "turn_off" in svcs
+    assert "toggle" in svcs

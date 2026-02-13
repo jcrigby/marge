@@ -54,6 +54,12 @@ export default function AutomationList() {
     }, 800);
   };
 
+  const toggleEnabled = (autoId: string, currentlyEnabled: boolean) => {
+    const service = currentlyEnabled ? 'turn_off' : 'turn_on';
+    callService('automation', service, `automation.${autoId}`);
+    setTimeout(fetchAutomations, 500);
+  };
+
   const reload = () => {
     setReloading(true);
     fetch('/api/config/core/reload', { method: 'POST' })
@@ -126,9 +132,13 @@ export default function AutomationList() {
                       : 'never'}
                   </td>
                   <td>
-                    <span className={`auto-status ${auto.enabled ? 'status-on' : 'status-off'}`}>
+                    <button
+                      className={`auto-status ${auto.enabled ? 'status-on' : 'status-off'}`}
+                      onClick={() => toggleEnabled(auto.id, auto.enabled)}
+                      title={auto.enabled ? 'Click to disable' : 'Click to enable'}
+                    >
                       {auto.enabled ? 'ON' : 'OFF'}
-                    </span>
+                    </button>
                   </td>
                   <td>
                     <button

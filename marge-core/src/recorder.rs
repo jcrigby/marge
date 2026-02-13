@@ -308,6 +308,68 @@ pub struct HistoryEntry {
     pub recorded_at: String,
 }
 
+/// Query aggregated statistics for a numeric entity.
+/// Returns hourly buckets with min, max, mean, count.
+pub fn query_statistics(
+    db_path: &Path,
+    entity_id: &str,
+    start: &str,
+    end: &str,
+) -> anyhow::Result<Vec<StatsBucket>> {
+    let conn = open_db(db_path)?;
+    let mut stmt = conn.prepare(
+        "SELECT state, recorded_at
+         FROM state_history
+         WHERE entity_id = ?1 AND recorded_at >= ?2 AND recorded_at <= ?3
+         ORDER BY recorded_at ASC
+         LIMIT 100000",
+    )?;
+
+    let rows = stmt.query_map(params![entity_id, start, end], |row| {
+        Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?))
+    })?;
+
+    // Group by hour and compute aggregates
+    let mut buckets: std::collections::BTreeMap<String, Vec<f64>> = std::collections::BTreeMap::new();
+    for row in rows {
+        let (state_str, recorded_at) = row?;
+        if let Ok(val) = state_str.parse::<f64>() {
+            // Extract hour bucket: "2026-02-13T14" from "2026-02-13T14:30:00Z"
+            let hour = if recorded_at.len() >= 13 {
+                &recorded_at[..13]
+            } else {
+                &recorded_at
+            };
+            buckets.entry(hour.to_string()).or_default().push(val);
+        }
+    }
+
+    let result = buckets.into_iter().map(|(hour, values)| {
+        let count = values.len();
+        let sum: f64 = values.iter().sum();
+        let min = values.iter().cloned().fold(f64::INFINITY, f64::min);
+        let max = values.iter().cloned().fold(f64::NEG_INFINITY, f64::max);
+        StatsBucket {
+            hour,
+            min,
+            max,
+            mean: sum / count as f64,
+            count,
+        }
+    }).collect();
+
+    Ok(result)
+}
+
+#[derive(Debug, serde::Serialize)]
+pub struct StatsBucket {
+    pub hour: String,
+    pub min: f64,
+    pub max: f64,
+    pub mean: f64,
+    pub count: usize,
+}
+
 fn purge_history(conn: &Connection, retention_days: u32) -> rusqlite::Result<usize> {
     let cutoff = chrono::Utc::now()
         - chrono::Duration::days(retention_days as i64);
