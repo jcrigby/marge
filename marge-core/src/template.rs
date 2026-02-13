@@ -1,20 +1,36 @@
-//! Template engine powered by minijinja (Phase 2 §1.3)
+//! Template engine powered by minijinja (Phase 2 §1.3, Phase 3 §3.4)
 //!
 //! Provides Jinja2-compatible template rendering for:
 //! - MQTT Discovery value_templates
-//! - Automation template conditions and actions (Phase 3)
+//! - Automation template conditions and actions
 //!
 //! Context variables:
 //!   value      — raw MQTT payload string
 //!   value_json — parsed JSON from the payload
 //!
+//! State-aware functions (available via render_with_state_machine):
+//!   states(entity_id)           — returns entity state string
+//!   is_state(entity_id, state)  — returns true if entity matches state
+//!   state_attr(entity_id, attr) — returns entity attribute value
+//!   now()                        — returns current timestamp string
+//!
 //! Custom filters: round, int, float, default, iif, is_defined
+
+use std::cell::Cell;
 
 use minijinja::{Environment, Value};
 use std::sync::OnceLock;
 
+use crate::state::StateMachine;
+
 /// Shared template environment (filters registered once).
 static ENV: OnceLock<Environment<'static>> = OnceLock::new();
+
+// Thread-local for providing state machine access during template rendering.
+// Set by render_with_state_machine(), read by states()/is_state()/state_attr().
+thread_local! {
+    static RENDER_SM: Cell<usize> = Cell::new(0);
+}
 
 fn env() -> &'static Environment<'static> {
     ENV.get_or_init(|| {
@@ -44,6 +60,14 @@ fn env() -> &'static Environment<'static> {
         env.add_function("int", fn_int);
         env.add_function("bool", fn_bool);
 
+        // State-aware functions (Phase 3 §3.4)
+        // These read from RENDER_SM thread-local during render_with_state_machine() calls.
+        // When no state machine is set (e.g., MQTT discovery), they return defaults.
+        env.add_function("states", fn_states);
+        env.add_function("is_state", fn_is_state);
+        env.add_function("state_attr", fn_state_attr);
+        env.add_function("now", fn_now);
+
         env
     })
 }
@@ -67,21 +91,70 @@ pub fn render(template: &str, ctx: &TemplateContext) -> Result<String, String> {
         .map_err(|e| format!("template render error: {}", e))
 }
 
-/// Render a template with a full state context (for automation templates).
-pub fn render_with_states<F>(template: &str, _state_getter: F) -> Result<String, String>
-where
-    F: Fn(&str) -> Option<String>,
-{
+/// Render a template with access to entity states via states()/is_state()/state_attr().
+///
+/// Sets the state machine pointer in thread-local storage for the duration of the
+/// render call, making it available to the states/is_state/state_attr functions.
+pub fn render_with_state_machine(template: &str, sm: &StateMachine) -> Result<String, String> {
+    RENDER_SM.with(|cell| cell.set(sm as *const StateMachine as usize));
     let env = env();
     let tmpl = env
         .template_from_str(template)
         .map_err(|e| format!("template parse error: {}", e))?;
-
-    // For now, provide an empty context. Full state access comes in Phase 3
-    // when we add `states('entity_id')` as a global function.
     let context = minijinja::context! {};
-    tmpl.render(context)
-        .map_err(|e| format!("template render error: {}", e))
+    let result = tmpl.render(context)
+        .map_err(|e| format!("template render error: {}", e));
+    RENDER_SM.with(|cell| cell.set(0));
+    result
+}
+
+/// Access the state machine during template rendering.
+///
+/// # Safety
+/// The raw pointer stored in RENDER_SM is set by `render_with_state_machine()` which
+/// holds a reference to the StateMachine for the entire synchronous render call.
+/// minijinja rendering does not spawn tasks, so the pointer remains valid.
+fn with_sm<F, R>(f: F) -> Option<R>
+where
+    F: FnOnce(&StateMachine) -> R,
+{
+    let ptr = RENDER_SM.with(|cell| cell.get());
+    if ptr == 0 {
+        return None;
+    }
+    // SAFETY: ptr was set by render_with_state_machine() and is valid for the render duration
+    Some(f(unsafe { &*(ptr as *const StateMachine) }))
+}
+
+fn fn_states(entity_id: String) -> Value {
+    with_sm(|sm| match sm.get(&entity_id) {
+        Some(state) => Value::from(state.state.as_str()),
+        None => Value::from("unknown"),
+    })
+    .unwrap_or(Value::from("unknown"))
+}
+
+fn fn_is_state(entity_id: String, expected: String) -> Value {
+    with_sm(|sm| match sm.get(&entity_id) {
+        Some(state) => Value::from(state.state == expected),
+        None => Value::from(false),
+    })
+    .unwrap_or(Value::from(false))
+}
+
+fn fn_state_attr(entity_id: String, attr: String) -> Value {
+    with_sm(|sm| match sm.get(&entity_id) {
+        Some(state) => match state.attributes.get(&attr) {
+            Some(v) => serde_json_to_minijinja(v),
+            None => Value::from(()),
+        },
+        None => Value::from(()),
+    })
+    .unwrap_or(Value::from(()))
+}
+
+fn fn_now() -> Value {
+    Value::from(chrono::Local::now().format("%Y-%m-%dT%H:%M:%S").to_string())
 }
 
 /// Context variables for template rendering.
@@ -379,5 +452,55 @@ mod tests {
         );
         let result = render("{{ value_json.sensor.temperature }}", &ctx).unwrap();
         assert_eq!(result, "25");
+    }
+
+    #[test]
+    fn test_states_function() {
+        let sm = StateMachine::new(16);
+        sm.set("sensor.temp".to_string(), "72".to_string(), Default::default());
+
+        let result = render_with_state_machine("{{ states('sensor.temp') }}", &sm).unwrap();
+        assert_eq!(result, "72");
+    }
+
+    #[test]
+    fn test_is_state_function() {
+        let sm = StateMachine::new(16);
+        sm.set("light.bedroom".to_string(), "on".to_string(), Default::default());
+
+        let result =
+            render_with_state_machine("{{ is_state('light.bedroom', 'on') }}", &sm).unwrap();
+        assert_eq!(result, "true");
+    }
+
+    #[test]
+    fn test_template_condition_expression() {
+        let sm = StateMachine::new(16);
+        sm.set("sensor.temp".to_string(), "80".to_string(), Default::default());
+
+        let result = render_with_state_machine(
+            "{{ states('sensor.temp') | float > 75 }}",
+            &sm,
+        )
+        .unwrap();
+        assert_eq!(result, "true");
+    }
+
+    #[test]
+    fn test_state_attr_function() {
+        let sm = StateMachine::new(16);
+        let mut attrs = serde_json::Map::new();
+        attrs.insert(
+            "temperature".to_string(),
+            serde_json::Value::Number(serde_json::Number::from(72)),
+        );
+        sm.set("climate.thermostat".to_string(), "heat".to_string(), attrs);
+
+        let result = render_with_state_machine(
+            "{{ state_attr('climate.thermostat', 'temperature') }}",
+            &sm,
+        )
+        .unwrap();
+        assert_eq!(result, "72");
     }
 }

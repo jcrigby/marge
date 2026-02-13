@@ -191,6 +191,13 @@ async fn main() -> anyhow::Result<()> {
         });
     }
 
+    // Spawn time/sun trigger evaluation loop (Phase 3 §3.1-3.2)
+    if let Some(engine) = engine.clone() {
+        tokio::spawn(async move {
+            engine.run_time_loop().await;
+        });
+    }
+
     // Start embedded MQTT broker
     let mqtt_port: u16 = std::env::var("MARGE_MQTT_PORT")
         .ok()
