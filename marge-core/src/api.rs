@@ -155,6 +155,10 @@ pub fn router(
         .route("/api/devices", post(create_device_handler))
         .route("/api/devices/:device_id", axum::routing::delete(delete_device_handler))
         .route("/api/devices/:device_id/entities/:entity_id", post(assign_entity_device_handler))
+        // Label registry
+        .route("/api/labels", get(list_labels_handler).post(create_label_handler))
+        .route("/api/labels/:label_id", axum::routing::delete(delete_label_handler))
+        .route("/api/labels/:label_id/entities/:entity_id", post(assign_label_handler).delete(unassign_label_handler))
         // Long-lived access tokens
         .route("/api/auth/tokens", get(list_tokens))
         .route("/api/auth/tokens", post(create_token))
@@ -1202,6 +1206,129 @@ async fn assign_entity_device_handler(
     let db_path = rs.db_path.clone();
     tokio::task::spawn_blocking(move || {
         crate::recorder::assign_entity_device(&db_path, &entity_id, &device_id)
+    })
+    .await
+    .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
+    .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+    Ok(Json(serde_json::json!({"result": "ok"})))
+}
+
+/// ── Label Registry ──────────────────────────────────────
+
+/// GET /api/labels — list all labels with entity counts
+async fn list_labels_handler(
+    State(rs): State<RouterState>,
+    headers: HeaderMap,
+) -> Result<Json<Vec<serde_json::Value>>, StatusCode> {
+    check_auth(&rs, &headers)?;
+
+    let db_path = rs.db_path.clone();
+    let result = tokio::task::spawn_blocking(move || {
+        let labels = crate::recorder::list_labels(&db_path)?;
+        let mappings = crate::recorder::load_entity_labels(&db_path)?;
+        Ok::<_, anyhow::Error>((labels, mappings))
+    })
+    .await
+    .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
+    .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+    let (labels, mappings) = result;
+    let response: Vec<serde_json::Value> = labels.iter().map(|label| {
+        let entity_ids: Vec<&str> = mappings.iter()
+            .filter(|(_, lid)| *lid == label.label_id)
+            .map(|(eid, _)| eid.as_str())
+            .collect();
+        serde_json::json!({
+            "label_id": label.label_id,
+            "name": label.name,
+            "color": label.color,
+            "entity_count": entity_ids.len(),
+            "entities": entity_ids,
+        })
+    }).collect();
+
+    Ok(Json(response))
+}
+
+/// POST /api/labels — create or update a label
+async fn create_label_handler(
+    State(rs): State<RouterState>,
+    headers: HeaderMap,
+    Json(body): Json<serde_json::Value>,
+) -> Result<Json<serde_json::Value>, StatusCode> {
+    check_auth(&rs, &headers)?;
+
+    let label_id = body.get("label_id").and_then(|v| v.as_str())
+        .ok_or(StatusCode::BAD_REQUEST)?
+        .to_string();
+    let name = body.get("name").and_then(|v| v.as_str())
+        .ok_or(StatusCode::BAD_REQUEST)?
+        .to_string();
+    let color = body.get("color").and_then(|v| v.as_str())
+        .unwrap_or("")
+        .to_string();
+
+    let db_path = rs.db_path.clone();
+    tokio::task::spawn_blocking(move || {
+        crate::recorder::upsert_label(&db_path, &label_id, &name, &color)
+    })
+    .await
+    .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
+    .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+    Ok(Json(serde_json::json!({"result": "ok"})))
+}
+
+/// DELETE /api/labels/{label_id}
+async fn delete_label_handler(
+    State(rs): State<RouterState>,
+    headers: HeaderMap,
+    Path(label_id): Path<String>,
+) -> Result<Json<serde_json::Value>, StatusCode> {
+    check_auth(&rs, &headers)?;
+
+    let db_path = rs.db_path.clone();
+    tokio::task::spawn_blocking(move || {
+        crate::recorder::delete_label(&db_path, &label_id)
+    })
+    .await
+    .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
+    .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+    Ok(Json(serde_json::json!({"result": "ok"})))
+}
+
+/// POST /api/labels/{label_id}/entities/{entity_id} — assign label to entity
+async fn assign_label_handler(
+    State(rs): State<RouterState>,
+    headers: HeaderMap,
+    Path((label_id, entity_id)): Path<(String, String)>,
+) -> Result<Json<serde_json::Value>, StatusCode> {
+    check_auth(&rs, &headers)?;
+
+    let db_path = rs.db_path.clone();
+    tokio::task::spawn_blocking(move || {
+        crate::recorder::assign_label(&db_path, &entity_id, &label_id)
+    })
+    .await
+    .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
+    .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+    Ok(Json(serde_json::json!({"result": "ok"})))
+}
+
+/// DELETE /api/labels/{label_id}/entities/{entity_id} — unassign label from entity
+async fn unassign_label_handler(
+    State(rs): State<RouterState>,
+    headers: HeaderMap,
+    Path((label_id, entity_id)): Path<(String, String)>,
+) -> Result<Json<serde_json::Value>, StatusCode> {
+    check_auth(&rs, &headers)?;
+
+    let db_path = rs.db_path.clone();
+    tokio::task::spawn_blocking(move || {
+        crate::recorder::unassign_label(&db_path, &entity_id, &label_id)
     })
     .await
     .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
