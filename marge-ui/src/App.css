@@ -497,6 +497,62 @@
   font-size: 0.8rem;
 }
 
+/* ── Detail controls ──────────────────────── */
+.detail-controls {
+  margin-bottom: 1rem;
+}
+.detail-btn-row {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.5rem;
+}
+.detail-btn {
+  flex: 1;
+  min-width: 60px;
+  padding: 0.4rem 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--text);
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: all 0.15s;
+  text-transform: capitalize;
+}
+.detail-btn:hover {
+  border-color: var(--accent);
+  background: var(--bg-card-on);
+}
+.detail-btn.active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+.detail-slider-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+.detail-slider-row label {
+  font-size: 0.75rem;
+  color: var(--text-dim);
+  min-width: 4rem;
+}
+.detail-slider-row input[type="range"] {
+  flex: 1;
+  accent-color: var(--accent);
+  height: 4px;
+}
+.detail-slider-row span {
+  font-size: 0.8rem;
+  color: var(--text);
+  min-width: 2.5rem;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
 /* ── History chart (SVG) ──────────────────── */
 .history-chart {
   width: 100%;
