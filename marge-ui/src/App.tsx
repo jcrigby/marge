@@ -162,21 +162,47 @@ function groupByArea(entities: EntityState[], areas: AreaInfo[]): Map<string, En
   return sorted;
 }
 
+type TabName = 'entities' | 'automations' | 'areas' | 'devices' | 'labels' | 'logs' | 'settings';
+
+const VALID_TABS: TabName[] = ['entities', 'automations', 'areas', 'devices', 'labels', 'logs', 'settings'];
+
+function readUrlParams(): { tab: TabName; q: string; domain: string | null } {
+  const params = new URLSearchParams(window.location.search);
+  const tab = params.get('tab') as TabName;
+  return {
+    tab: VALID_TABS.includes(tab) ? tab : 'entities',
+    q: params.get('q') || '',
+    domain: params.get('domain') || null,
+  };
+}
+
 function App() {
+  const initial = readUrlParams();
   const [entities, setEntities] = useState<EntityState[]>([]);
   const [health, setHealth] = useState<HealthData | null>(null);
-  const [filter, setFilter] = useState('');
-  const [domainFilter, setDomainFilter] = useState<string | null>(null);
+  const [filter, setFilter] = useState(initial.q);
+  const [domainFilter, setDomainFilter] = useState<string | null>(initial.domain);
   const [connStatus, setConnStatus] = useState<ConnectionStatus>('disconnected');
   const [selectedEntity, setSelectedEntity] = useState<string | null>(null);
   const [theme, setTheme] = useState<'dark' | 'light'>(() =>
     (localStorage.getItem('marge_theme') as 'dark' | 'light') || 'dark'
   );
-  const [activeTab, setActiveTab] = useState<'entities' | 'automations' | 'areas' | 'devices' | 'labels' | 'logs' | 'settings'>('entities');
+  const [activeTab, setActiveTab] = useState<TabName>(initial.tab);
   const [groupMode, setGroupMode] = useState<GroupMode>('domain');
   const [areas, setAreas] = useState<AreaInfo[]>([]);
   const [showHelp, setShowHelp] = useState(false);
   const filterRef = useRef<HTMLInputElement>(null);
+
+  // Sync state to URL params
+  useEffect(() => {
+    const params = new URLSearchParams();
+    if (activeTab !== 'entities') params.set('tab', activeTab);
+    if (filter) params.set('q', filter);
+    if (domainFilter) params.set('domain', domainFilter);
+    const search = params.toString();
+    const url = search ? `?${search}` : window.location.pathname;
+    window.history.replaceState(null, '', url);
+  }, [activeTab, filter, domainFilter]);
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme === 'light' ? 'light' : '');
