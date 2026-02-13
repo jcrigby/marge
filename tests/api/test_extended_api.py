@@ -1307,3 +1307,70 @@ async def test_websocket_get_config():
         assert "location_name" in config
         assert "version" in config
         assert "latitude" in config
+
+
+# ── Scene YAML API ───────────────────────────────────────
+
+
+def test_scene_yaml_read(client):
+    """GET /api/config/scene/yaml returns raw YAML."""
+    resp = client.get("/api/config/scene/yaml")
+    assert resp.status_code == 200
+    assert "text/yaml" in resp.headers.get("content-type", "")
+    text = resp.text
+    assert "id:" in text
+    assert "entities:" in text
+
+
+def test_scene_yaml_roundtrip(client):
+    """PUT /api/config/scene/yaml saves and returns ok."""
+    resp = client.get("/api/config/scene/yaml")
+    original = resp.text
+
+    resp = client.put(
+        "/api/config/scene/yaml",
+        content=original,
+        headers={"Content-Type": "text/yaml"},
+    )
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["result"] == "ok"
+
+
+# ── Global Logbook ───────────────────────────────────────
+
+
+def test_logbook_global(client):
+    """GET /api/logbook returns recent state changes across all entities."""
+    resp = client.get("/api/logbook")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert isinstance(data, list)
+
+
+# ── Concurrent state updates ─────────────────────────────
+
+
+@pytest.mark.asyncio
+async def test_concurrent_state_writes():
+    """Concurrent state writes don't corrupt data."""
+    import httpx
+
+    async with httpx.AsyncClient(base_url="http://localhost:8124", timeout=10.0) as client:
+        tasks = []
+        for i in range(20):
+            tasks.append(
+                client.post(
+                    f"/api/states/sensor.concurrent_{i}",
+                    json={"state": str(i), "attributes": {}},
+                )
+            )
+        results = await asyncio.gather(*tasks)
+        for r in results:
+            assert r.status_code in (200, 201)
+
+        # Verify all 20 entities exist
+        resp = await client.get("/api/states")
+        states = resp.json()
+        concurrent_ids = [s["entity_id"] for s in states if s["entity_id"].startswith("sensor.concurrent_")]
+        assert len(concurrent_ids) == 20

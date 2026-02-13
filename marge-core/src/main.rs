@@ -262,6 +262,7 @@ async fn main() -> anyhow::Result<()> {
         auth.clone(),
         db_path_for_api,
         automations_path,
+        scenes_path,
     )
     .merge(websocket::router(app_state.clone(), auth.clone(), service_registry_for_ws));
 
