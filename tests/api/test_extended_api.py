@@ -1687,3 +1687,35 @@ def test_notification_service_dismiss(client):
     notifs = r.json()
     found = [n for n in notifs if n["notification_id"] == "test_svc_dismiss"]
     assert len(found) == 0
+
+
+# ── WebSocket Extended Commands ───────────────────────
+
+
+@pytest.mark.asyncio
+async def test_ws_get_notifications(ws):
+    """WebSocket get_notifications command."""
+    result = await ws.send_command("get_notifications")
+    assert result.get("success", False)
+    assert isinstance(result.get("result"), list)
+
+
+@pytest.mark.asyncio
+async def test_ws_entity_registry(ws):
+    """WebSocket config/entity_registry/list command."""
+    result = await ws.send_command("config/entity_registry/list")
+    assert result.get("success", False)
+    entries = result.get("result", [])
+    assert isinstance(entries, list)
+    if entries:
+        assert "entity_id" in entries[0]
+        assert "name" in entries[0]
+
+
+@pytest.mark.asyncio
+async def test_ws_area_registry(ws):
+    """WebSocket config/area_registry/list command."""
+    result = await ws.send_command("config/area_registry/list")
+    assert result.get("success", False)
+    entries = result.get("result", [])
+    assert isinstance(entries, list)

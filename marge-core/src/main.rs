@@ -87,6 +87,7 @@ async fn main() -> anyhow::Result<()> {
         .and_then(|v| v.parse().ok())
         .unwrap_or(10);
     let db_path_for_api = db_path.clone();
+    let db_path_for_ws = db_path.clone();
     let recorder_tx = recorder::spawn_writer(db_path, retention_days);
 
     let app_state = Arc::new(AppState {
@@ -264,7 +265,7 @@ async fn main() -> anyhow::Result<()> {
         automations_path,
         scenes_path,
     )
-    .merge(websocket::router(app_state.clone(), auth.clone(), service_registry_for_ws));
+    .merge(websocket::router(app_state.clone(), auth.clone(), service_registry_for_ws, db_path_for_ws));
 
     // ── Static File Serving (Phase 4 §4.1) ─────────────────
     let dashboard_path = std::env::var("MARGE_DASHBOARD_PATH")

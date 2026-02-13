@@ -194,6 +194,15 @@ class WSClient:
         # HA returns type=pong, also accept type=result with success=true
         return result.get("type") == "pong" or result.get("success", False)
 
+    async def send_command(self, command: str, **kwargs) -> dict:
+        """Send a generic WS command and return the result."""
+        msg_id = self._next_id()
+        payload = {"id": msg_id, "type": command}
+        payload.update(kwargs)
+        await self.ws.send(json.dumps(payload))
+        result = json.loads(await self.ws.recv())
+        return result
+
     async def close(self):
         if self.ws:
             await self.ws.close()
