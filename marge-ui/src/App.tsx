@@ -167,6 +167,11 @@ function App() {
           filterRef.current?.blur();
         }
       }
+      // Tab switching: 1-4
+      if (e.key === '1') setActiveTab('entities');
+      if (e.key === '2') setActiveTab('automations');
+      if (e.key === '3') setActiveTab('areas');
+      if (e.key === '4') setActiveTab('settings');
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
@@ -193,7 +198,8 @@ function App() {
       const q = filter.toLowerCase();
       list = list.filter((e) =>
         e.entity_id.toLowerCase().includes(q) ||
-        e.state.toLowerCase().includes(q)
+        e.state.toLowerCase().includes(q) ||
+        ((e.attributes.friendly_name as string) || '').toLowerCase().includes(q)
       );
     }
     return list;
