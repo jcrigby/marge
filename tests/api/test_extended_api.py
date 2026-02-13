@@ -201,7 +201,8 @@ def test_backup_has_filename_header(client):
 @pytest.mark.asyncio
 async def test_logbook_returns_state_changes(rest):
     """GET /api/logbook/:entity_id returns filtered state transitions."""
-    entity = "sensor.logbook_test"
+    # Use unique entity to avoid cross-contamination from prior runs
+    entity = f"sensor.logbook_test_{int(time.time() * 1000) % 100000}"
     await rest.set_state(entity, "off")
     await asyncio.sleep(0.3)
     await rest.set_state(entity, "on")
@@ -591,3 +592,65 @@ async def test_ws_get_config(ws):
     assert "version" in config
     assert "time_zone" in config
     assert "latitude" in config
+
+
+# ── Scene Config API ──────────────────────────────────
+
+
+@pytest.mark.asyncio
+async def test_scene_config_returns_list(rest):
+    """GET /api/config/scene/config returns a list of scenes."""
+    resp = await rest.client.get(
+        f"{rest.base_url}/api/config/scene/config",
+        headers=rest._headers(),
+    )
+    assert resp.status_code == 200
+    data = resp.json()
+    assert isinstance(data, list)
+    assert len(data) >= 1
+    scene = data[0]
+    assert "id" in scene
+    assert "name" in scene
+    assert "entity_count" in scene
+    assert "entities" in scene
+
+
+@pytest.mark.asyncio
+async def test_scene_entity_has_friendly_name(rest):
+    """Scene entities have friendly_name attribute set from scene name."""
+    resp = await rest.client.get(
+        f"{rest.base_url}/api/config/scene/config",
+        headers=rest._headers(),
+    )
+    scenes = resp.json()
+    if len(scenes) == 0:
+        pytest.skip("No scenes loaded")
+    scene = scenes[0]
+
+    state = await rest.get_state(f"scene.{scene['id']}")
+    assert state is not None
+    assert "friendly_name" in state["attributes"]
+    assert state["attributes"]["friendly_name"] == scene["name"]
+
+
+# ── Prometheus Metrics ─────────────────────────────────
+
+
+def test_prometheus_metrics(client):
+    """GET /metrics returns Prometheus-compatible text format."""
+    resp = client.get("/metrics")
+    assert resp.status_code == 200
+    assert "text/plain" in resp.headers.get("content-type", "")
+    text = resp.text
+    assert "marge_entity_count" in text
+    assert "marge_state_changes_total" in text
+    assert "marge_memory_rss_bytes" in text
+    assert "marge_uptime_seconds" in text
+    assert "marge_latency_avg_microseconds" in text
+
+
+def test_prometheus_metrics_automation_counts(client):
+    """Prometheus metrics include per-automation trigger counts."""
+    resp = client.get("/metrics")
+    text = resp.text
+    assert "marge_automation_triggers_total" in text

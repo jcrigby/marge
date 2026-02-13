@@ -5,6 +5,7 @@ import { connect, subscribe, subscribeStatus } from './ws'
 import type { ConnectionStatus } from './ws'
 import EntityCard from './EntityCard'
 import EntityDetail from './EntityDetail'
+import AutomationList from './AutomationList'
 import './App.css'
 
 // Domain display order — most interactive first
@@ -117,6 +118,7 @@ function App() {
   const [theme, setTheme] = useState<'dark' | 'light'>(() =>
     (localStorage.getItem('marge_theme') as 'dark' | 'light') || 'dark'
   );
+  const [activeTab, setActiveTab] = useState<'entities' | 'automations'>('entities');
   const filterRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -220,36 +222,59 @@ function App() {
 
       <HealthBar health={health} connStatus={connStatus} />
 
-      <DomainChips
-        domains={domainCounts}
-        active={domainFilter}
-        onToggle={setDomainFilter}
-      />
+      <nav className="tab-nav">
+        <button
+          className={`tab-btn ${activeTab === 'entities' ? 'active' : ''}`}
+          onClick={() => setActiveTab('entities')}
+        >
+          Entities<span className="tab-badge">{entities.length}</span>
+        </button>
+        <button
+          className={`tab-btn ${activeTab === 'automations' ? 'active' : ''}`}
+          onClick={() => setActiveTab('automations')}
+        >
+          Automations
+        </button>
+      </nav>
 
-      <main className="entity-groups">
-        {[...groups.entries()].map(([domain, domainEntities]) => (
-          <section key={domain} className="domain-group">
-            <h2 className="domain-title">
-              {domain.replace(/_/g, ' ')}
-              <span className="domain-count">{domainEntities.length}</span>
-            </h2>
-            <div className="entity-grid">
-              {domainEntities.map((entity) => (
-                <div key={entity.entity_id} onDoubleClick={() => setSelectedEntity(entity.entity_id)}>
-                  <EntityCard entity={entity} />
+      {activeTab === 'entities' && (
+        <>
+          <DomainChips
+            domains={domainCounts}
+            active={domainFilter}
+            onToggle={setDomainFilter}
+          />
+
+          <main className="entity-groups">
+            {[...groups.entries()].map(([domain, domainEntities]) => (
+              <section key={domain} className="domain-group">
+                <h2 className="domain-title">
+                  {domain.replace(/_/g, ' ')}
+                  <span className="domain-count">{domainEntities.length}</span>
+                </h2>
+                <div className="entity-grid">
+                  {domainEntities.map((entity) => (
+                    <div key={entity.entity_id} onDoubleClick={() => setSelectedEntity(entity.entity_id)}>
+                      <EntityCard entity={entity} />
+                    </div>
+                  ))}
                 </div>
-              ))}
-            </div>
-          </section>
-        ))}
-        {groups.size === 0 && (
-          <div className="empty-state">
-            {entities.length === 0
-              ? 'Waiting for entities...'
-              : 'No matching entities'}
-          </div>
-        )}
-      </main>
+              </section>
+            ))}
+            {groups.size === 0 && (
+              <div className="empty-state">
+                {entities.length === 0
+                  ? 'Waiting for entities...'
+                  : 'No matching entities'}
+              </div>
+            )}
+          </main>
+        </>
+      )}
+
+      {activeTab === 'automations' && (
+        <AutomationList />
+      )}
 
       {selectedEntity && (() => {
         const entity = entities.find((e) => e.entity_id === selectedEntity);

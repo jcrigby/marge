@@ -102,11 +102,13 @@ async fn main() -> anyhow::Result<()> {
         match scene::load_scenes(&scenes_path) {
             Ok(scenes) => {
                 let se = Arc::new(SceneEngine::new(scenes, app_state.clone()));
-                for scene_id in se.scene_ids() {
+                for (scene_id, scene_name) in se.scene_ids() {
+                    let mut attrs = serde_json::Map::new();
+                    attrs.insert("friendly_name".to_string(), serde_json::json!(scene_name));
                     app_state.state_machine.set(
                         format!("scene.{}", scene_id),
                         "scening".to_string(),
-                        Default::default(),
+                        attrs,
                     );
                 }
                 Some(se)
