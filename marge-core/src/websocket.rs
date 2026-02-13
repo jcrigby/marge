@@ -201,6 +201,15 @@ async fn handle_ws(
                                     }).await.ok().and_then(|r| r.ok()).unwrap_or_default();
                                     ws_result(id, true, Some(serde_json::to_value(&notifs).unwrap()))
                                 }
+                                "persistent_notification/dismiss" => {
+                                    let notif_id = incoming.data.get("notification_id")
+                                        .and_then(|v| v.as_str()).unwrap_or("").to_string();
+                                    let db = db_path.clone();
+                                    let ok = tokio::task::spawn_blocking(move || {
+                                        crate::recorder::dismiss_notification(&db, &notif_id)
+                                    }).await.ok().and_then(|r| r.ok()).unwrap_or(false);
+                                    ws_result(id, ok, None)
+                                }
                                 "config/entity_registry/list" => {
                                     // HA-compatible entity registry: return minimal entries
                                     let states = app.state_machine.get_all();

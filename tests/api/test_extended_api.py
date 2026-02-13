@@ -2177,3 +2177,59 @@ def test_state_search(client):
     results = r.json()
     entity_ids = [e["entity_id"] for e in results]
     assert "sensor.searchable_test" in entity_ids
+
+
+# ── WS Notifications ──────────────────────────
+
+
+@pytest.mark.asyncio
+async def test_ws_get_notifications(ws, client):
+    """WebSocket get_notifications returns notification list."""
+    # Create a notification first
+    client.post("/api/services/persistent_notification/create", json={
+        "notification_id": "ws_notif_test",
+        "title": "WS Test",
+        "message": "Testing WS notifications",
+    })
+    result = await ws.send_command("get_notifications")
+    assert result.get("success", False)
+    notifs = result.get("result", [])
+    assert isinstance(notifs, list)
+    found = [n for n in notifs if n.get("notification_id") == "ws_notif_test"]
+    assert len(found) >= 1
+    assert found[0]["title"] == "WS Test"
+
+    # Cleanup
+    client.post("/api/notifications/ws_notif_test/dismiss")
+
+
+@pytest.mark.asyncio
+async def test_ws_dismiss_notification(ws, client):
+    """WebSocket persistent_notification/dismiss removes a notification."""
+    client.post("/api/services/persistent_notification/create", json={
+        "notification_id": "ws_dismiss_test",
+        "title": "Dismiss Me",
+        "message": "Should be dismissed via WS",
+    })
+
+    result = await ws.send_command(
+        "persistent_notification/dismiss",
+        notification_id="ws_dismiss_test",
+    )
+    assert result.get("success", False)
+
+    # Verify it's gone
+    r = client.get("/api/notifications")
+    notifs = r.json()
+    remaining = [n for n in notifs if n.get("notification_id") == "ws_dismiss_test"]
+    assert len(remaining) == 0
+
+
+# ── WS Ping ───────────────────────────────────
+
+
+@pytest.mark.asyncio
+async def test_ws_ping_pong(ws):
+    """WebSocket ping returns pong."""
+    ok = await ws.ping()
+    assert ok
