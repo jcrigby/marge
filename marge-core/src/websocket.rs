@@ -46,14 +46,16 @@ struct WsState {
     app: Arc<AppState>,
     auth: Arc<AuthConfig>,
     services: Arc<std::sync::RwLock<ServiceRegistry>>,
+    db_path: std::path::PathBuf,
 }
 
 pub fn router(
     state: Arc<AppState>,
     auth: Arc<AuthConfig>,
     services: Arc<std::sync::RwLock<ServiceRegistry>>,
+    db_path: std::path::PathBuf,
 ) -> Router {
-    let ws_state = WsState { app: state, auth, services };
+    let ws_state = WsState { app: state, auth, services, db_path };
     Router::new()
         .route("/api/websocket", get(ws_handler))
         .with_state(ws_state)
@@ -63,7 +65,7 @@ async fn ws_handler(
     ws: WebSocketUpgrade,
     State(ws_state): State<WsState>,
 ) -> impl IntoResponse {
-    ws.on_upgrade(move |socket| handle_ws(socket, ws_state.app, ws_state.auth, ws_state.services))
+    ws.on_upgrade(move |socket| handle_ws(socket, ws_state.app, ws_state.auth, ws_state.services, ws_state.db_path))
 }
 
 async fn handle_ws(
@@ -71,6 +73,7 @@ async fn handle_ws(
     app: Arc<AppState>,
     auth: Arc<AuthConfig>,
     services: Arc<std::sync::RwLock<ServiceRegistry>>,
+    db_path: std::path::PathBuf,
 ) {
     // Send auth_required
     let auth_req = serde_json::to_string(&WsOutgoing::AuthRequired {
@@ -190,6 +193,33 @@ async fn handle_ws(
                                         "state": "RUNNING",
                                     });
                                     ws_result(id, true, Some(config))
+                                }
+                                "get_notifications" => {
+                                    let db = db_path.clone();
+                                    let notifs = tokio::task::spawn_blocking(move || {
+                                        crate::recorder::list_notifications(&db)
+                                    }).await.ok().and_then(|r| r.ok()).unwrap_or_default();
+                                    ws_result(id, true, Some(serde_json::to_value(&notifs).unwrap()))
+                                }
+                                "config/entity_registry/list" => {
+                                    // HA-compatible entity registry: return minimal entries
+                                    let states = app.state_machine.get_all();
+                                    let entries: Vec<serde_json::Value> = states.iter().map(|s| {
+                                        serde_json::json!({
+                                            "entity_id": s.entity_id,
+                                            "name": s.attributes.get("friendly_name").and_then(|v| v.as_str()).unwrap_or(""),
+                                            "platform": "mqtt",
+                                            "disabled_by": null,
+                                        })
+                                    }).collect();
+                                    ws_result(id, true, Some(serde_json::to_value(&entries).unwrap()))
+                                }
+                                "config/area_registry/list" => {
+                                    let db = db_path.clone();
+                                    let areas = tokio::task::spawn_blocking(move || {
+                                        crate::recorder::init_areas(&db)
+                                    }).await.ok().and_then(|r| r.ok()).unwrap_or_default();
+                                    ws_result(id, true, Some(serde_json::to_value(&areas).unwrap()))
                                 }
                                 "ping" => {
                                     // HA-compatible pong response
