@@ -271,6 +271,20 @@ function App() {
     return list;
   }, [entities, filter, domainFilter]);
 
+  // Summary stats for quick status strip
+  const summary = useMemo(() => {
+    const lights = entities.filter((e) => getDomain(e.entity_id) === 'light');
+    const lightsOn = lights.filter((e) => e.state === 'on').length;
+    const locks = entities.filter((e) => getDomain(e.entity_id) === 'lock');
+    const locksLocked = locks.filter((e) => e.state === 'locked').length;
+    const climate = entities.find((e) => getDomain(e.entity_id) === 'climate');
+    const alarm = entities.find((e) => getDomain(e.entity_id) === 'alarm_control_panel');
+    const sensors = entities.filter((e) => getDomain(e.entity_id) === 'sensor');
+    const numericSensors = sensors.filter((e) => !isNaN(Number(e.state)));
+
+    return { lights, lightsOn, locks, locksLocked, climate, alarm, numericSensors };
+  }, [entities]);
+
   const filteredList = filtered();
   const groups = groupMode === 'area'
     ? groupByArea(filteredList, areas)
@@ -341,6 +355,48 @@ function App() {
 
       {activeTab === 'entities' && (
         <>
+          {entities.length > 0 && (
+            <div className="summary-strip">
+              {summary.lights.length > 0 && (
+                <div className="summary-card">
+                  <span className="summary-value">{summary.lightsOn}/{summary.lights.length}</span>
+                  <span className="summary-label">Lights On</span>
+                </div>
+              )}
+              {summary.locks.length > 0 && (
+                <div className="summary-card">
+                  <span className="summary-value">{summary.locksLocked}/{summary.locks.length}</span>
+                  <span className="summary-label">Locked</span>
+                </div>
+              )}
+              {summary.climate && (
+                <div className="summary-card">
+                  <span className="summary-value">
+                    {String(summary.climate.attributes.current_temperature ?? summary.climate.state)}
+                  </span>
+                  <span className="summary-label">Climate</span>
+                </div>
+              )}
+              {summary.alarm && (
+                <div className={`summary-card ${summary.alarm.state !== 'disarmed' ? 'summary-alert' : ''}`}>
+                  <span className="summary-value">{summary.alarm.state.replace(/_/g, ' ')}</span>
+                  <span className="summary-label">Alarm</span>
+                </div>
+              )}
+              {summary.numericSensors.slice(0, 3).map((s) => (
+                <div key={s.entity_id} className="summary-card">
+                  <span className="summary-value">
+                    {Number(s.state).toFixed(1)}
+                    {s.attributes.unit_of_measurement ? ` ${s.attributes.unit_of_measurement}` : ''}
+                  </span>
+                  <span className="summary-label">
+                    {(s.attributes.friendly_name as string) || s.entity_id.split('.')[1]?.replace(/_/g, ' ')}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+
           <div className="entity-toolbar">
             <DomainChips
               domains={domainCounts}

@@ -114,8 +114,7 @@ pub fn router(
         .route("/api/", get(api_status))
         .route("/api/config", get(api_config))
         .route("/api/states", get(get_states))
-        .route("/api/states/:entity_id", get(get_state))
-        .route("/api/states/:entity_id", post(set_state))
+        .route("/api/states/:entity_id", get(get_state).post(set_state).delete(delete_state))
         .route("/api/events/:event_type", post(fire_event))
         .route("/api/services/:domain/:service", post(call_service))
         .route("/api/health", get(health))
@@ -239,6 +238,22 @@ async fn set_state(
     check_auth(&rs, &headers)?;
     let new_state = rs.app.state_machine.set(entity_id, body.state, body.attributes);
     Ok((StatusCode::OK, Json(new_state)))
+}
+
+/// DELETE /api/states/{entity_id} — remove an entity
+async fn delete_state(
+    State(rs): State<RouterState>,
+    headers: HeaderMap,
+    Path(entity_id): Path<String>,
+) -> Result<Json<serde_json::Value>, StatusCode> {
+    check_auth(&rs, &headers)?;
+
+    if rs.app.state_machine.remove(&entity_id) {
+        tracing::info!(entity_id = %entity_id, "Entity deleted");
+        Ok(Json(serde_json::json!({"message": format!("Entity {} removed", entity_id)})))
+    } else {
+        Err(StatusCode::NOT_FOUND)
+    }
 }
 
 /// POST /api/events/{event_type} — fire an event

@@ -152,6 +152,11 @@ impl StateMachine {
         new_state
     }
 
+    /// Remove an entity from the state machine. Returns true if it existed.
+    pub fn remove(&self, entity_id: &str) -> bool {
+        self.states.remove(entity_id).is_some()
+    }
+
     /// Subscribe to state change events
     pub fn subscribe(&self) -> broadcast::Receiver<StateChangedEvent> {
         self.event_tx.subscribe()
