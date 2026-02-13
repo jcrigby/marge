@@ -1,6 +1,7 @@
 mod api;
 mod automation;
 mod discovery;
+mod integrations;
 mod mqtt;
 mod recorder;
 mod scene;
@@ -79,6 +80,12 @@ async fn main() -> anyhow::Result<()> {
         app_state.clone(),
         mqtt_targets,
     ));
+
+    // ── Device Bridge Managers (Phase 2 §2.1-2.3) ───────
+    let z2m_bridge = Arc::new(integrations::zigbee2mqtt::Zigbee2MqttBridge::new(app_state.clone()));
+    let zwave_bridge = Arc::new(integrations::zwave::ZwaveBridge::new(app_state.clone()));
+    let tasmota_bridge = Arc::new(integrations::tasmota::TasmotaBridge::new(app_state.clone()));
+    let esphome_bridge = Arc::new(integrations::esphome::ESPHomeBridge::new(app_state.clone()));
 
     // Load scenes (D7) — loaded before automations so engine can reference them
     let scenes_path = std::env::var("MARGE_SCENES_PATH")
@@ -190,7 +197,13 @@ async fn main() -> anyhow::Result<()> {
         .and_then(|p| p.parse().ok())
         .unwrap_or(1884);
 
-    match mqtt::start_mqtt(app_state.clone(), mqtt_port, discovery_engine.clone()) {
+    let bridges = mqtt::DeviceBridges {
+        z2m: z2m_bridge,
+        zwave: zwave_bridge,
+        tasmota: tasmota_bridge,
+        esphome: esphome_bridge,
+    };
+    match mqtt::start_mqtt(app_state.clone(), mqtt_port, discovery_engine.clone(), bridges) {
         Ok((_broker_handle, _subscriber_handle)) => {
             tracing::info!("Embedded MQTT broker on port {}", mqtt_port);
         }

@@ -7,6 +7,15 @@ use tokio::task::JoinHandle;
 
 use crate::api::AppState;
 use crate::discovery::DiscoveryEngine;
+use crate::integrations::{zigbee2mqtt, zwave, tasmota, esphome};
+
+/// Device bridge managers passed to the MQTT subscriber.
+pub struct DeviceBridges {
+    pub z2m: Arc<zigbee2mqtt::Zigbee2MqttBridge>,
+    pub zwave: Arc<zwave::ZwaveBridge>,
+    pub tasmota: Arc<tasmota::TasmotaBridge>,
+    pub esphome: Arc<esphome::ESPHomeBridge>,
+}
 
 /// Start the embedded MQTT broker and an internal subscriber that
 /// bridges MQTT messages into the state machine.
@@ -17,11 +26,15 @@ use crate::discovery::DiscoveryEngine;
 /// Also handles HA MQTT Discovery topics (Phase 2 §1.2):
 ///   homeassistant/+/+/config and homeassistant/+/+/+/config
 ///
+/// Device bridge topics (Phase 2 §2.1-2.3):
+///   zigbee2mqtt/#, zwave/#, stat/#, tele/#
+///
 /// Returns handles for the broker and subscriber tasks.
 pub fn start_mqtt(
     app: Arc<AppState>,
     port: u16,
     discovery: Arc<DiscoveryEngine>,
+    bridges: DeviceBridges,
 ) -> anyhow::Result<(JoinHandle<()>, JoinHandle<()>)> {
     let addr: SocketAddr = format!("0.0.0.0:{}", port).parse()?;
 
@@ -86,25 +99,30 @@ pub fn start_mqtt(
         tokio::time::sleep(std::time::Duration::from_millis(100)).await;
 
         tokio::task::spawn_blocking(move || {
-            // Subscribe to original home/# topic and discovery topics
-            if let Err(e) = link_tx.subscribe("home/#") {
-                tracing::error!("MQTT subscribe home/# failed: {}", e);
-                return;
+            // Subscribe to all topic namespaces
+            for pattern in &[
+                "home/#",
+                "homeassistant/#",
+                "zigbee2mqtt/#",
+                "zwave/#",
+                "stat/#",
+                "tele/#",
+                "cmnd/#",
+            ] {
+                if let Err(e) = link_tx.subscribe(*pattern) {
+                    tracing::error!("MQTT subscribe {} failed: {}", pattern, e);
+                    return;
+                }
             }
-            if let Err(e) = link_tx.subscribe("homeassistant/#") {
-                tracing::error!("MQTT subscribe homeassistant/# failed: {}", e);
-                return;
-            }
-            tracing::info!("MQTT subscriber listening on home/# and homeassistant/#");
+            tracing::info!("MQTT subscriber listening on home/#, homeassistant/#, zigbee2mqtt/#, zwave/#, stat/#, tele/#");
 
             loop {
                 match link_rx.recv() {
                     Ok(Some(notification)) => {
                         if let Some((topic, payload)) = extract_publish(&notification) {
-                            // Check if this is a discovery topic
+                            // ── HA MQTT Discovery ────────────────
                             if DiscoveryEngine::is_discovery_topic(&topic) {
                                 if let Some(new_topics) = discovery.process_discovery(&topic, &payload) {
-                                    // Subscribe to newly discovered state topics
                                     for t in new_topics {
                                         if let Err(e) = link_tx.subscribe(&t) {
                                             tracing::warn!("Failed to subscribe to {}: {}", t, e);
@@ -114,13 +132,31 @@ pub fn start_mqtt(
                                 continue;
                             }
 
-                            // Check if this is a state update for a discovered entity
+                            // ── Discovered entity state updates ──
                             if discovery.is_subscribed_topic(&topic) {
                                 discovery.process_state_update(&topic, &payload);
                                 continue;
                             }
 
-                            // Original home/{domain}/{object_id}/state handling
+                            // ── zigbee2mqtt bridge ───────────────
+                            if zigbee2mqtt::Zigbee2MqttBridge::is_z2m_topic(&topic) {
+                                bridges.z2m.process_message(&topic, &payload);
+                                continue;
+                            }
+
+                            // ── Z-Wave bridge ────────────────────
+                            if zwave::ZwaveBridge::is_zwave_topic(&topic) {
+                                bridges.zwave.process_message(&topic, &payload);
+                                continue;
+                            }
+
+                            // ── Tasmota bridge ───────────────────
+                            if tasmota::TasmotaBridge::is_tasmota_topic(&topic) {
+                                bridges.tasmota.process_message(&topic, &payload);
+                                continue;
+                            }
+
+                            // ── Original home/# bridge ───────────
                             if let Some(entity_id) = topic_to_entity_id(&topic) {
                                 let state = String::from_utf8_lossy(&payload).to_string();
                                 tracing::debug!("MQTT -> {} = {}", entity_id, state);
