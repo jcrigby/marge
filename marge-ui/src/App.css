@@ -1072,6 +1072,60 @@
   to { opacity: 1; transform: translateY(0); }
 }
 
+/* ── Label manager ────────────────────────── */
+.label-manager {
+  padding: 0.5rem 0;
+}
+.label-create {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+  align-items: center;
+}
+.label-color-picker {
+  width: 2.5rem;
+  height: 2.2rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg-card);
+  cursor: pointer;
+  padding: 2px;
+}
+.label-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 0.75rem;
+}
+.label-card .card-header {
+  gap: 0.5rem;
+}
+.label-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.label-entities {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  padding: 0.5rem 0;
+}
+.label-entity-chip {
+  cursor: pointer;
+  font-size: 0.7rem;
+}
+.label-entity-chip:hover {
+  border-color: #e55;
+  color: #e55;
+}
+.label-assign-row {
+  padding-top: 0.25rem;
+}
+.label-assign-row select {
+  width: 100%;
+}
+
 /* ── Help overlay ─────────────────────────── */
 .help-overlay {
   position: fixed;
