@@ -1,7 +1,8 @@
 import { useEffect, useState, useCallback } from 'react'
 import type { EntityState, HealthData } from './types'
 import { getDomain } from './types'
-import { connect, subscribe } from './ws'
+import { connect, subscribe, subscribeStatus } from './ws'
+import type { ConnectionStatus } from './ws'
 import EntityCard from './EntityCard'
 import './App.css'
 
@@ -35,10 +36,31 @@ function groupByDomain(entities: EntityState[]): Map<string, EntityState[]> {
   );
 }
 
-function HealthBar({ health }: { health: HealthData | null }) {
-  if (!health) return <div className="health-bar">Connecting...</div>;
+const STATUS_LABELS: Record<ConnectionStatus, string> = {
+  connected: 'Connected',
+  connecting: 'Connecting...',
+  disconnected: 'Disconnected',
+};
+
+function ConnectionDot({ status }: { status: ConnectionStatus }) {
+  return (
+    <span className={`conn-dot conn-${status}`} title={STATUS_LABELS[status]}>
+      <span className="conn-indicator" />
+      <span className="conn-label">{STATUS_LABELS[status]}</span>
+    </span>
+  );
+}
+
+function HealthBar({ health, connStatus }: { health: HealthData | null; connStatus: ConnectionStatus }) {
+  if (!health) return (
+    <div className="health-bar">
+      <ConnectionDot status={connStatus} />
+      <span className="health-item">Connecting...</span>
+    </div>
+  );
   return (
     <div className="health-bar">
+      <ConnectionDot status={connStatus} />
       <span className="health-item">
         <strong>Marge</strong> v{health.version}
       </span>
@@ -58,13 +80,16 @@ function App() {
   const [entities, setEntities] = useState<EntityState[]>([]);
   const [health, setHealth] = useState<HealthData | null>(null);
   const [filter, setFilter] = useState('');
+  const [connStatus, setConnStatus] = useState<ConnectionStatus>('disconnected');
 
   // Connect WebSocket on mount
   useEffect(() => {
     connect();
-    return subscribe((entityMap) => {
+    const unsubEntities = subscribe((entityMap) => {
       setEntities([...entityMap.values()]);
     });
+    const unsubStatus = subscribeStatus(setConnStatus);
+    return () => { unsubEntities(); unsubStatus(); };
   }, []);
 
   // Poll health endpoint
@@ -104,7 +129,7 @@ function App() {
         />
       </header>
 
-      <HealthBar health={health} />
+      <HealthBar health={health} connStatus={connStatus} />
 
       <main className="entity-groups">
         {[...groups.entries()].map(([domain, domainEntities]) => (
