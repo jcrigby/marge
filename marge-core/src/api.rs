@@ -136,6 +136,8 @@ pub fn router(
         .route("/api/config/core/reload", post(reload_automations))
         // Scene config
         .route("/api/config/scene/config", get(list_scenes))
+        // Statistics aggregation
+        .route("/api/statistics/:entity_id", get(get_statistics))
         // Prometheus metrics
         .route("/metrics", get(prometheus_metrics))
         .with_state(router_state)
@@ -250,13 +252,24 @@ async fn call_service(
     check_auth(&rs, &headers)?;
     tracing::info!(domain = %domain, service = %service, "Service called");
 
-    // Handle automation.trigger specially
-    if domain == "automation" && service == "trigger" {
+    // Handle automation services specially
+    if domain == "automation" {
         if let Some(engine) = &rs.engine {
             let entity_id = body.get("entity_id")
                 .and_then(|v| v.as_str())
                 .unwrap_or("");
-            engine.trigger_by_id(entity_id).await;
+            match service.as_str() {
+                "trigger" => { engine.trigger_by_id(entity_id).await; }
+                "turn_on" => { engine.set_enabled(entity_id, true); }
+                "turn_off" => { engine.set_enabled(entity_id, false); }
+                "toggle" => {
+                    let id = entity_id.strip_prefix("automation.").unwrap_or(entity_id);
+                    let currently_enabled = engine.get_automations_info()
+                        .iter().find(|a| a.id == id).map(|a| a.enabled).unwrap_or(true);
+                    engine.set_enabled(entity_id, !currently_enabled);
+                }
+                _ => {}
+            }
         }
         return Ok(Json(ServiceResponse { changed_states: vec![] }));
     }
@@ -708,6 +721,33 @@ async fn reload_automations(
             })))
         }
     }
+}
+
+/// GET /api/statistics/{entity_id} — aggregated hourly statistics for numeric entities
+async fn get_statistics(
+    State(rs): State<RouterState>,
+    headers: HeaderMap,
+    Path(entity_id): Path<String>,
+    Query(params): Query<HistoryParams>,
+) -> Result<Json<Vec<crate::recorder::StatsBucket>>, StatusCode> {
+    check_auth(&rs, &headers)?;
+
+    let now = chrono::Utc::now();
+    let end = params.end.unwrap_or_else(|| now.to_rfc3339());
+    let start = params.start.unwrap_or_else(|| {
+        (now - chrono::Duration::hours(24)).to_rfc3339()
+    });
+
+    let db_path = rs.db_path.clone();
+    let eid = entity_id.clone();
+    let buckets = tokio::task::spawn_blocking(move || {
+        crate::recorder::query_statistics(&db_path, &eid, &start, &end)
+    })
+    .await
+    .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
+    .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+    Ok(Json(buckets))
 }
 
 /// GET /api/config/scene/config — list all scenes with metadata

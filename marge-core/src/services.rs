@@ -431,6 +431,16 @@ impl ServiceRegistry {
             Some(ServiceResult { state: option, attributes: attrs })
         });
 
+        // ── Automation ────────────────────────────────────
+        // These are handled specially in api.rs, but registered here for /api/services listing
+        self.register("automation", "trigger", |_call, _sm| None);
+        self.register("automation", "turn_on", |_call, _sm| None);
+        self.register("automation", "turn_off", |_call, _sm| None);
+        self.register("automation", "toggle", |_call, _sm| None);
+
+        // ── Scene ───────────────────────────────────────
+        self.register("scene", "turn_on", |_call, _sm| None);
+
         // ── Button ───────────────────────────────────────
         self.register("button", "press", |_call, _sm| {
             // Buttons don't have persistent state; the press is the action
