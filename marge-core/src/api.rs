@@ -1,6 +1,6 @@
 use axum::{
     extract::{Path, State},
-    http::StatusCode,
+    http::{HeaderMap, StatusCode},
     response::IntoResponse,
     routing::{get, post},
     Json, Router,
@@ -8,6 +8,7 @@ use axum::{
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 
+use crate::auth::AuthConfig;
 use crate::automation::AutomationEngine;
 use crate::scene::SceneEngine;
 use crate::services::ServiceRegistry;
@@ -30,6 +31,7 @@ struct RouterState {
     engine: Option<Arc<AutomationEngine>>,
     scenes: Option<Arc<SceneEngine>>,
     services: Arc<std::sync::RwLock<ServiceRegistry>>,
+    auth: Arc<AuthConfig>,
 }
 
 /// POST /api/states/{entity_id} request body
@@ -85,12 +87,14 @@ pub fn router(
     engine: Option<Arc<AutomationEngine>>,
     scenes: Option<Arc<SceneEngine>>,
     services: Arc<std::sync::RwLock<ServiceRegistry>>,
+    auth: Arc<AuthConfig>,
 ) -> Router {
     let router_state = RouterState {
         app: state,
         engine,
         scenes,
         services,
+        auth,
     };
 
     Router::new()
@@ -105,6 +109,22 @@ pub fn router(
         .route("/api/health", get(health))
         .route("/api/sim/time", post(set_sim_time))
         .with_state(router_state)
+}
+
+/// Validate authorization from request headers. Returns Err(401) if auth is
+/// enabled and the token is missing or invalid.
+fn check_auth(rs: &RouterState, headers: &HeaderMap) -> Result<(), StatusCode> {
+    if !rs.auth.is_enabled() {
+        return Ok(());
+    }
+    let auth_header = headers
+        .get("authorization")
+        .and_then(|v| v.to_str().ok());
+    if rs.auth.validate_header(auth_header) {
+        Ok(())
+    } else {
+        Err(StatusCode::UNAUTHORIZED)
+    }
 }
 
 /// GET /api/ — API running check
@@ -134,15 +154,21 @@ async fn api_config() -> Json<ApiConfig> {
 }
 
 /// GET /api/states — return all entity states
-async fn get_states(State(rs): State<RouterState>) -> Json<Vec<EntityState>> {
-    Json(rs.app.state_machine.get_all())
+async fn get_states(
+    State(rs): State<RouterState>,
+    headers: HeaderMap,
+) -> Result<Json<Vec<EntityState>>, StatusCode> {
+    check_auth(&rs, &headers)?;
+    Ok(Json(rs.app.state_machine.get_all()))
 }
 
 /// GET /api/states/{entity_id} — return single entity state
 async fn get_state(
     State(rs): State<RouterState>,
+    headers: HeaderMap,
     Path(entity_id): Path<String>,
 ) -> Result<Json<EntityState>, StatusCode> {
+    check_auth(&rs, &headers)?;
     rs.app.state_machine
         .get(&entity_id)
         .map(Json)
@@ -152,19 +178,23 @@ async fn get_state(
 /// POST /api/states/{entity_id} — set entity state (HA-compatible)
 async fn set_state(
     State(rs): State<RouterState>,
+    headers: HeaderMap,
     Path(entity_id): Path<String>,
     Json(body): Json<SetStateRequest>,
-) -> impl IntoResponse {
+) -> Result<impl IntoResponse, StatusCode> {
+    check_auth(&rs, &headers)?;
     let new_state = rs.app.state_machine.set(entity_id, body.state, body.attributes);
-    (StatusCode::OK, Json(new_state))
+    Ok((StatusCode::OK, Json(new_state)))
 }
 
 /// POST /api/events/{event_type} — fire an event
 async fn fire_event(
     State(rs): State<RouterState>,
+    headers: HeaderMap,
     Path(event_type): Path<String>,
     _body: Option<Json<serde_json::Value>>,
-) -> Json<EventResponse> {
+) -> Result<Json<EventResponse>, StatusCode> {
+    check_auth(&rs, &headers)?;
     tracing::info!(event_type = %event_type, "Event fired");
 
     // If automation engine is loaded, let it process the event
@@ -172,9 +202,9 @@ async fn fire_event(
         engine.on_event(&event_type).await;
     }
 
-    Json(EventResponse {
+    Ok(Json(EventResponse {
         message: format!("Event {} fired.", event_type),
-    })
+    }))
 }
 
 /// POST /api/services/{domain}/{service} — call a service
@@ -183,9 +213,11 @@ async fn fire_event(
 /// Special cases: automation.trigger and scene.turn_on are handled directly.
 async fn call_service(
     State(rs): State<RouterState>,
+    headers: HeaderMap,
     Path((domain, service)): Path<(String, String)>,
     Json(body): Json<serde_json::Value>,
-) -> Json<ServiceResponse> {
+) -> Result<Json<ServiceResponse>, StatusCode> {
+    check_auth(&rs, &headers)?;
     tracing::info!(domain = %domain, service = %service, "Service called");
 
     // Handle automation.trigger specially
@@ -196,7 +228,7 @@ async fn call_service(
                 .unwrap_or("");
             engine.trigger_by_id(entity_id).await;
         }
-        return Json(ServiceResponse { changed_states: vec![] });
+        return Ok(Json(ServiceResponse { changed_states: vec![] }));
     }
 
     // Handle scene.turn_on
@@ -207,7 +239,7 @@ async fn call_service(
                 .unwrap_or("");
             scenes.turn_on(entity_id);
         }
-        return Json(ServiceResponse { changed_states: vec![] });
+        return Ok(Json(ServiceResponse { changed_states: vec![] }));
     }
 
     // Extract entity_id from body (can be string or array)
@@ -234,16 +266,18 @@ async fn call_service(
         registry.call(&domain, &service, &entity_ids, &body, &rs.app.state_machine)
     };
 
-    Json(ServiceResponse {
+    Ok(Json(ServiceResponse {
         changed_states: changed,
-    })
+    }))
 }
 
 /// POST /api/sim/time — update sim-time and chapter
 async fn set_sim_time(
     State(rs): State<RouterState>,
+    headers: HeaderMap,
     Json(body): Json<serde_json::Value>,
-) -> Json<serde_json::Value> {
+) -> Result<Json<serde_json::Value>, StatusCode> {
+    check_auth(&rs, &headers)?;
     if let Some(time) = body.get("time").and_then(|v| v.as_str()) {
         *rs.app.sim_time.lock().unwrap() = time.to_string();
     }
@@ -253,7 +287,7 @@ async fn set_sim_time(
     if let Some(speed) = body.get("speed").and_then(|v| v.as_f64()) {
         rs.app.sim_speed.store(speed as u32, std::sync::atomic::Ordering::Relaxed);
     }
-    Json(serde_json::json!({"status": "ok"}))
+    Ok(Json(serde_json::json!({"status": "ok"})))
 }
 
 /// GET /api/health — health check with metrics

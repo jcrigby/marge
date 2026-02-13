@@ -1,0 +1,4 @@
+marge-core/target
+marge-ui/node_modules
+marge-ui/dist
+.git
