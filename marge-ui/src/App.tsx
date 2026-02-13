@@ -445,8 +445,15 @@ function App() {
                 </h2>
                 <div className="entity-grid">
                   {domainEntities.map((entity) => (
-                    <div key={entity.entity_id} onDoubleClick={() => setSelectedEntity(entity.entity_id)}>
+                    <div key={entity.entity_id} className="entity-grid-item">
                       <EntityCard entity={entity} />
+                      <button
+                        className="card-expand-btn"
+                        onClick={() => setSelectedEntity(entity.entity_id)}
+                        title="Details"
+                      >
+                        &#x2197;
+                      </button>
                     </div>
                   ))}
                 </div>
