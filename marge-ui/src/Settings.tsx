@@ -10,11 +10,21 @@ interface TokenInfo {
   token?: string;
 }
 
+interface DiagnosticData {
+  automations: number;
+  scenes: number;
+  areas: number;
+  devices: number;
+  labels: number;
+}
+
 export default function Settings({ health }: { health: HealthData | null }) {
   const [tokens, setTokens] = useState<TokenInfo[]>([]);
   const [newTokenName, setNewTokenName] = useState('');
   const [newTokenValue, setNewTokenValue] = useState<string | null>(null);
   const [wsToken, setLocalToken] = useState(localStorage.getItem('marge_token') || '');
+  const [diag, setDiag] = useState<DiagnosticData | null>(null);
+  const [showPurgeConfirm, setShowPurgeConfirm] = useState(false);
 
   const fetchTokens = useCallback(() => {
     fetch('/api/auth/tokens')
@@ -23,9 +33,28 @@ export default function Settings({ health }: { health: HealthData | null }) {
       .catch(() => setTokens([]));
   }, []);
 
+  const fetchDiagnostics = useCallback(() => {
+    Promise.all([
+      fetch('/api/config/automation/config').then((r) => r.json()).catch(() => []),
+      fetch('/api/config/scene/config').then((r) => r.json()).catch(() => []),
+      fetch('/api/areas').then((r) => r.json()).catch(() => []),
+      fetch('/api/devices').then((r) => r.json()).catch(() => []),
+      fetch('/api/labels').then((r) => r.json()).catch(() => []),
+    ]).then(([autos, scenes, areas, devices, labels]) => {
+      setDiag({
+        automations: autos.length,
+        scenes: scenes.length,
+        areas: areas.length,
+        devices: devices.length,
+        labels: labels.length,
+      });
+    });
+  }, []);
+
   useEffect(() => {
     fetchTokens();
-  }, [fetchTokens]);
+    fetchDiagnostics();
+  }, [fetchTokens, fetchDiagnostics]);
 
   const createToken = () => {
     if (!newTokenName.trim()) return;
@@ -154,6 +183,35 @@ export default function Settings({ health }: { health: HealthData | null }) {
         </p>
       </div>
 
+      {/* Diagnostics */}
+      {diag && (
+        <div className="settings-section">
+          <h2 className="domain-title">Diagnostics</h2>
+          <div className="settings-grid">
+            <div className="settings-kv">
+              <span className="settings-key">Automations</span>
+              <span className="settings-val">{diag.automations}</span>
+            </div>
+            <div className="settings-kv">
+              <span className="settings-key">Scenes</span>
+              <span className="settings-val">{diag.scenes}</span>
+            </div>
+            <div className="settings-kv">
+              <span className="settings-key">Areas</span>
+              <span className="settings-val">{diag.areas}</span>
+            </div>
+            <div className="settings-kv">
+              <span className="settings-key">Devices</span>
+              <span className="settings-val">{diag.devices}</span>
+            </div>
+            <div className="settings-kv">
+              <span className="settings-key">Labels</span>
+              <span className="settings-val">{diag.labels}</span>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Long-Lived Tokens */}
       <div className="settings-section">
         <h2 className="domain-title">
@@ -200,6 +258,56 @@ export default function Settings({ health }: { health: HealthData | null }) {
                 <button className="reload-btn" onClick={() => deleteToken(t.id, t.name)}>Revoke</button>
               </div>
             ))}
+          </div>
+        )}
+      </div>
+
+      {/* Danger Zone */}
+      <div className="settings-section settings-danger">
+        <h2 className="domain-title">Danger Zone</h2>
+        <div className="settings-form-row">
+          <button
+            className="reload-btn danger-btn"
+            onClick={() => setShowPurgeConfirm(true)}
+          >
+            Purge All Entities
+          </button>
+          <button
+            className="reload-btn danger-btn"
+            onClick={() => {
+              fetch('/api/config/automation/reload', { method: 'POST' })
+                .then((r) => {
+                  if (r.ok) toastSuccess('Automations reloaded');
+                  else toastError('Reload failed');
+                });
+            }}
+          >
+            Reload Automations
+          </button>
+        </div>
+        <p className="settings-hint">
+          Purge removes all entity states from memory. Reload re-reads automation YAML.
+        </p>
+        {showPurgeConfirm && (
+          <div className="purge-confirm">
+            <p>Are you sure? This will delete all {health?.entity_count ?? 0} entities.</p>
+            <div className="settings-form-row">
+              <button className="reload-btn danger-btn" onClick={() => {
+                fetch('/api/states', { method: 'GET' })
+                  .then((r) => r.json())
+                  .then((states: Array<{ entity_id: string }>) =>
+                    Promise.all(states.map((s) =>
+                      fetch(`/api/states/${s.entity_id}`, { method: 'DELETE' })
+                    ))
+                  )
+                  .then(() => {
+                    toastSuccess('All entities purged');
+                    setShowPurgeConfirm(false);
+                  })
+                  .catch(() => toastError('Purge failed'));
+              }}>Yes, Purge Everything</button>
+              <button className="reload-btn" onClick={() => setShowPurgeConfirm(false)}>Cancel</button>
+            </div>
           </div>
         )}
       </div>
