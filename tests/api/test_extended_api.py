@@ -1,7 +1,7 @@
 """
 CTS — Extended API Tests (Phase 5+6)
 
-Tests for history, webhook, backup, and logbook endpoints.
+Tests for history, webhook, backup, logbook, services listing, and template endpoints.
 """
 
 import asyncio
@@ -239,3 +239,104 @@ async def test_logbook_entries_have_when(rest):
     assert "entity_id" in entry
     assert "state" in entry
     assert "when" in entry
+
+
+# ── Services API ────────────────────────────────────────
+
+
+@pytest.mark.asyncio
+async def test_services_returns_list(rest):
+    """GET /api/services returns a list of service domain objects."""
+    resp = await rest.client.get(
+        f"{rest.base_url}/api/services",
+        headers=rest._headers(),
+    )
+    assert resp.status_code == 200
+    data = resp.json()
+    assert isinstance(data, list)
+    assert len(data) >= 1
+    # Each entry should have domain and services
+    domains = [entry["domain"] for entry in data]
+    assert "light" in domains
+    assert "switch" in domains
+
+
+@pytest.mark.asyncio
+async def test_services_contains_expected_services(rest):
+    """Services listing includes known service handlers."""
+    resp = await rest.client.get(
+        f"{rest.base_url}/api/services",
+        headers=rest._headers(),
+    )
+    data = resp.json()
+    light_entry = next((e for e in data if e["domain"] == "light"), None)
+    assert light_entry is not None
+    svcs = light_entry["services"]
+    assert "turn_on" in svcs
+    assert "turn_off" in svcs
+    assert "toggle" in svcs
+
+
+@pytest.mark.asyncio
+async def test_services_input_helpers(rest):
+    """Input helper services are registered."""
+    resp = await rest.client.get(
+        f"{rest.base_url}/api/services",
+        headers=rest._headers(),
+    )
+    data = resp.json()
+    domains = {e["domain"]: e["services"] for e in data}
+    assert "set_value" in domains.get("input_number", {})
+    assert "set_value" in domains.get("input_text", {})
+    assert "select_option" in domains.get("input_select", {})
+
+
+# ── Template API ────────────────────────────────────────
+
+
+@pytest.mark.asyncio
+async def test_template_basic_render(rest):
+    """POST /api/template renders a Jinja2 template."""
+    resp = await rest.client.post(
+        f"{rest.base_url}/api/template",
+        headers=rest._headers(),
+        json={"template": "{{ 1 + 2 }}"},
+    )
+    assert resp.status_code == 200
+    assert resp.text.strip() == "3"
+
+
+@pytest.mark.asyncio
+async def test_template_states_function(rest):
+    """Template can access entity states via states() function."""
+    await rest.set_state("sensor.template_cts", "42")
+    resp = await rest.client.post(
+        f"{rest.base_url}/api/template",
+        headers=rest._headers(),
+        json={"template": "{{ states('sensor.template_cts') }}"},
+    )
+    assert resp.status_code == 200
+    assert resp.text.strip() == "42"
+
+
+@pytest.mark.asyncio
+async def test_template_filter(rest):
+    """Template supports round filter."""
+    resp = await rest.client.post(
+        f"{rest.base_url}/api/template",
+        headers=rest._headers(),
+        json={"template": "{{ 3.14159 | round(2) }}"},
+    )
+    assert resp.status_code == 200
+    assert resp.text.strip() == "3.14"
+
+
+@pytest.mark.asyncio
+async def test_template_invalid_returns_400(rest):
+    """Invalid template returns 400."""
+    resp = await rest.client.post(
+        f"{rest.base_url}/api/template",
+        headers=rest._headers(),
+        json={"template": "{{ invalid syntax !!!"},
+    )
+    assert resp.status_code == 400

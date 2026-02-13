@@ -122,6 +122,10 @@ pub fn router(
         .route("/api/backup", get(create_backup))
         // Logbook (HA-compatible)
         .route("/api/logbook/:entity_id", get(get_logbook))
+        // Service listing (HA-compatible)
+        .route("/api/services", get(list_services))
+        // Template rendering (HA-compatible)
+        .route("/api/template", post(render_template))
         .with_state(router_state)
 }
 
@@ -550,6 +554,58 @@ async fn get_logbook(
     }
 
     Ok(Json(logbook))
+}
+
+/// GET /api/services — list all registered services (HA-compatible)
+async fn list_services(
+    State(rs): State<RouterState>,
+    headers: HeaderMap,
+) -> Result<Json<Vec<serde_json::Value>>, StatusCode> {
+    check_auth(&rs, &headers)?;
+    let registry = rs.services.read().unwrap();
+    let services = registry.list_services();
+
+    // HA format: array of {domain, services: {service_name: {description, fields}}}
+    let result: Vec<serde_json::Value> = services
+        .into_iter()
+        .map(|(domain, svcs)| {
+            let svc_map: serde_json::Map<String, serde_json::Value> = svcs
+                .into_iter()
+                .map(|s| {
+                    (s.clone(), serde_json::json!({
+                        "description": format!("{}.{}", domain, s),
+                        "fields": {}
+                    }))
+                })
+                .collect();
+            serde_json::json!({
+                "domain": domain,
+                "services": svc_map,
+            })
+        })
+        .collect();
+
+    Ok(Json(result))
+}
+
+/// POST /api/template request body
+#[derive(Deserialize)]
+struct TemplateRequest {
+    template: String,
+}
+
+/// POST /api/template — render a Jinja2 template (HA-compatible)
+async fn render_template(
+    State(rs): State<RouterState>,
+    headers: HeaderMap,
+    Json(body): Json<TemplateRequest>,
+) -> Result<String, StatusCode> {
+    check_auth(&rs, &headers)?;
+    crate::template::render_with_state_machine(&body.template, &rs.app.state_machine)
+        .map_err(|e| {
+            tracing::warn!("Template render error: {}", e);
+            StatusCode::BAD_REQUEST
+        })
 }
 
 /// Read RSS from /proc/self/status on Linux
