@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import { callService } from './ws';
+import { toastSuccess, toastError } from './Toast';
 
 interface AutomationInfo {
   id: string;
@@ -31,6 +32,11 @@ export default function AutomationList() {
   const [automations, setAutomations] = useState<AutomationInfo[]>([]);
   const [reloading, setReloading] = useState(false);
   const [firingId, setFiringId] = useState<string | null>(null);
+  const [showEditor, setShowEditor] = useState(false);
+  const [yaml, setYaml] = useState('');
+  const [yamlDirty, setYamlDirty] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [yamlError, setYamlError] = useState<string | null>(null);
 
   const fetchAutomations = useCallback(() => {
     fetch('/api/config/automation/config')
@@ -44,6 +50,47 @@ export default function AutomationList() {
     const id = setInterval(fetchAutomations, 3000);
     return () => clearInterval(id);
   }, [fetchAutomations]);
+
+  const loadYaml = () => {
+    fetch('/api/config/automation/yaml')
+      .then((r) => {
+        if (!r.ok) throw new Error(`${r.status}`);
+        return r.text();
+      })
+      .then((text) => {
+        setYaml(text);
+        setYamlDirty(false);
+        setYamlError(null);
+        setShowEditor(true);
+      })
+      .catch(() => toastError('Failed to load automation YAML'));
+  };
+
+  const saveYaml = () => {
+    setSaving(true);
+    setYamlError(null);
+    fetch('/api/config/automation/yaml', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'text/yaml' },
+      body: yaml,
+    })
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.result === 'ok') {
+          toastSuccess(`Saved and reloaded ${data.automations_reloaded} automations`);
+          setYamlDirty(false);
+          setTimeout(fetchAutomations, 500);
+        } else {
+          setYamlError(data.message || 'Save failed');
+          toastError('Invalid YAML — check syntax');
+        }
+        setSaving(false);
+      })
+      .catch(() => {
+        toastError('Failed to save automation YAML');
+        setSaving(false);
+      });
+  };
 
   const triggerAutomation = (autoId: string) => {
     setFiringId(autoId);
@@ -79,14 +126,53 @@ export default function AutomationList() {
           Automations
           <span className="domain-count">{automations.length}</span>
         </h2>
-        <button
-          className="reload-btn"
-          onClick={reload}
-          disabled={reloading}
-        >
-          {reloading ? 'Reloading...' : 'Reload'}
-        </button>
+        <div className="automation-header-actions">
+          <button
+            className={`reload-btn ${showEditor ? 'active-btn' : ''}`}
+            onClick={() => showEditor ? setShowEditor(false) : loadYaml()}
+          >
+            {showEditor ? 'Close Editor' : 'Edit YAML'}
+          </button>
+          <button
+            className="reload-btn"
+            onClick={reload}
+            disabled={reloading}
+          >
+            {reloading ? 'Reloading...' : 'Reload'}
+          </button>
+        </div>
       </div>
+
+      {showEditor && (
+        <div className="yaml-editor-panel">
+          <div className="yaml-editor-header">
+            <span className="yaml-editor-title">
+              automations.yaml
+              {yamlDirty && <span className="yaml-dirty"> (modified)</span>}
+            </span>
+            <button
+              className="reload-btn"
+              onClick={saveYaml}
+              disabled={saving || !yamlDirty}
+            >
+              {saving ? 'Saving...' : 'Save & Reload'}
+            </button>
+          </div>
+          {yamlError && (
+            <div className="yaml-error">{yamlError}</div>
+          )}
+          <textarea
+            className="yaml-textarea"
+            value={yaml}
+            onChange={(e) => {
+              setYaml(e.target.value);
+              setYamlDirty(true);
+              setYamlError(null);
+            }}
+            spellCheck={false}
+          />
+        </div>
+      )}
 
       {automations.length === 0 ? (
         <div className="empty-state">No automations loaded</div>

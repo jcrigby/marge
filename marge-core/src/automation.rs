@@ -400,6 +400,11 @@ impl AutomationEngine {
         *self.automations_path.write().unwrap() = Some(path);
     }
 
+    /// Get the path to the automations YAML file on disk.
+    pub fn get_automations_path(&self) -> Option<std::path::PathBuf> {
+        self.automations_path.read().unwrap().clone()
+    }
+
     pub fn set_scenes(&self, scenes: Arc<SceneEngine>) {
         *self.scenes.write().unwrap() = Some(scenes);
     }

@@ -2,7 +2,7 @@ use axum::{
     extract::{Path, State},
     http::{HeaderMap, StatusCode},
     response::IntoResponse,
-    routing::{get, post},
+    routing::{get, post, put},
     Json, Router,
 };
 use axum::body::Body;
@@ -133,6 +133,7 @@ pub fn router(
         .route("/api/events", get(list_events))
         // Automation config + reload
         .route("/api/config/automation/config", get(list_automations))
+        .route("/api/config/automation/yaml", get(get_automation_yaml).put(put_automation_yaml))
         .route("/api/config/core/reload", post(reload_automations))
         // Scene config
         .route("/api/config/scene/config", get(list_scenes))
@@ -701,6 +702,73 @@ async fn list_automations(
             Ok(Json(result))
         }
         None => Ok(Json(vec![])),
+    }
+}
+
+/// GET /api/config/automation/yaml — return raw YAML for editing
+async fn get_automation_yaml(
+    State(rs): State<RouterState>,
+    headers: HeaderMap,
+) -> Result<(StatusCode, [(axum::http::header::HeaderName, &'static str); 1], String), StatusCode> {
+    check_auth(&rs, &headers)?;
+
+    let path = match &rs.engine {
+        Some(engine) => engine.get_automations_path()
+            .ok_or(StatusCode::NOT_FOUND)?,
+        None => return Err(StatusCode::NOT_FOUND),
+    };
+
+    let yaml = tokio::fs::read_to_string(&path).await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+    Ok((
+        StatusCode::OK,
+        [(axum::http::header::CONTENT_TYPE, "text/yaml")],
+        yaml,
+    ))
+}
+
+/// PUT /api/config/automation/yaml — save YAML to disk and reload
+async fn put_automation_yaml(
+    State(rs): State<RouterState>,
+    headers: HeaderMap,
+    body: String,
+) -> Result<Json<serde_json::Value>, StatusCode> {
+    check_auth(&rs, &headers)?;
+
+    let engine = rs.engine.as_ref().ok_or(StatusCode::NOT_FOUND)?;
+    let path = engine.get_automations_path().ok_or(StatusCode::NOT_FOUND)?;
+
+    // Validate YAML parses correctly before writing
+    let _: Vec<crate::automation::Automation> = serde_yaml::from_str(&body)
+        .map_err(|e| {
+            tracing::error!("Invalid automation YAML: {}", e);
+            StatusCode::BAD_REQUEST
+        })?;
+
+    // Write to disk
+    tokio::fs::write(&path, &body).await
+        .map_err(|e| {
+            tracing::error!("Failed to write automation YAML to {:?}: {}", path, e);
+            StatusCode::INTERNAL_SERVER_ERROR
+        })?;
+
+    // Reload
+    match engine.reload() {
+        Ok(count) => {
+            tracing::info!("Saved and reloaded {} automations", count);
+            Ok(Json(serde_json::json!({
+                "result": "ok",
+                "automations_reloaded": count,
+            })))
+        }
+        Err(e) => {
+            tracing::error!("Automation reload after save failed: {}", e);
+            Ok(Json(serde_json::json!({
+                "result": "error",
+                "message": format!("{}", e),
+            })))
+        }
     }
 }
 
