@@ -1175,8 +1175,24 @@ async def test_entity_delete(rest):
         f"{rest.base_url}/api/states/sensor.to_delete",
         headers=rest._headers(),
     )
-    # Accept 200 or 404 (some implementations may not support DELETE)
-    assert resp.status_code in (200, 404, 405)
+    assert resp.status_code == 200
+
+    # Verify gone
+    resp = await rest.client.get(
+        f"{rest.base_url}/api/states/sensor.to_delete",
+        headers=rest._headers(),
+    )
+    assert resp.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_entity_delete_nonexistent(rest):
+    """DELETE on a nonexistent entity returns 404."""
+    resp = await rest.client.delete(
+        f"{rest.base_url}/api/states/sensor.does_not_exist_at_all",
+        headers=rest._headers(),
+    )
+    assert resp.status_code == 404
 
 
 # ── Automation trigger via REST ──────────────────────────

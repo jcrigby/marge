@@ -124,6 +124,56 @@
   color: #fff;
 }
 
+/* ── Summary strip ────────────────────────────── */
+.summary-strip {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+  overflow-x: auto;
+  padding-bottom: 0.25rem;
+}
+
+.summary-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 0.5rem 0.75rem;
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius);
+  min-width: 80px;
+  flex-shrink: 0;
+}
+
+.summary-card.summary-alert {
+  border-color: var(--red);
+  background: rgba(230, 80, 80, 0.08);
+}
+
+.summary-value {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--text);
+  white-space: nowrap;
+  text-transform: capitalize;
+}
+
+.summary-alert .summary-value {
+  color: var(--red);
+}
+
+.summary-label {
+  font-size: 0.65rem;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-top: 0.15rem;
+  white-space: nowrap;
+  max-width: 8rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .entity-toolbar {
   display: flex;
   justify-content: space-between;
