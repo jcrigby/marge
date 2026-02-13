@@ -1508,3 +1508,95 @@ def test_health_fields_complete(client):
                    "uptime_seconds", "startup_ms", "state_changes",
                    "latency_avg_us", "latency_max_us"]:
         assert field in data, f"Missing health field: {field}"
+
+
+# ── Entity Search API ─────────────────────────────────
+
+
+def test_search_by_domain(client):
+    """Search entities filtered by domain."""
+    # Ensure at least one light exists
+    client.post("/api/states/light.search_test", json={"state": "on", "attributes": {}})
+    client.post("/api/states/sensor.search_temp", json={"state": "22.5", "attributes": {}})
+
+    r = client.get("/api/states/search", params={"domain": "light"})
+    assert r.status_code == 200
+    results = r.json()
+    assert all(e["entity_id"].startswith("light.") for e in results)
+    assert any(e["entity_id"] == "light.search_test" for e in results)
+
+
+def test_search_by_state(client):
+    """Search entities filtered by state value."""
+    client.post("/api/states/switch.search_on", json={"state": "on", "attributes": {}})
+    client.post("/api/states/switch.search_off", json={"state": "off", "attributes": {}})
+
+    r = client.get("/api/states/search", params={"state": "on"})
+    assert r.status_code == 200
+    results = r.json()
+    assert all(e["state"] == "on" for e in results)
+
+
+def test_search_by_text(client):
+    """Search entities by text query (entity_id, state, friendly_name)."""
+    client.post("/api/states/sensor.search_textmatch", json={
+        "state": "42",
+        "attributes": {"friendly_name": "Kitchen Temperature"},
+    })
+
+    # Search by friendly_name
+    r = client.get("/api/states/search", params={"q": "kitchen"})
+    assert r.status_code == 200
+    results = r.json()
+    assert any(e["entity_id"] == "sensor.search_textmatch" for e in results)
+
+    # Search by entity_id fragment
+    r = client.get("/api/states/search", params={"q": "textmatch"})
+    assert r.status_code == 200
+    results = r.json()
+    assert any(e["entity_id"] == "sensor.search_textmatch" for e in results)
+
+
+def test_search_combined_filters(client):
+    """Search with multiple filters applied simultaneously."""
+    client.post("/api/states/light.combo_on", json={"state": "on", "attributes": {}})
+    client.post("/api/states/light.combo_off", json={"state": "off", "attributes": {}})
+
+    r = client.get("/api/states/search", params={"domain": "light", "state": "on"})
+    assert r.status_code == 200
+    results = r.json()
+    assert all(e["entity_id"].startswith("light.") for e in results)
+    assert all(e["state"] == "on" for e in results)
+
+
+def test_search_no_results(client):
+    """Search with no matching entities returns empty list."""
+    r = client.get("/api/states/search", params={"q": "zzznonexistent999"})
+    assert r.status_code == 200
+    results = r.json()
+    assert results == []
+
+
+def test_search_by_label(client):
+    """Search entities filtered by label."""
+    # Setup: create label and assign entity
+    client.post("/api/labels", json={"label_id": "search_test_lbl", "name": "Search Test"})
+    client.post("/api/states/sensor.lbl_search", json={"state": "10", "attributes": {}})
+    client.post("/api/labels/search_test_lbl/entities/sensor.lbl_search")
+
+    r = client.get("/api/states/search", params={"label": "search_test_lbl"})
+    assert r.status_code == 200
+    results = r.json()
+    assert any(e["entity_id"] == "sensor.lbl_search" for e in results)
+
+    # Cleanup
+    client.request("DELETE", "/api/labels/search_test_lbl")
+
+
+def test_search_results_sorted(client):
+    """Search results are sorted by entity_id."""
+    r = client.get("/api/states/search")
+    assert r.status_code == 200
+    results = r.json()
+    ids = [e["entity_id"] for e in results]
+    assert ids == sorted(ids)
