@@ -1,8 +1,12 @@
 mod api;
 mod automation;
+mod discovery;
 mod mqtt;
+mod recorder;
 mod scene;
+mod services;
 mod state;
+mod template;
 mod websocket;
 
 use std::net::SocketAddr;
@@ -13,6 +17,7 @@ use tracing_subscriber::EnvFilter;
 use api::AppState;
 use automation::AutomationEngine;
 use scene::SceneEngine;
+use services::ServiceRegistry;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -29,6 +34,33 @@ async fn main() -> anyhow::Result<()> {
     // Initialize state machine (SSS §4.1.2)
     let state_machine = state::StateMachine::new(4096);
 
+    // ── State Persistence (Phase 2 §1.1) ─────────────────
+    let db_path = std::env::var("MARGE_DB_PATH")
+        .map(PathBuf::from)
+        .unwrap_or_else(|_| PathBuf::from("/data/marge.db"));
+
+    // Ensure parent directory exists
+    if let Some(parent) = db_path.parent() {
+        std::fs::create_dir_all(parent).ok();
+    }
+
+    let _restored = match recorder::restore(&db_path, &state_machine) {
+        Ok(n) => {
+            tracing::info!("Restored {} entity states from {:?}", n, db_path);
+            n
+        }
+        Err(e) => {
+            tracing::warn!("State restore failed: {} — starting fresh", e);
+            0
+        }
+    };
+
+    let retention_days: u32 = std::env::var("MARGE_HISTORY_DAYS")
+        .ok()
+        .and_then(|v| v.parse().ok())
+        .unwrap_or(10);
+    let recorder_tx = recorder::spawn_writer(db_path, retention_days);
+
     let app_state = Arc::new(AppState {
         state_machine,
         started_at: std::time::Instant::now(),
@@ -37,6 +69,16 @@ async fn main() -> anyhow::Result<()> {
         sim_chapter: std::sync::Mutex::new(String::new()),
         sim_speed: std::sync::atomic::AtomicU32::new(0),
     });
+
+    // ── Service Registry (Phase 2 §1.4) ──────────────────
+    let service_registry = Arc::new(std::sync::RwLock::new(ServiceRegistry::new()));
+
+    // ── Discovery Engine (Phase 2 §1.2) ──────────────────
+    let mqtt_targets = service_registry.read().unwrap().mqtt_targets();
+    let discovery_engine = Arc::new(discovery::DiscoveryEngine::new(
+        app_state.clone(),
+        mqtt_targets,
+    ));
 
     // Load scenes (D7) — loaded before automations so engine can reference them
     let scenes_path = std::env::var("MARGE_SCENES_PATH")
@@ -74,7 +116,7 @@ async fn main() -> anyhow::Result<()> {
     let engine = if automations_path.exists() {
         match automation::load_automations(&automations_path) {
             Ok(automations) => {
-                let mut engine = AutomationEngine::new(automations, app_state.clone());
+                let mut engine = AutomationEngine::new(automations, app_state.clone(), service_registry.clone());
                 // Wire scene engine into automation engine for scene.turn_on actions
                 if let Some(se) = &scene_engine {
                     engine.set_scenes(se.clone());
@@ -103,6 +145,25 @@ async fn main() -> anyhow::Result<()> {
     // Store engine reference for the API to use (automation.trigger service)
     let engine_for_api = engine.clone();
 
+    // ── Persistence writer: feed state changes ───────────
+    {
+        let recorder_tx = recorder_tx.clone();
+        let mut rx = app_state.state_machine.subscribe();
+        tokio::spawn(async move {
+            loop {
+                match rx.recv().await {
+                    Ok(event) => {
+                        let _ = recorder_tx.send(event);
+                    }
+                    Err(tokio::sync::broadcast::error::RecvError::Lagged(n)) => {
+                        tracing::warn!("Recorder listener lagged by {} events", n);
+                    }
+                    Err(tokio::sync::broadcast::error::RecvError::Closed) => break,
+                }
+            }
+        });
+    }
+
     // Spawn automation event listener (D5)
     if let Some(engine) = engine.clone() {
         let mut rx = app_state.state_machine.subscribe();
@@ -129,7 +190,7 @@ async fn main() -> anyhow::Result<()> {
         .and_then(|p| p.parse().ok())
         .unwrap_or(1884);
 
-    match mqtt::start_mqtt(app_state.clone(), mqtt_port) {
+    match mqtt::start_mqtt(app_state.clone(), mqtt_port, discovery_engine.clone()) {
         Ok((_broker_handle, _subscriber_handle)) => {
             tracing::info!("Embedded MQTT broker on port {}", mqtt_port);
         }
@@ -139,7 +200,7 @@ async fn main() -> anyhow::Result<()> {
     }
 
     // Build combined router: REST API + WebSocket
-    let app = api::router(app_state.clone(), engine_for_api, scene_engine)
+    let app = api::router(app_state.clone(), engine_for_api, scene_engine, service_registry)
         .merge(websocket::router(app_state.clone()));
 
     // Bind to configured port

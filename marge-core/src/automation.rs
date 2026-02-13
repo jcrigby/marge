@@ -4,6 +4,7 @@ use std::sync::Arc;
 
 use crate::api::AppState;
 use crate::scene::SceneEngine;
+use crate::services::ServiceRegistry;
 use crate::state::StateChangedEvent;
 
 // ── YAML Deserialization Structs ─────────────────────────
@@ -120,17 +121,22 @@ pub struct AutomationEngine {
     automations: Vec<Automation>,
     app: Arc<AppState>,
     scenes: Option<Arc<SceneEngine>>,
+    services: Arc<std::sync::RwLock<ServiceRegistry>>,
 }
 
 impl AutomationEngine {
-    pub fn new(automations: Vec<Automation>, app: Arc<AppState>) -> Self {
+    pub fn new(
+        automations: Vec<Automation>,
+        app: Arc<AppState>,
+        services: Arc<std::sync::RwLock<ServiceRegistry>>,
+    ) -> Self {
         tracing::info!("Loaded {} automations", automations.len());
         for auto in &automations {
             tracing::info!("  [{}] {} — {} trigger(s), {} condition(s), {} action(s)",
                 auto.id, auto.alias,
                 auto.triggers.len(), auto.conditions.len(), auto.actions.len());
         }
-        Self { automations, app, scenes: None }
+        Self { automations, app, scenes: None, services }
     }
 
     pub fn set_scenes(&mut self, scenes: Arc<SceneEngine>) {
@@ -248,7 +254,7 @@ impl AutomationEngine {
         }
     }
 
-    // ── Action Execution ─────────────────────────────────
+    // ── Action Execution (now via service registry) ──────
 
     async fn execute_actions(&self, auto: &Automation) {
         for action in &auto.actions {
@@ -274,119 +280,28 @@ impl AutomationEngine {
         // Extract data
         let data = action.data.clone().unwrap_or(serde_json::Value::Object(Default::default()));
 
-        for eid in &entity_ids {
-            match (domain, service) {
-                ("light", "turn_on") => {
-                    let mut attrs = self.app.state_machine.get(eid)
-                        .map(|s| s.attributes.clone())
-                        .unwrap_or_default();
-                    if let Some(b) = data.get("brightness") {
-                        attrs.insert("brightness".to_string(), b.clone());
-                    }
-                    if let Some(ct) = data.get("color_temp") {
-                        attrs.insert("color_temp".to_string(), ct.clone());
-                    }
-                    if let Some(rgb) = data.get("rgb_color") {
-                        attrs.insert("rgb_color".to_string(), rgb.clone());
-                    }
-                    self.app.state_machine.set(eid.clone(), "on".to_string(), attrs);
-                }
-                ("light", "turn_off") => {
-                    let attrs = self.app.state_machine.get(eid)
-                        .map(|s| s.attributes.clone())
-                        .unwrap_or_default();
-                    self.app.state_machine.set(eid.clone(), "off".to_string(), attrs);
-                }
-                ("switch", "turn_on") => {
-                    let attrs = self.app.state_machine.get(eid)
-                        .map(|s| s.attributes.clone())
-                        .unwrap_or_default();
-                    self.app.state_machine.set(eid.clone(), "on".to_string(), attrs);
-                }
-                ("switch", "turn_off") => {
-                    let attrs = self.app.state_machine.get(eid)
-                        .map(|s| s.attributes.clone())
-                        .unwrap_or_default();
-                    self.app.state_machine.set(eid.clone(), "off".to_string(), attrs);
-                }
-                ("lock", "lock") => {
-                    let attrs = self.app.state_machine.get(eid)
-                        .map(|s| s.attributes.clone())
-                        .unwrap_or_default();
-                    self.app.state_machine.set(eid.clone(), "locked".to_string(), attrs);
-                }
-                ("lock", "unlock") => {
-                    let attrs = self.app.state_machine.get(eid)
-                        .map(|s| s.attributes.clone())
-                        .unwrap_or_default();
-                    self.app.state_machine.set(eid.clone(), "unlocked".to_string(), attrs);
-                }
-                ("climate", "set_temperature") => {
-                    let mut attrs = self.app.state_machine.get(eid)
-                        .map(|s| s.attributes.clone())
-                        .unwrap_or_default();
-                    if let Some(temp) = data.get("temperature") {
-                        attrs.insert("temperature".to_string(), temp.clone());
-                    }
-                    let state_str = self.app.state_machine.get(eid)
-                        .map(|s| s.state.clone())
-                        .unwrap_or_else(|| "heat".to_string());
-                    self.app.state_machine.set(eid.clone(), state_str, attrs);
-                }
-                ("alarm_control_panel", "arm_home") => {
-                    let attrs = self.app.state_machine.get(eid)
-                        .map(|s| s.attributes.clone())
-                        .unwrap_or_default();
-                    self.app.state_machine.set(eid.clone(), "armed_home".to_string(), attrs);
-                }
-                ("alarm_control_panel", "arm_night") => {
-                    let attrs = self.app.state_machine.get(eid)
-                        .map(|s| s.attributes.clone())
-                        .unwrap_or_default();
-                    self.app.state_machine.set(eid.clone(), "armed_night".to_string(), attrs);
-                }
-                ("alarm_control_panel", "disarm") => {
-                    let attrs = self.app.state_machine.get(eid)
-                        .map(|s| s.attributes.clone())
-                        .unwrap_or_default();
-                    self.app.state_machine.set(eid.clone(), "disarmed".to_string(), attrs);
-                }
-                ("media_player", "turn_on") => {
-                    let mut attrs = self.app.state_machine.get(eid)
-                        .map(|s| s.attributes.clone())
-                        .unwrap_or_default();
-                    if let Some(source) = data.get("source") {
-                        attrs.insert("source".to_string(), source.clone());
-                    }
-                    self.app.state_machine.set(eid.clone(), "on".to_string(), attrs);
-                }
-                ("media_player", "turn_off") => {
-                    let attrs = self.app.state_machine.get(eid)
-                        .map(|s| s.attributes.clone())
-                        .unwrap_or_default();
-                    self.app.state_machine.set(eid.clone(), "off".to_string(), attrs);
-                }
-                ("scene", "turn_on") => {
-                    if let Some(scenes) = &self.scenes {
-                        scenes.turn_on(eid);
-                    }
-                }
-                ("persistent_notification", "create") => {
-                    let title = data.get("title").and_then(|v| v.as_str()).unwrap_or("");
-                    let message = data.get("message").and_then(|v| v.as_str()).unwrap_or("");
-                    tracing::info!("NOTIFICATION: {} — {}", title, message);
-                }
-                _ => {
-                    tracing::warn!("Unhandled action: {}.{}", domain, service);
+        // Special case: scene.turn_on goes through scene engine
+        if domain == "scene" && service == "turn_on" {
+            if let Some(scenes) = &self.scenes {
+                for eid in &entity_ids {
+                    scenes.turn_on(eid);
                 }
             }
+            return;
+        }
+
+        // Dispatch through service registry
+        if !entity_ids.is_empty() {
+            let registry = self.services.read().unwrap();
+            registry.call(domain, service, &entity_ids, &data, &self.app.state_machine);
         }
 
         // Handle actions with no entity targets (e.g., persistent_notification)
-        if entity_ids.is_empty() && domain == "persistent_notification" && service == "create" {
-            let title = data.get("title").and_then(|v| v.as_str()).unwrap_or("");
-            let message = data.get("message").and_then(|v| v.as_str()).unwrap_or("");
-            tracing::info!("NOTIFICATION: {} — {}", title, message);
+        if entity_ids.is_empty() {
+            let registry = self.services.read().unwrap();
+            // For notification-style services, call with empty entity list
+            // The handler will handle it (logging, etc.)
+            registry.call(domain, service, &["".to_string()], &data, &self.app.state_machine);
         }
     }
 
