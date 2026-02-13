@@ -1952,3 +1952,57 @@ async def test_service_targets_array(rest):
     state_b = await rest.get_state("light.multi_b")
     assert state_a["state"] == "on"
     assert state_b["state"] == "on"
+
+
+# ── WS Device Registry ─────────────────────────────
+
+
+@pytest.mark.asyncio
+async def test_ws_device_registry(ws, rest, client):
+    """WebSocket config/device_registry/list returns devices with entities."""
+    # Create a device and assign an entity
+    client.post("/api/devices", json={
+        "device_id": "ws_dev_test", "name": "WS Device", "manufacturer": "CTS",
+    })
+    await rest.set_state("sensor.ws_dev_entity", "99")
+    client.post("/api/devices/ws_dev_test/entities/sensor.ws_dev_entity")
+
+    result = await ws.send_command("config/device_registry/list")
+    assert result.get("success", False)
+    entries = result.get("result", [])
+    assert isinstance(entries, list)
+    found = next((d for d in entries if d.get("id") == "ws_dev_test"), None)
+    assert found is not None
+    assert found["name"] == "WS Device"
+    assert "sensor.ws_dev_entity" in found.get("entities", [])
+
+    # Cleanup
+    client.delete("/api/devices/ws_dev_test/entities/sensor.ws_dev_entity")
+    client.delete("/api/devices/ws_dev_test")
+
+
+# ── WS Label Registry ──────────────────────────────
+
+
+@pytest.mark.asyncio
+async def test_ws_label_registry(ws, rest, client):
+    """WebSocket config/label_registry/list returns labels with entities."""
+    # Create a label and assign an entity
+    client.post("/api/labels", json={
+        "label_id": "ws_lbl_test", "name": "WS Label", "color": "#ff0000",
+    })
+    await rest.set_state("sensor.ws_lbl_entity", "42")
+    client.post("/api/labels/ws_lbl_test/entities/sensor.ws_lbl_entity")
+
+    result = await ws.send_command("config/label_registry/list")
+    assert result.get("success", False)
+    entries = result.get("result", [])
+    assert isinstance(entries, list)
+    found = next((l for l in entries if l.get("label_id") == "ws_lbl_test"), None)
+    assert found is not None
+    assert found["name"] == "WS Label"
+    assert "sensor.ws_lbl_entity" in found.get("entities", [])
+
+    # Cleanup
+    client.delete("/api/labels/ws_lbl_test/entities/sensor.ws_lbl_entity")
+    client.delete("/api/labels/ws_lbl_test")
