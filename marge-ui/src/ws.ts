@@ -1,12 +1,19 @@
 import type { EntityState, StateChangedEvent } from './types';
 
+export type ConnectionStatus = 'connecting' | 'connected' | 'disconnected';
 type Listener = (entities: Map<string, EntityState>) => void;
+type StatusListener = (status: ConnectionStatus) => void;
 
 let ws: WebSocket | null = null;
 let msgId = 1;
 const entities = new Map<string, EntityState>();
 const listeners = new Set<Listener>();
+const statusListeners = new Set<StatusListener>();
 let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+let reconnectDelay = 1000;
+let status: ConnectionStatus = 'disconnected';
+
+const MAX_RECONNECT_DELAY = 30000;
 
 function getWsUrl(): string {
   const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
@@ -21,9 +28,15 @@ export function setToken(token: string): void {
   localStorage.setItem('marge_token', token);
 }
 
+function setStatus(s: ConnectionStatus): void {
+  status = s;
+  for (const fn of statusListeners) fn(s);
+}
+
 export function connect(): void {
   if (ws && ws.readyState <= WebSocket.OPEN) return;
 
+  setStatus('connecting');
   ws = new WebSocket(getWsUrl());
 
   ws.onmessage = (ev) => {
@@ -34,6 +47,8 @@ export function connect(): void {
         break;
 
       case 'auth_ok':
+        setStatus('connected');
+        reconnectDelay = 1000; // Reset backoff on success
         // Subscribe to state_changed events
         ws!.send(JSON.stringify({ id: msgId++, type: 'subscribe_events', event_type: 'state_changed' }));
         // Fetch all current states
@@ -69,6 +84,7 @@ export function connect(): void {
 
   ws.onclose = () => {
     ws = null;
+    setStatus('disconnected');
     scheduleReconnect();
   };
 
@@ -82,7 +98,9 @@ function scheduleReconnect(): void {
   reconnectTimer = setTimeout(() => {
     reconnectTimer = null;
     connect();
-  }, 3000);
+  }, reconnectDelay);
+  // Exponential backoff: 1s, 2s, 4s, 8s, ... max 30s
+  reconnectDelay = Math.min(reconnectDelay * 2, MAX_RECONNECT_DELAY);
 }
 
 function notify(): void {
@@ -96,6 +114,12 @@ export function subscribe(fn: Listener): () => void {
   // Immediately deliver current state
   if (entities.size > 0) fn(entities);
   return () => listeners.delete(fn);
+}
+
+export function subscribeStatus(fn: StatusListener): () => void {
+  statusListeners.add(fn);
+  fn(status); // Deliver current status immediately
+  return () => statusListeners.delete(fn);
 }
 
 export function callService(domain: string, service: string, entityId: string, data?: Record<string, unknown>): void {

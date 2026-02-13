@@ -412,6 +412,25 @@ impl ServiceRegistry {
             Some(ServiceResult { state: option, attributes: attrs })
         });
 
+        // ── Input Helpers ─────────────────────────────────
+        self.register("input_number", "set_value", |call, sm| {
+            let attrs = sm.get(&call.entity_id).map(|s| s.attributes.clone()).unwrap_or_default();
+            let val = call.data.get("value").map(|v| v.to_string()).unwrap_or_else(|| "0".to_string());
+            Some(ServiceResult { state: val, attributes: attrs })
+        });
+
+        self.register("input_text", "set_value", |call, sm| {
+            let attrs = sm.get(&call.entity_id).map(|s| s.attributes.clone()).unwrap_or_default();
+            let val = call.data.get("value").and_then(|v| v.as_str()).unwrap_or("").to_string();
+            Some(ServiceResult { state: val, attributes: attrs })
+        });
+
+        self.register("input_select", "select_option", |call, sm| {
+            let attrs = sm.get(&call.entity_id).map(|s| s.attributes.clone()).unwrap_or_default();
+            let option = call.data.get("option").and_then(|v| v.as_str()).unwrap_or("").to_string();
+            Some(ServiceResult { state: option, attributes: attrs })
+        });
+
         // ── Button ───────────────────────────────────────
         self.register("button", "press", |_call, _sm| {
             // Buttons don't have persistent state; the press is the action
