@@ -37,6 +37,27 @@ services:
     # Memory tracking: docker stats marge-demo-ha
     mem_limit: 2g
 
+  # ─── HA Slim (apples-to-apples comparison) ───────────────
+  ha-slim:
+    build:
+      context: .
+      dockerfile: Dockerfile.ha-slim
+    image: ha-slim:local
+    container_name: marge-demo-ha-slim
+    ports:
+      - "8125:8123"
+    volumes:
+      - ./ha-config:/config
+    environment:
+      - TZ=America/Denver
+    depends_on:
+      mosquitto:
+        condition: service_healthy
+    restart: unless-stopped
+    mem_limit: 2g
+    profiles:
+      - slim
+
   # ─── Marge (the challenger) ──────────────────────────────
   marge:
     build:
