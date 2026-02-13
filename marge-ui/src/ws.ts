@@ -123,6 +123,19 @@ export function subscribeStatus(fn: StatusListener): () => void {
 }
 
 export function callService(domain: string, service: string, entityId: string, data?: Record<string, unknown>): void {
+  // Prefer WebSocket when connected (lower latency)
+  if (ws && ws.readyState === WebSocket.OPEN) {
+    ws.send(JSON.stringify({
+      id: msgId++,
+      type: 'call_service',
+      domain,
+      service,
+      service_data: { entity_id: entityId, ...data },
+    }));
+    return;
+  }
+
+  // Fallback to REST
   const token = getToken();
   const headers: Record<string, string> = { 'Content-Type': 'application/json' };
   if (token) headers['Authorization'] = `Bearer ${token}`;

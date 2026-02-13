@@ -4,6 +4,19 @@ import { getDomain, getEntityName } from './types';
 import { callService } from './ws';
 import Sparkline from './Sparkline';
 
+function relativeTime(iso: string): string {
+  const diff = Date.now() - new Date(iso).getTime();
+  if (diff < 0) return 'just now';
+  const seconds = Math.floor(diff / 1000);
+  if (seconds < 60) return `${seconds}s ago`;
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return `${minutes}m ago`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  return `${days}d ago`;
+}
+
 const DOMAIN_ICONS: Record<string, string> = {
   light: '\u{1F4A1}',
   switch: '\u{1F50C}',
@@ -356,7 +369,7 @@ function GenericCard({ entity }: { entity: EntityState }) {
   );
 }
 
-export default function EntityCard({ entity }: { entity: EntityState }) {
+function CardInner({ entity }: { entity: EntityState }) {
   const domain = getDomain(entity.entity_id);
 
   switch (domain) {
@@ -387,4 +400,15 @@ export default function EntityCard({ entity }: { entity: EntityState }) {
     default:
       return <GenericCard entity={entity} />;
   }
+}
+
+export default function EntityCard({ entity }: { entity: EntityState }) {
+  const updated = entity.last_updated
+    ? `Updated ${relativeTime(entity.last_updated)}`
+    : '';
+  return (
+    <div title={updated}>
+      <CardInner entity={entity} />
+    </div>
+  );
 }
