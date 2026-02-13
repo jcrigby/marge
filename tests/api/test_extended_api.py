@@ -1390,3 +1390,121 @@ async def test_concurrent_state_writes():
         states = resp.json()
         concurrent_ids = [s["entity_id"] for s in states if s["entity_id"].startswith("sensor.concurrent_")]
         assert len(concurrent_ids) == 20
+
+
+# ── Label Registry ─────────────────────────────────────
+
+
+def test_label_crud(client):
+    """Create, list, and delete a label."""
+    # Create
+    r = client.post("/api/labels", json={"label_id": "test_critical", "name": "Critical", "color": "#e55"})
+    assert r.status_code == 200
+
+    # List and verify
+    r = client.get("/api/labels")
+    assert r.status_code == 200
+    labels = r.json()
+    found = [l for l in labels if l["label_id"] == "test_critical"]
+    assert len(found) == 1
+    assert found[0]["name"] == "Critical"
+    assert found[0]["color"] == "#e55"
+
+    # Delete
+    r = client.request("DELETE", "/api/labels/test_critical")
+    assert r.status_code == 200
+
+    # Verify gone
+    r = client.get("/api/labels")
+    labels = r.json()
+    found = [l for l in labels if l["label_id"] == "test_critical"]
+    assert len(found) == 0
+
+
+def test_label_entity_assignment(client):
+    """Assign and unassign labels to entities."""
+    # Setup: create a label and an entity
+    client.post("/api/labels", json={"label_id": "test_urgent", "name": "Urgent", "color": "#f80"})
+    client.post("/api/states/sensor.label_test", json={"state": "42", "attributes": {}})
+
+    # Assign
+    r = client.post("/api/labels/test_urgent/entities/sensor.label_test")
+    assert r.status_code == 200
+
+    # Verify label has entity
+    r = client.get("/api/labels")
+    labels = r.json()
+    urgent = [l for l in labels if l["label_id"] == "test_urgent"]
+    assert len(urgent) == 1
+    assert "sensor.label_test" in urgent[0]["entities"]
+    assert urgent[0]["entity_count"] == 1
+
+    # Unassign
+    r = client.request("DELETE", "/api/labels/test_urgent/entities/sensor.label_test")
+    assert r.status_code == 200
+
+    # Verify empty
+    r = client.get("/api/labels")
+    labels = r.json()
+    urgent = [l for l in labels if l["label_id"] == "test_urgent"]
+    assert urgent[0]["entity_count"] == 0
+
+    # Cleanup
+    client.request("DELETE", "/api/labels/test_urgent")
+
+
+def test_label_missing_fields(client):
+    """Creating a label without required fields returns 400."""
+    r = client.post("/api/labels", json={"label_id": "test_bad"})
+    assert r.status_code == 400
+
+    r = client.post("/api/labels", json={"name": "No ID"})
+    assert r.status_code == 400
+
+
+def test_label_color_optional(client):
+    """Creating a label without color defaults to empty string."""
+    client.post("/api/labels", json={"label_id": "test_no_color", "name": "No Color"})
+
+    r = client.get("/api/labels")
+    labels = r.json()
+    found = [l for l in labels if l["label_id"] == "test_no_color"]
+    assert len(found) == 1
+    assert found[0]["color"] == ""
+
+    # Cleanup
+    client.request("DELETE", "/api/labels/test_no_color")
+
+
+# ── Additional Error Path Tests ────────────────────────
+
+
+def test_set_state_missing_body(client):
+    """POST /api/states/:entity_id without a body returns 4xx."""
+    r = client.post("/api/states/sensor.no_body", content=b"")
+    assert r.status_code in (400, 415, 422)
+
+
+def test_call_service_unknown_domain(client):
+    """Calling a service on an unknown domain returns 200 (no-op, HA-compatible)."""
+    r = client.post("/api/services/nonexistent_domain/turn_on", json={"entity_id": "light.fake"})
+    assert r.status_code == 200
+
+
+def test_fire_event_returns_ok(client):
+    """POST /api/events/:event_type fires and returns OK."""
+    r = client.post("/api/events/test_label_event", json={"data": "hello"})
+    assert r.status_code == 200
+    body = r.json()
+    assert body.get("message") is not None or body.get("result") is not None
+
+
+def test_health_fields_complete(client):
+    """Health endpoint returns all expected fields."""
+    r = client.get("/api/health")
+    assert r.status_code == 200
+    data = r.json()
+    for field in ["status", "version", "entity_count", "memory_rss_mb",
+                   "uptime_seconds", "startup_ms", "state_changes",
+                   "latency_avg_us", "latency_max_us"]:
+        assert field in data, f"Missing health field: {field}"

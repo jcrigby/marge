@@ -80,6 +80,18 @@ fn open_db(path: &Path) -> rusqlite::Result<Connection> {
             entity_id TEXT PRIMARY KEY,
             device_id TEXT NOT NULL,
             FOREIGN KEY(device_id) REFERENCES devices(device_id)
+        );
+
+        CREATE TABLE IF NOT EXISTS labels (
+            label_id TEXT PRIMARY KEY,
+            name     TEXT NOT NULL,
+            color    TEXT NOT NULL DEFAULT ''
+        );
+        CREATE TABLE IF NOT EXISTS entity_labels (
+            entity_id TEXT NOT NULL,
+            label_id  TEXT NOT NULL,
+            PRIMARY KEY(entity_id, label_id),
+            FOREIGN KEY(label_id) REFERENCES labels(label_id)
         );",
     )?;
 
@@ -624,6 +636,78 @@ pub fn assign_entity_device(db_path: &Path, entity_id: &str, device_id: &str) ->
 pub fn load_device_entities(db_path: &Path) -> anyhow::Result<Vec<(String, String)>> {
     let conn = open_db(db_path)?;
     let mut stmt = conn.prepare("SELECT entity_id, device_id FROM device_entities")?;
+    let mappings = stmt.query_map([], |row| {
+        Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?))
+    })?.filter_map(|r| r.ok()).collect();
+    Ok(mappings)
+}
+
+/// ── Label Registry ──────────────────────────────────────
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct Label {
+    pub label_id: String,
+    pub name: String,
+    pub color: String,
+}
+
+/// List all labels.
+pub fn list_labels(db_path: &Path) -> anyhow::Result<Vec<Label>> {
+    let conn = open_db(db_path)?;
+    let mut stmt = conn.prepare("SELECT label_id, name, color FROM labels")?;
+    let labels = stmt.query_map([], |row| {
+        Ok(Label {
+            label_id: row.get(0)?,
+            name: row.get(1)?,
+            color: row.get(2)?,
+        })
+    })?.filter_map(|r| r.ok()).collect();
+    Ok(labels)
+}
+
+/// Create or update a label.
+pub fn upsert_label(db_path: &Path, label_id: &str, name: &str, color: &str) -> anyhow::Result<()> {
+    let conn = open_db(db_path)?;
+    conn.execute(
+        "INSERT INTO labels (label_id, name, color) VALUES (?1, ?2, ?3)
+         ON CONFLICT(label_id) DO UPDATE SET name = excluded.name, color = excluded.color",
+        params![label_id, name, color],
+    )?;
+    Ok(())
+}
+
+/// Delete a label and remove all entity assignments.
+pub fn delete_label(db_path: &Path, label_id: &str) -> anyhow::Result<()> {
+    let conn = open_db(db_path)?;
+    conn.execute("DELETE FROM entity_labels WHERE label_id = ?1", params![label_id])?;
+    conn.execute("DELETE FROM labels WHERE label_id = ?1", params![label_id])?;
+    Ok(())
+}
+
+/// Assign a label to an entity.
+pub fn assign_label(db_path: &Path, entity_id: &str, label_id: &str) -> anyhow::Result<()> {
+    let conn = open_db(db_path)?;
+    conn.execute(
+        "INSERT OR IGNORE INTO entity_labels (entity_id, label_id) VALUES (?1, ?2)",
+        params![entity_id, label_id],
+    )?;
+    Ok(())
+}
+
+/// Remove a label from an entity.
+pub fn unassign_label(db_path: &Path, entity_id: &str, label_id: &str) -> anyhow::Result<()> {
+    let conn = open_db(db_path)?;
+    conn.execute(
+        "DELETE FROM entity_labels WHERE entity_id = ?1 AND label_id = ?2",
+        params![entity_id, label_id],
+    )?;
+    Ok(())
+}
+
+/// Load all entity-to-label mappings.
+pub fn load_entity_labels(db_path: &Path) -> anyhow::Result<Vec<(String, String)>> {
+    let conn = open_db(db_path)?;
+    let mut stmt = conn.prepare("SELECT entity_id, label_id FROM entity_labels")?;
     let mappings = stmt.query_map([], |row| {
         Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?))
     })?.filter_map(|r| r.ok()).collect();
