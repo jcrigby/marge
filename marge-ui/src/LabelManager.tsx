@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
+import { toastError } from './Toast';
 
 interface LabelInfo {
   label_id: string;
@@ -33,27 +34,31 @@ export default function LabelManager({ allEntityIds }: { allEntityIds: string[] 
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ label_id: newId.trim(), name: newName.trim(), color: newColor }),
-    }).then(() => {
+    }).then((r) => {
+      if (!r.ok) throw new Error(`${r.status}`);
       setNewId('');
       setNewName('');
       setNewColor('#6c8cff');
       setTimeout(fetchLabels, 300);
-    });
+    }).catch(() => toastError('Failed to create label'));
   };
 
   const deleteLabel = (labelId: string) => {
     fetch(`/api/labels/${labelId}`, { method: 'DELETE' })
-      .then(() => setTimeout(fetchLabels, 300));
+      .then((r) => { if (!r.ok) throw new Error(`${r.status}`); setTimeout(fetchLabels, 300); })
+      .catch(() => toastError('Failed to delete label'));
   };
 
   const assignEntity = (labelId: string, entityId: string) => {
     fetch(`/api/labels/${labelId}/entities/${entityId}`, { method: 'POST' })
-      .then(() => setTimeout(fetchLabels, 300));
+      .then((r) => { if (!r.ok) throw new Error(`${r.status}`); setTimeout(fetchLabels, 300); })
+      .catch(() => toastError('Failed to assign entity'));
   };
 
   const unassignEntity = (labelId: string, entityId: string) => {
     fetch(`/api/labels/${labelId}/entities/${entityId}`, { method: 'DELETE' })
-      .then(() => setTimeout(fetchLabels, 300));
+      .then((r) => { if (!r.ok) throw new Error(`${r.status}`); setTimeout(fetchLabels, 300); })
+      .catch(() => toastError('Failed to unassign entity'));
   };
 
   // Entities not assigned to any label
