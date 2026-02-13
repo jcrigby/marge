@@ -61,6 +61,27 @@ async fn main() -> anyhow::Result<()> {
         }
     };
 
+    // Load long-lived access tokens from DB
+    match recorder::init_tokens(&db_path) {
+        Ok(tokens) => {
+            let count = tokens.len();
+            for (token_value, stored) in tokens {
+                auth.add_token(token_value, auth::TokenInfo {
+                    id: stored.id,
+                    name: stored.name,
+                    created_at: stored.created_at,
+                    token: None,
+                });
+            }
+            if count > 0 {
+                tracing::info!("Loaded {} long-lived access tokens", count);
+            }
+        }
+        Err(e) => {
+            tracing::warn!("Failed to load access tokens: {}", e);
+        }
+    }
+
     let retention_days: u32 = std::env::var("MARGE_HISTORY_DAYS")
         .ok()
         .and_then(|v| v.parse().ok())

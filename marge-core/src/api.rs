@@ -145,6 +145,10 @@ pub fn router(
         .route("/api/areas/:area_id/entities", get(list_area_entities))
         .route("/api/areas/:area_id/entities/:entity_id", post(assign_entity_to_area))
         .route("/api/areas/:area_id/entities/:entity_id", axum::routing::delete(unassign_entity_from_area))
+        // Long-lived access tokens
+        .route("/api/auth/tokens", get(list_tokens))
+        .route("/api/auth/tokens", post(create_token))
+        .route("/api/auth/tokens/:token_id", axum::routing::delete(delete_token_handler))
         // Prometheus metrics
         .route("/metrics", get(prometheus_metrics))
         .with_state(router_state)
@@ -917,6 +921,89 @@ async fn unassign_entity_from_area(
     .await
     .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
     .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+    Ok(Json(serde_json::json!({"result": "ok"})))
+}
+
+/// GET /api/auth/tokens — list all long-lived access tokens
+async fn list_tokens(
+    State(rs): State<RouterState>,
+    headers: HeaderMap,
+) -> Result<Json<Vec<crate::auth::TokenInfo>>, StatusCode> {
+    check_auth(&rs, &headers)?;
+    Ok(Json(rs.auth.list_tokens()))
+}
+
+/// POST /api/auth/tokens — create a new long-lived access token
+async fn create_token(
+    State(rs): State<RouterState>,
+    headers: HeaderMap,
+    Json(body): Json<serde_json::Value>,
+) -> Result<Json<crate::auth::TokenInfo>, StatusCode> {
+    check_auth(&rs, &headers)?;
+
+    let name = body.get("name").and_then(|v| v.as_str())
+        .ok_or(StatusCode::BAD_REQUEST)?
+        .to_string();
+
+    let id = format!("tok_{}", uuid::Uuid::new_v4().as_simple());
+    let token_value = format!("marge_{}", uuid::Uuid::new_v4().as_simple());
+    let created_at = chrono::Utc::now().to_rfc3339();
+
+    // Persist to SQLite
+    let db_path = rs.db_path.clone();
+    let id2 = id.clone();
+    let name2 = name.clone();
+    let tv2 = token_value.clone();
+    tokio::task::spawn_blocking(move || {
+        crate::recorder::store_token(&db_path, &id2, &name2, &tv2)
+    })
+    .await
+    .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
+    .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+    // Add to in-memory auth
+    let info = crate::auth::TokenInfo {
+        id: id.clone(),
+        name: name.clone(),
+        created_at: created_at.clone(),
+        token: Some(token_value.clone()),
+    };
+    rs.auth.add_token(token_value, crate::auth::TokenInfo {
+        id,
+        name,
+        created_at,
+        token: None,
+    });
+
+    // Return with the token value (only time it's shown)
+    Ok(Json(info))
+}
+
+/// DELETE /api/auth/tokens/{token_id} — revoke a long-lived access token
+async fn delete_token_handler(
+    State(rs): State<RouterState>,
+    headers: HeaderMap,
+    Path(token_id): Path<String>,
+) -> Result<Json<serde_json::Value>, StatusCode> {
+    check_auth(&rs, &headers)?;
+
+    // Remove from SQLite
+    let db_path = rs.db_path.clone();
+    let tid = token_id.clone();
+    let deleted = tokio::task::spawn_blocking(move || {
+        crate::recorder::delete_token(&db_path, &tid)
+    })
+    .await
+    .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
+    .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+    if !deleted {
+        return Err(StatusCode::NOT_FOUND);
+    }
+
+    // Remove from in-memory auth
+    rs.auth.remove_token_by_id(&token_id);
 
     Ok(Json(serde_json::json!({"result": "ok"})))
 }
