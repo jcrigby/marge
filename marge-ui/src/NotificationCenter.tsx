@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 
 interface Notification {
   notification_id: string;
@@ -19,6 +19,7 @@ function formatTime(iso: string): string {
 export default function NotificationCenter() {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
 
   const fetchNotifications = useCallback(() => {
     fetch('/api/notifications')
@@ -43,10 +44,22 @@ export default function NotificationCenter() {
       .then(() => setTimeout(fetchNotifications, 200));
   };
 
+  // Close on outside click
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [open]);
+
   const count = notifications.length;
 
   return (
-    <div className="notif-center">
+    <div className="notif-center" ref={ref}>
       <button
         className={`notif-bell ${count > 0 ? 'has-notifs' : ''}`}
         onClick={() => setOpen(!open)}

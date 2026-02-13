@@ -233,6 +233,34 @@
   font-size: 1.1rem;
 }
 
+/* ── Entity grid item ──────────────────────── */
+.entity-grid-item {
+  position: relative;
+}
+.card-expand-btn {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  background: none;
+  border: none;
+  color: var(--text-dim);
+  font-size: 0.7rem;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.15s;
+  padding: 2px 4px;
+  border-radius: 4px;
+  line-height: 1;
+}
+.entity-grid-item:hover .card-expand-btn {
+  opacity: 0.6;
+}
+.card-expand-btn:hover {
+  opacity: 1 !important;
+  color: var(--accent);
+  background: var(--bg);
+}
+
 /* ── Card base ─────────────────────────────── */
 .card {
   background: var(--bg-card);
@@ -1317,6 +1345,15 @@
 }
 
 /* ── Responsive ────────────────────────────── */
+@media (max-width: 768px) {
+  .tab-nav { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .tab-btn { white-space: nowrap; }
+  .summary-strip { flex-wrap: wrap; }
+  .domain-chips { overflow-x: auto; flex-wrap: nowrap; -webkit-overflow-scrolling: touch; }
+  .notif-dropdown { width: 280px; right: -40px; }
+  .label-grid { grid-template-columns: 1fr; }
+}
+
 @media (max-width: 600px) {
   .app { padding: 0.5rem; }
   .app-header { flex-direction: column; align-items: stretch; gap: 0.5rem; }
@@ -1325,13 +1362,16 @@
   .entity-grid { grid-template-columns: 1fr 1fr; }
   .health-bar { gap: 0.5rem; font-size: 0.7rem; padding: 0.4rem 0.5rem; }
   .tab-nav { overflow-x: auto; }
-  .tab-btn { padding: 0.4rem 0.75rem; font-size: 0.8rem; white-space: nowrap; }
+  .tab-btn { padding: 0.4rem 0.75rem; font-size: 0.8rem; }
   .detail-panel { width: 95%; max-height: 90vh; padding: 1rem; }
   .detail-header h3 { font-size: 0.8rem; }
   .detail-btn { padding: 0.35rem 0.5rem; font-size: 0.75rem; }
   .settings-grid { grid-template-columns: 1fr 1fr; }
   .area-grid { grid-template-columns: 1fr; }
   .toast-container { left: 1rem; right: 1rem; max-width: none; }
+  .label-create { flex-wrap: wrap; }
+  .notif-dropdown { width: calc(100vw - 2rem); right: -1rem; }
+  .card-expand-btn { opacity: 0.5; }
 }
 
 @media (max-width: 380px) {
