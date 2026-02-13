@@ -962,3 +962,74 @@ def test_health_startup_under_5ms(client):
     resp = client.get("/api/health")
     data = resp.json()
     assert data["startup_ms"] < 5.0, f"Startup took {data['startup_ms']}ms"
+
+
+# ── Climate and Cover Services ──────────────────────
+
+
+@pytest.mark.asyncio
+async def test_climate_set_temperature(rest):
+    """climate.set_temperature sets target temperature attribute."""
+    await rest.set_state("climate.thermostat_cts", "heat", {"temperature": 20})
+    await rest.call_service("climate", "set_temperature", {
+        "entity_id": "climate.thermostat_cts",
+        "temperature": 22.5,
+    })
+    state = await rest.get_state("climate.thermostat_cts")
+    assert state["attributes"]["temperature"] == 22.5
+
+
+@pytest.mark.asyncio
+async def test_climate_set_hvac_mode(rest):
+    """climate.set_hvac_mode changes entity state to the mode."""
+    await rest.set_state("climate.mode_cts", "off")
+    await rest.call_service("climate", "set_hvac_mode", {
+        "entity_id": "climate.mode_cts",
+        "hvac_mode": "cool",
+    })
+    state = await rest.get_state("climate.mode_cts")
+    assert state["state"] == "cool"
+
+
+@pytest.mark.asyncio
+async def test_lock_services(rest):
+    """lock.lock and lock.unlock toggle lock state."""
+    await rest.set_state("lock.cts_lock", "unlocked")
+    await rest.call_service("lock", "lock", {"entity_id": "lock.cts_lock"})
+    state = await rest.get_state("lock.cts_lock")
+    assert state["state"] == "locked"
+
+    await rest.call_service("lock", "unlock", {"entity_id": "lock.cts_lock"})
+    state = await rest.get_state("lock.cts_lock")
+    assert state["state"] == "unlocked"
+
+
+@pytest.mark.asyncio
+async def test_input_boolean_toggle(rest):
+    """input_boolean.toggle flips on/off state."""
+    await rest.set_state("input_boolean.cts_toggle", "off")
+    await rest.call_service("input_boolean", "toggle", {"entity_id": "input_boolean.cts_toggle"})
+    state = await rest.get_state("input_boolean.cts_toggle")
+    assert state["state"] == "on"
+
+    await rest.call_service("input_boolean", "toggle", {"entity_id": "input_boolean.cts_toggle"})
+    state = await rest.get_state("input_boolean.cts_toggle")
+    assert state["state"] == "off"
+
+
+# ── Config Endpoint ─────────────────────────────────
+
+
+def test_config_response(client):
+    """GET /api/config returns location and unit system."""
+    resp = client.get("/api/config")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert "location_name" in data
+    assert "latitude" in data
+    assert "longitude" in data
+    assert "unit_system" in data
+    assert "time_zone" in data
+    assert "version" in data
+    assert "state" in data
+    assert data["state"] == "RUNNING"
