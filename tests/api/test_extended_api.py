@@ -2006,3 +2006,174 @@ async def test_ws_label_registry(ws, rest, client):
     # Cleanup
     client.delete("/api/labels/ws_lbl_test/entities/sensor.ws_lbl_entity")
     client.delete("/api/labels/ws_lbl_test")
+
+
+# ── Entity Delete ──────────────────────────────────
+
+
+@pytest.mark.asyncio
+async def test_delete_entity(rest):
+    """DELETE /api/states/:entity_id removes the entity."""
+    await rest.set_state("sensor.delete_me", "bye")
+    resp = await rest.client.delete(
+        f"{rest.base_url}/api/states/sensor.delete_me",
+        headers=rest._headers(),
+    )
+    assert resp.status_code == 200
+
+    state = await rest.get_state("sensor.delete_me")
+    assert state is None
+
+
+@pytest.mark.asyncio
+async def test_delete_nonexistent_entity(rest):
+    """DELETE /api/states for nonexistent entity returns 404."""
+    resp = await rest.client.delete(
+        f"{rest.base_url}/api/states/sensor.never_existed_xyz",
+        headers=rest._headers(),
+    )
+    assert resp.status_code == 404
+
+
+# ── Attribute Round-Trip ─────────────────────────
+
+
+@pytest.mark.asyncio
+async def test_attribute_roundtrip(rest):
+    """Setting attributes and reading them back preserves types."""
+    attrs = {
+        "unit_of_measurement": "kWh",
+        "device_class": "energy",
+        "friendly_name": "Test Energy",
+        "precision": 2,
+        "values": [1, 2, 3],
+    }
+    await rest.set_state("sensor.attr_rt", "42.5", attrs)
+    state = await rest.get_state("sensor.attr_rt")
+    assert state["attributes"]["unit_of_measurement"] == "kWh"
+    assert state["attributes"]["precision"] == 2
+    assert state["attributes"]["values"] == [1, 2, 3]
+
+
+@pytest.mark.asyncio
+async def test_attribute_update_preserves_state(rest):
+    """Updating attributes doesn't change the state value."""
+    await rest.set_state("sensor.attr_preserve", "100", {"unit": "W"})
+    await rest.set_state("sensor.attr_preserve", "100", {"unit": "kW", "extra": True})
+    state = await rest.get_state("sensor.attr_preserve")
+    assert state["state"] == "100"
+    assert state["attributes"]["unit"] == "kW"
+    assert state["attributes"]["extra"] is True
+
+
+# ── WS Call Service ────────────────────────────────
+
+
+@pytest.mark.asyncio
+async def test_ws_call_service(ws, rest):
+    """WebSocket call_service changes entity state."""
+    await rest.set_state("light.ws_svc_test", "off")
+    result = await ws.send_command(
+        "call_service",
+        domain="light",
+        service="turn_on",
+        service_data={"entity_id": "light.ws_svc_test"},
+    )
+    assert result.get("success", False)
+    state = await rest.get_state("light.ws_svc_test")
+    assert state["state"] == "on"
+
+
+@pytest.mark.asyncio
+async def test_ws_fire_event(ws):
+    """WebSocket fire_event succeeds."""
+    result = await ws.send_command(
+        "fire_event",
+        event_type="test_event",
+        event_data={"key": "val"},
+    )
+    assert result.get("success", False)
+
+
+@pytest.mark.asyncio
+async def test_ws_unknown_command(ws):
+    """Unknown WS command returns success=false."""
+    result = await ws.send_command("totally_fake_command")
+    assert result.get("success") is False
+
+
+# ── Logbook ──────────────────────────────────────
+
+
+@pytest.mark.asyncio
+async def test_logbook_returns_entries(rest):
+    """GET /api/logbook returns array with entity_id and state."""
+    await rest.set_state("sensor.logbook_test", "abc")
+    await asyncio.sleep(0.5)
+    resp = await rest.client.get(
+        f"{rest.base_url}/api/logbook",
+        headers=rest._headers(),
+    )
+    assert resp.status_code == 200
+    data = resp.json()
+    assert isinstance(data, list)
+    if data:
+        assert "entity_id" in data[0]
+        assert "state" in data[0]
+
+
+# ── Health Endpoint ─────────────────────────────
+
+
+@pytest.mark.asyncio
+async def test_health_contains_fields(rest):
+    """GET /api/health returns version, entity_count, memory, latency."""
+    health = await rest.get_health()
+    assert "version" in health
+    assert "entity_count" in health
+    assert "memory_rss_mb" in health
+    assert "latency_avg_us" in health
+    assert "startup_ms" in health
+    assert health["entity_count"] >= 0
+
+
+# ── WS Get Config ──────────────────────────────
+
+
+@pytest.mark.asyncio
+async def test_ws_get_config(ws):
+    """WebSocket get_config returns location and version."""
+    result = await ws.send_command("get_config")
+    assert result.get("success", False)
+    config = result.get("result", {})
+    assert "location_name" in config
+    assert "version" in config
+    assert "latitude" in config
+    assert "unit_system" in config
+
+
+# ── WS Get Services ────────────────────────────
+
+
+@pytest.mark.asyncio
+async def test_ws_get_services(ws):
+    """WebSocket get_services returns domain list."""
+    result = await ws.send_command("get_services")
+    assert result.get("success", False)
+    services = result.get("result", [])
+    assert isinstance(services, list)
+    domains = [s["domain"] for s in services] if isinstance(services, list) else list(services.keys())
+    assert "light" in domains
+
+
+# ── State Search ───────────────────────────────
+
+
+def test_state_search(client):
+    """GET /api/states/search?q= returns matching entities."""
+    client.post("/api/states/sensor.searchable_test", json={"state": "found"})
+    r = client.get("/api/states/search", params={"q": "searchable"})
+    assert r.status_code == 200
+    results = r.json()
+    entity_ids = [e["entity_id"] for e in results]
+    assert "sensor.searchable_test" in entity_ids
