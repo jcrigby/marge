@@ -475,7 +475,7 @@ function App() {
       )}
 
       {activeTab === 'areas' && (
-        <AreaManager />
+        <AreaManager allEntityIds={entities.map((e) => e.entity_id)} />
       )}
 
       {activeTab === 'devices' && (
