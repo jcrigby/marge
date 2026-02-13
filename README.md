@@ -94,7 +94,7 @@ Marge implements:
 - **835 lines of Python** (scenario driver)
 - **1,120 lines of HTML/CSS/JS** (dashboard)
 - **77 conformance tests** (pytest)
-- **44 commits** in 4 days
+- **45 commits** in 9.5 hours (wall clock, one sitting)
 - **100% AI-assisted** (Claude Code)
 
 ## Running the CTS
