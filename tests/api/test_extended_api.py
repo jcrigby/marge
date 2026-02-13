@@ -754,6 +754,87 @@ async def test_statistics_empty_for_non_numeric(rest):
 # ── Automation Services in /api/services ────────────────
 
 
+# ── Area Management API ─────────────────────────────────
+
+
+@pytest.mark.asyncio
+async def test_area_crud(rest):
+    """Areas can be created, listed, and deleted."""
+    # Create
+    resp = await rest.client.post(
+        f"{rest.base_url}/api/areas",
+        headers=rest._headers(),
+        json={"area_id": "cts_test_room", "name": "CTS Test Room"},
+    )
+    assert resp.status_code == 200
+
+    # List
+    resp = await rest.client.get(
+        f"{rest.base_url}/api/areas",
+        headers=rest._headers(),
+    )
+    assert resp.status_code == 200
+    areas = resp.json()
+    assert any(a["area_id"] == "cts_test_room" for a in areas)
+
+    # Delete
+    resp = await rest.client.delete(
+        f"{rest.base_url}/api/areas/cts_test_room",
+        headers=rest._headers(),
+    )
+    assert resp.status_code == 200
+
+    # Verify deleted
+    resp = await rest.client.get(
+        f"{rest.base_url}/api/areas",
+        headers=rest._headers(),
+    )
+    areas = resp.json()
+    assert not any(a["area_id"] == "cts_test_room" for a in areas)
+
+
+@pytest.mark.asyncio
+async def test_area_entity_assignment(rest):
+    """Entities can be assigned to and unassigned from areas."""
+    # Setup
+    await rest.set_state("light.area_test", "on")
+    await rest.client.post(
+        f"{rest.base_url}/api/areas",
+        headers=rest._headers(),
+        json={"area_id": "cts_assign_room", "name": "Assign Room"},
+    )
+
+    # Assign
+    resp = await rest.client.post(
+        f"{rest.base_url}/api/areas/cts_assign_room/entities/light.area_test",
+        headers=rest._headers(),
+    )
+    assert resp.status_code == 200
+
+    # Check area entities
+    resp = await rest.client.get(
+        f"{rest.base_url}/api/areas/cts_assign_room/entities",
+        headers=rest._headers(),
+    )
+    assert resp.status_code == 200
+    entities = resp.json()
+    assert len(entities) >= 1
+    assert any(e.get("entity_id") == "light.area_test" for e in entities)
+
+    # Unassign
+    resp = await rest.client.delete(
+        f"{rest.base_url}/api/areas/cts_assign_room/entities/light.area_test",
+        headers=rest._headers(),
+    )
+    assert resp.status_code == 200
+
+    # Cleanup
+    await rest.client.delete(
+        f"{rest.base_url}/api/areas/cts_assign_room",
+        headers=rest._headers(),
+    )
+
+
 @pytest.mark.asyncio
 async def test_services_includes_automation(rest):
     """Services listing includes automation domain with trigger/turn_on/turn_off."""
