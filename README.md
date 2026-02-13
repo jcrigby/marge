@@ -95,7 +95,7 @@ Marge implements:
 - **1,120 lines of HTML/CSS/JS** (dashboard)
 - **77 conformance tests** (pytest)
 - **45 commits** in 9.5 hours (wall clock, one sitting)
-- **100% AI-assisted** (Claude Code)
+- **100% AI-assisted** (Claude Code, mostly keeping the moronic human out of the loop)
 
 ## Running the CTS
 
