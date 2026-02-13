@@ -37,6 +37,7 @@ struct RouterState {
     auth: Arc<AuthConfig>,
     db_path: PathBuf,
     automations_path: PathBuf,
+    scenes_path: PathBuf,
 }
 
 /// POST /api/states/{entity_id} request body
@@ -95,6 +96,7 @@ pub fn router(
     auth: Arc<AuthConfig>,
     db_path: PathBuf,
     automations_path: PathBuf,
+    scenes_path: PathBuf,
 ) -> Router {
     let router_state = RouterState {
         app: state,
@@ -104,6 +106,7 @@ pub fn router(
         auth,
         db_path,
         automations_path,
+        scenes_path,
     };
 
     Router::new()
@@ -124,6 +127,7 @@ pub fn router(
         // Backup (Phase 6 §6.2)
         .route("/api/backup", get(create_backup))
         // Logbook (HA-compatible)
+        .route("/api/logbook", get(get_logbook_global))
         .route("/api/logbook/:entity_id", get(get_logbook))
         // Service listing (HA-compatible)
         .route("/api/services", get(list_services))
@@ -137,6 +141,7 @@ pub fn router(
         .route("/api/config/core/reload", post(reload_automations))
         // Scene config
         .route("/api/config/scene/config", get(list_scenes))
+        .route("/api/config/scene/yaml", get(get_scene_yaml).put(put_scene_yaml))
         // Statistics aggregation
         .route("/api/statistics/:entity_id", get(get_statistics))
         // Area management
@@ -557,6 +562,39 @@ fn create_backup_archive(db_path: &std::path::Path) -> anyhow::Result<Vec<u8>> {
     Ok(archive)
 }
 
+/// GET /api/logbook — global logbook (recent state changes across all entities)
+async fn get_logbook_global(
+    State(rs): State<RouterState>,
+    headers: HeaderMap,
+    Query(params): Query<HistoryParams>,
+) -> Result<Json<Vec<serde_json::Value>>, StatusCode> {
+    check_auth(&rs, &headers)?;
+
+    let now = chrono::Utc::now();
+    let end = params.end.unwrap_or_else(|| now.to_rfc3339());
+    let start = params.start.unwrap_or_else(|| {
+        (now - chrono::Duration::hours(24)).to_rfc3339()
+    });
+
+    let db_path = rs.db_path.clone();
+    let entries = tokio::task::spawn_blocking(move || {
+        crate::recorder::query_logbook_global(&db_path, &start, &end, 200)
+    })
+    .await
+    .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
+    .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+    let logbook: Vec<serde_json::Value> = entries.into_iter().map(|e| {
+        serde_json::json!({
+            "entity_id": e.entity_id,
+            "state": e.state,
+            "when": e.when,
+        })
+    }).collect();
+
+    Ok(Json(logbook))
+}
+
 /// GET /api/logbook/{entity_id} — return recent state changes as logbook entries
 async fn get_logbook(
     State(rs): State<RouterState>,
@@ -845,6 +883,52 @@ async fn list_scenes(
         Some(scenes) => Ok(Json(scenes.get_scenes_info())),
         None => Ok(Json(vec![])),
     }
+}
+
+/// GET /api/config/scene/yaml — return raw scene YAML for editing
+async fn get_scene_yaml(
+    State(rs): State<RouterState>,
+    headers: HeaderMap,
+) -> Result<(StatusCode, [(axum::http::header::HeaderName, &'static str); 1], String), StatusCode> {
+    check_auth(&rs, &headers)?;
+
+    let path = &rs.scenes_path;
+    let yaml = tokio::fs::read_to_string(path).await
+        .map_err(|e| {
+            tracing::error!("Failed to read scene YAML from {:?}: {}", path, e);
+            StatusCode::NOT_FOUND
+        })?;
+
+    Ok((
+        StatusCode::OK,
+        [(axum::http::header::CONTENT_TYPE, "text/yaml")],
+        yaml,
+    ))
+}
+
+/// PUT /api/config/scene/yaml — save scene YAML to disk
+async fn put_scene_yaml(
+    State(rs): State<RouterState>,
+    headers: HeaderMap,
+    body: String,
+) -> Result<Json<serde_json::Value>, StatusCode> {
+    check_auth(&rs, &headers)?;
+
+    // Validate YAML parses correctly before writing
+    let _: Vec<crate::scene::Scene> = serde_yaml::from_str(&body)
+        .map_err(|e| {
+            tracing::error!("Invalid scene YAML: {}", e);
+            StatusCode::BAD_REQUEST
+        })?;
+
+    // Write to disk
+    tokio::fs::write(&rs.scenes_path, &body).await
+        .map_err(|e| {
+            tracing::error!("Failed to write scene YAML to {:?}: {}", rs.scenes_path, e);
+            StatusCode::INTERNAL_SERVER_ERROR
+        })?;
+
+    Ok(Json(serde_json::json!({"result": "ok"})))
 }
 
 /// GET /api/areas — list all areas

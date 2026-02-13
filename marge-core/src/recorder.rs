@@ -329,6 +329,44 @@ pub fn query_history_multi(
     Ok(result)
 }
 
+/// Query recent state changes across all entities (global logbook).
+pub fn query_logbook_global(
+    db_path: &Path,
+    start: &str,
+    end: &str,
+    limit: usize,
+) -> anyhow::Result<Vec<LogbookEntry>> {
+    let conn = open_db(db_path)?;
+    let mut stmt = conn.prepare(
+        "SELECT entity_id, state, last_changed
+         FROM state_history
+         WHERE recorded_at >= ?1 AND recorded_at <= ?2
+         ORDER BY recorded_at DESC
+         LIMIT ?3",
+    )?;
+
+    let rows = stmt.query_map(params![start, end, limit as i64], |row| {
+        Ok(LogbookEntry {
+            entity_id: row.get(0)?,
+            state: row.get(1)?,
+            when: row.get(2)?,
+        })
+    })?;
+
+    let mut entries = Vec::new();
+    for row in rows {
+        entries.push(row?);
+    }
+    Ok(entries)
+}
+
+#[derive(Debug, serde::Serialize)]
+pub struct LogbookEntry {
+    pub entity_id: String,
+    pub state: String,
+    pub when: String,
+}
+
 #[derive(Debug, serde::Serialize)]
 pub struct HistoryEntry {
     pub state: String,
