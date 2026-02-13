@@ -556,6 +556,19 @@ async def play_chapter(suts: list[SUTConnection], chapter_name: str,
             print(f"  [{offset/1000:.0f}s] FINAL METRICS")
             print(f"  [{offset/1000:.0f}s] {'='*50}")
             await collect_final_metrics(suts)
+            # Re-push verify scores (may have been lost during outage restart)
+            marge_sut = next((s for s in suts if "marge" in s.name.lower()), None)
+            if marge_sut:
+                for sut in suts:
+                    c = verify_counts.get(sut.name, {"ok": 0, "fail": 0})
+                    total = c["ok"] + c["fail"]
+                    label = "ha" if "ha" in sut.name.lower() else "marge"
+                    await push_state_rest(
+                        marge_sut, f"sensor.verify_{label}",
+                        f"{c['ok']}/{total}",
+                        {"friendly_name": f"{sut.name} Verifications",
+                         "ok": c["ok"], "fail": c["fail"], "total": total},
+                        silent=True)
             # Push completion annotation for dashboard auto-score-card
             for sut in suts:
                 await push_state_rest(sut, "sensor.scenario_annotation",
