@@ -126,6 +126,8 @@ pub fn router(
         .route("/api/services", get(list_services))
         // Template rendering (HA-compatible)
         .route("/api/template", post(render_template))
+        // Event type listing (HA-compatible)
+        .route("/api/events", get(list_events))
         .with_state(router_state)
 }
 
@@ -585,6 +587,28 @@ async fn list_services(
         })
         .collect();
 
+    Ok(Json(result))
+}
+
+/// GET /api/events — list available event types (HA-compatible)
+async fn list_events(
+    State(rs): State<RouterState>,
+    headers: HeaderMap,
+) -> Result<Json<Vec<serde_json::Value>>, StatusCode> {
+    check_auth(&rs, &headers)?;
+    // Return standard HA event types
+    let events = vec![
+        "state_changed",
+        "call_service",
+        "automation_triggered",
+        "scene_activated",
+        "homeassistant_start",
+        "homeassistant_stop",
+    ];
+    let result: Vec<serde_json::Value> = events
+        .into_iter()
+        .map(|e| serde_json::json!({"event": e, "listener_count": 0}))
+        .collect();
     Ok(Json(result))
 }
 

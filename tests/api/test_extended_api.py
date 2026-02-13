@@ -340,3 +340,62 @@ async def test_template_invalid_returns_400(rest):
         json={"template": "{{ invalid syntax !!!"},
     )
     assert resp.status_code == 400
+
+
+# ── Events API ──────────────────────────────────────────
+
+
+@pytest.mark.asyncio
+async def test_events_returns_list(rest):
+    """GET /api/events returns a list of event type objects."""
+    resp = await rest.client.get(
+        f"{rest.base_url}/api/events",
+        headers=rest._headers(),
+    )
+    assert resp.status_code == 200
+    data = resp.json()
+    assert isinstance(data, list)
+    events = [e["event"] for e in data]
+    assert "state_changed" in events
+    assert "call_service" in events
+
+
+# ── WebSocket call_service ──────────────────────────────
+
+
+@pytest.mark.asyncio
+async def test_ws_call_service(ws, rest):
+    """WebSocket call_service dispatches through service registry."""
+    # Create an entity first
+    await rest.set_state("light.ws_test", "off")
+    import json
+    msg_id = 100
+    await ws.ws.send(json.dumps({
+        "id": msg_id,
+        "type": "call_service",
+        "domain": "light",
+        "service": "turn_on",
+        "service_data": {"entity_id": "light.ws_test"},
+    }))
+    result = json.loads(await ws.ws.recv())
+    assert result["id"] == msg_id
+    assert result["success"] is True
+
+    # Verify state changed
+    state = await rest.get_state("light.ws_test")
+    assert state["state"] == "on"
+
+
+@pytest.mark.asyncio
+async def test_ws_fire_event(ws):
+    """WebSocket fire_event returns success."""
+    import json
+    msg_id = 101
+    await ws.ws.send(json.dumps({
+        "id": msg_id,
+        "type": "fire_event",
+        "event_type": "test_ws_event",
+    }))
+    result = json.loads(await ws.ws.recv())
+    assert result["id"] == msg_id
+    assert result["success"] is True

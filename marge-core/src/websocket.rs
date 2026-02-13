@@ -11,6 +11,7 @@ use tokio::sync::mpsc;
 
 use crate::api::AppState;
 use crate::auth::AuthConfig;
+use crate::services::ServiceRegistry;
 use crate::state::StateChangedEvent;
 
 /// WebSocket message types (SSS §5.1.2 — HA WebSocket API compatible)
@@ -36,7 +37,7 @@ struct WsIncoming {
     msg_type: String,
     access_token: Option<String>,
     #[serde(flatten)]
-    _data: serde_json::Value,
+    data: serde_json::Value,
 }
 
 /// Combined WebSocket state
@@ -44,10 +45,15 @@ struct WsIncoming {
 struct WsState {
     app: Arc<AppState>,
     auth: Arc<AuthConfig>,
+    services: Arc<std::sync::RwLock<ServiceRegistry>>,
 }
 
-pub fn router(state: Arc<AppState>, auth: Arc<AuthConfig>) -> Router {
-    let ws_state = WsState { app: state, auth };
+pub fn router(
+    state: Arc<AppState>,
+    auth: Arc<AuthConfig>,
+    services: Arc<std::sync::RwLock<ServiceRegistry>>,
+) -> Router {
+    let ws_state = WsState { app: state, auth, services };
     Router::new()
         .route("/api/websocket", get(ws_handler))
         .with_state(ws_state)
@@ -57,10 +63,15 @@ async fn ws_handler(
     ws: WebSocketUpgrade,
     State(ws_state): State<WsState>,
 ) -> impl IntoResponse {
-    ws.on_upgrade(move |socket| handle_ws(socket, ws_state.app, ws_state.auth))
+    ws.on_upgrade(move |socket| handle_ws(socket, ws_state.app, ws_state.auth, ws_state.services))
 }
 
-async fn handle_ws(mut socket: WebSocket, app: Arc<AppState>, auth: Arc<AuthConfig>) {
+async fn handle_ws(
+    mut socket: WebSocket,
+    app: Arc<AppState>,
+    auth: Arc<AuthConfig>,
+    services: Arc<std::sync::RwLock<ServiceRegistry>>,
+) {
     // Send auth_required
     let auth_req = serde_json::to_string(&WsOutgoing::AuthRequired {
         ha_version: env!("CARGO_PKG_VERSION").to_string(),
@@ -130,6 +141,32 @@ async fn handle_ws(mut socket: WebSocket, app: Arc<AppState>, auth: Arc<AuthConf
                                 "get_states" => {
                                     let states = app.state_machine.get_all();
                                     ws_result(id, true, Some(serde_json::to_value(&states).unwrap()))
+                                }
+                                "call_service" => {
+                                    // HA-compatible: { domain, service, service_data: { entity_id, ... } }
+                                    let data = &incoming.data;
+                                    let domain = data.get("domain").and_then(|v| v.as_str()).unwrap_or("");
+                                    let service = data.get("service").and_then(|v| v.as_str()).unwrap_or("");
+                                    let svc_data = data.get("service_data").cloned().unwrap_or(serde_json::Value::Object(Default::default()));
+                                    let entity_ids: Vec<String> = match svc_data.get("entity_id") {
+                                        Some(serde_json::Value::String(s)) => vec![s.clone()],
+                                        Some(serde_json::Value::Array(arr)) => {
+                                            arr.iter().filter_map(|v| v.as_str().map(String::from)).collect()
+                                        }
+                                        _ => vec![],
+                                    };
+                                    let changed = {
+                                        let registry = services.read().unwrap();
+                                        registry.call(domain, service, &entity_ids, &svc_data, &app.state_machine)
+                                    };
+                                    ws_result(id, true, Some(serde_json::to_value(&changed).unwrap()))
+                                }
+                                "fire_event" => {
+                                    let event_type = incoming.data.get("event_type")
+                                        .and_then(|v| v.as_str())
+                                        .unwrap_or("unknown");
+                                    tracing::info!(event_type = %event_type, "WS event fired");
+                                    ws_result(id, true, None)
                                 }
                                 "ping" => {
                                     ws_result(id, true, None)
