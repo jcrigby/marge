@@ -399,3 +399,77 @@ async def test_ws_fire_event(ws):
     result = json.loads(await ws.ws.recv())
     assert result["id"] == msg_id
     assert result["success"] is True
+
+
+# ── Input Helper Services ───────────────────────────────
+
+
+@pytest.mark.asyncio
+async def test_input_number_set_value(rest):
+    """input_number.set_value changes entity state to the value."""
+    await rest.set_state("input_number.volume", "50", {"min": 0, "max": 100, "step": 1})
+    await rest.call_service("input_number", "set_value", {"entity_id": "input_number.volume", "value": 75})
+    state = await rest.get_state("input_number.volume")
+    assert state["state"] == "75"
+
+
+@pytest.mark.asyncio
+async def test_input_text_set_value(rest):
+    """input_text.set_value changes entity state to the value string."""
+    await rest.set_state("input_text.name", "hello")
+    await rest.call_service("input_text", "set_value", {"entity_id": "input_text.name", "value": "world"})
+    state = await rest.get_state("input_text.name")
+    assert state["state"] == "world"
+
+
+@pytest.mark.asyncio
+async def test_input_select_select_option(rest):
+    """input_select.select_option changes entity state to the option."""
+    await rest.set_state("input_select.mode", "auto", {"options": ["auto", "heat", "cool"]})
+    await rest.call_service("input_select", "select_option", {"entity_id": "input_select.mode", "option": "cool"})
+    state = await rest.get_state("input_select.mode")
+    assert state["state"] == "cool"
+
+
+# ── Alarm Control Panel Services ────────────────────────
+
+
+@pytest.mark.asyncio
+async def test_alarm_arm_home(rest):
+    """alarm_control_panel.arm_home sets state to armed_home."""
+    await rest.set_state("alarm_control_panel.test", "disarmed")
+    await rest.call_service("alarm_control_panel", "arm_home", {"entity_id": "alarm_control_panel.test"})
+    state = await rest.get_state("alarm_control_panel.test")
+    assert state["state"] == "armed_home"
+
+
+@pytest.mark.asyncio
+async def test_alarm_disarm(rest):
+    """alarm_control_panel.disarm sets state to disarmed."""
+    await rest.set_state("alarm_control_panel.test2", "armed_away")
+    await rest.call_service("alarm_control_panel", "disarm", {"entity_id": "alarm_control_panel.test2"})
+    state = await rest.get_state("alarm_control_panel.test2")
+    assert state["state"] == "disarmed"
+
+
+# ── Cover Position Services ─────────────────────────────
+
+
+@pytest.mark.asyncio
+async def test_cover_set_position(rest):
+    """cover.set_cover_position sets position attribute and state."""
+    await rest.set_state("cover.garage", "closed")
+    await rest.call_service("cover", "set_cover_position", {"entity_id": "cover.garage", "position": 50})
+    state = await rest.get_state("cover.garage")
+    assert state["state"] == "open"
+    assert state["attributes"]["current_position"] == 50
+
+
+@pytest.mark.asyncio
+async def test_fan_set_percentage(rest):
+    """fan.set_percentage sets speed and turns on the fan."""
+    await rest.set_state("fan.ceiling", "off")
+    await rest.call_service("fan", "set_percentage", {"entity_id": "fan.ceiling", "percentage": 75})
+    state = await rest.get_state("fan.ceiling")
+    assert state["state"] == "on"
+    assert state["attributes"]["percentage"] == 75

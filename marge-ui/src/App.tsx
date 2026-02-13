@@ -1,9 +1,10 @@
-import { useEffect, useState, useMemo, useCallback } from 'react'
+import { useEffect, useState, useMemo, useCallback, useRef } from 'react'
 import type { EntityState, HealthData } from './types'
 import { getDomain } from './types'
 import { connect, subscribe, subscribeStatus } from './ws'
 import type { ConnectionStatus } from './ws'
 import EntityCard from './EntityCard'
+import EntityDetail from './EntityDetail'
 import './App.css'
 
 // Domain display order — most interactive first
@@ -112,6 +113,16 @@ function App() {
   const [filter, setFilter] = useState('');
   const [domainFilter, setDomainFilter] = useState<string | null>(null);
   const [connStatus, setConnStatus] = useState<ConnectionStatus>('disconnected');
+  const [selectedEntity, setSelectedEntity] = useState<string | null>(null);
+  const [theme, setTheme] = useState<'dark' | 'light'>(() =>
+    (localStorage.getItem('marge_theme') as 'dark' | 'light') || 'dark'
+  );
+  const filterRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', theme === 'light' ? 'light' : '');
+    localStorage.setItem('marge_theme', theme);
+  }, [theme]);
 
   useEffect(() => {
     connect();
@@ -133,6 +144,28 @@ function App() {
     const id = setInterval(fetchHealth, 5000);
     return () => clearInterval(id);
   }, []);
+
+  // Keyboard shortcuts
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLSelectElement) return;
+      if (e.key === '/' || e.key === 'f') {
+        e.preventDefault();
+        filterRef.current?.focus();
+      }
+      if (e.key === 'Escape') {
+        if (selectedEntity) {
+          setSelectedEntity(null);
+        } else if (filter || domainFilter) {
+          setFilter('');
+          setDomainFilter(null);
+          filterRef.current?.blur();
+        }
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [selectedEntity, filter, domainFilter]);
 
   // Count entities per domain (unfiltered) for chips
   const domainCounts = useMemo(() => {
@@ -168,12 +201,21 @@ function App() {
       <header className="app-header">
         <h1>Marge</h1>
         <input
+          ref={filterRef}
           className="filter-input"
           type="text"
-          placeholder="Filter entities..."
+          placeholder="Filter entities... (/ to focus)"
           value={filter}
           onChange={(e) => setFilter(e.target.value)}
+          onKeyDown={(e) => { if (e.key === 'Escape') { setFilter(''); filterRef.current?.blur(); }}}
         />
+        <button
+          className="theme-toggle"
+          onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+          title={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
+        >
+          {theme === 'dark' ? '\u{2600}' : '\u{1F319}'}
+        </button>
       </header>
 
       <HealthBar health={health} connStatus={connStatus} />
@@ -193,7 +235,9 @@ function App() {
             </h2>
             <div className="entity-grid">
               {domainEntities.map((entity) => (
-                <EntityCard key={entity.entity_id} entity={entity} />
+                <div key={entity.entity_id} onDoubleClick={() => setSelectedEntity(entity.entity_id)}>
+                  <EntityCard entity={entity} />
+                </div>
               ))}
             </div>
           </section>
@@ -206,6 +250,13 @@ function App() {
           </div>
         )}
       </main>
+
+      {selectedEntity && (() => {
+        const entity = entities.find((e) => e.entity_id === selectedEntity);
+        return entity ? (
+          <EntityDetail entity={entity} onClose={() => setSelectedEntity(null)} />
+        ) : null;
+      })()}
     </div>
   );
 }
