@@ -497,4 +497,16 @@ impl ServiceRegistry {
     pub fn has_handler(&self, domain: &str, service: &str) -> bool {
         self.handlers.contains_key(&(domain.to_string(), service.to_string()))
     }
+
+    /// List all registered services grouped by domain.
+    pub fn list_services(&self) -> std::collections::BTreeMap<String, Vec<String>> {
+        let mut result: std::collections::BTreeMap<String, Vec<String>> = std::collections::BTreeMap::new();
+        for (domain, service) in self.handlers.keys() {
+            result.entry(domain.clone()).or_default().push(service.clone());
+        }
+        for services in result.values_mut() {
+            services.sort();
+        }
+        result
+    }
 }
