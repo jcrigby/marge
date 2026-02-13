@@ -1106,6 +1106,20 @@
   font-weight: 600;
 }
 
+.log-history {
+  opacity: 0.6;
+}
+
+.log-badge-hist {
+  font-size: 0.6rem;
+  padding: 0.1rem 0.3rem;
+  border-radius: 3px;
+  background: rgba(108, 140, 255, 0.1);
+  color: var(--text-dim);
+  flex-shrink: 0;
+  margin-left: auto;
+}
+
 /* ── Device manager ──────────────────────────── */
 .device-manager {
   padding: 0.5rem 0;
