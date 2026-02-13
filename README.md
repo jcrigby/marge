@@ -1,6 +1,6 @@
 # MARGE
 
-A clean-room reimplementation of Home Assistant's core automation engine in Rust. Built in 4 days for Innovation Week to answer: *what does a production home automation platform look like when built on proper foundations?*
+A clean-room reimplementation of Home Assistant's core automation engine in Rust. Built in 9.5 hours for Innovation Week to answer: *what does a production home automation platform look like when built on proper foundations?*
 
 Same YAML automations. Same MQTT entities. Same outcomes. Wildly different operational profile.
 
