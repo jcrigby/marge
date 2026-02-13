@@ -556,7 +556,7 @@ async def play_chapter(suts: list[SUTConnection], chapter_name: str,
             print(f"  [{offset/1000:.0f}s] FINAL METRICS")
             print(f"  [{offset/1000:.0f}s] {'='*50}")
             await collect_final_metrics(suts)
-            # Re-push verify scores (may have been lost during outage restart)
+            # Re-push verify scores (lost during outage restart of Marge)
             marge_sut = next((s for s in suts if "marge" in s.name.lower()), None)
             if marge_sut:
                 for sut in suts:
@@ -569,6 +569,17 @@ async def play_chapter(suts: list[SUTConnection], chapter_name: str,
                         {"friendly_name": f"{sut.name} Verifications",
                          "ok": c["ok"], "fail": c["fail"], "total": total},
                         silent=True)
+                # Push recovery times for dashboard score card
+                for sut in suts:
+                    recovery = getattr(sut, '_recovery_time', None)
+                    if recovery:
+                        label = "ha" if "ha" in sut.name.lower() else "marge"
+                        await push_state_rest(
+                            marge_sut, f"sensor.recovery_{label}",
+                            f"{recovery:.1f}",
+                            {"friendly_name": f"{sut.name} Recovery Time",
+                             "unit_of_measurement": "s"},
+                            silent=True)
             # Push completion annotation for dashboard auto-score-card
             for sut in suts:
                 await push_state_rest(sut, "sensor.scenario_annotation",
@@ -597,8 +608,9 @@ async def handle_power_outage(suts: list[SUTConnection]):
             sut.mqtt_client = None
 
     # Stop services via configured commands
-    ha_stop = os.environ.get("HA_STOP_CMD", "docker stop marge-demo-ha")
-    marge_stop = os.environ.get("MARGE_STOP_CMD", "pkill -9 marge")
+    # -t 0 = immediate SIGKILL, simulating a real power cut (no graceful shutdown)
+    ha_stop = os.environ.get("HA_STOP_CMD", "docker stop -t 0 marge-demo-ha")
+    marge_stop = os.environ.get("MARGE_STOP_CMD", "docker stop -t 0 marge-demo-marge")
 
     for sut in suts:
         if "ha" in sut.name.lower():
@@ -616,7 +628,7 @@ async def handle_power_outage(suts: list[SUTConnection]):
 async def handle_power_restore(suts: list[SUTConnection]):
     """Restart all SUTs and begin measuring recovery time."""
     ha_start = os.environ.get("HA_START_CMD", "docker start marge-demo-ha")
-    marge_start = os.environ.get("MARGE_START_CMD", "")
+    marge_start = os.environ.get("MARGE_START_CMD", "docker start marge-demo-marge")
 
     for sut in suts:
         sut._restore_time = time.monotonic()
@@ -625,12 +637,9 @@ async def handle_power_restore(suts: list[SUTConnection]):
             code, out = await run_shell(ha_start)
             print(f"  {sut.name} start issued (exit={code})")
         else:
-            if marge_start:
-                print(f"  Starting {sut.name}...")
-                code, out = await run_shell(marge_start)
-                print(f"  {sut.name} start issued (exit={code})")
-            else:
-                print(f"  {sut.name}: no start command configured, assuming external restart")
+            print(f"  Starting {sut.name}...")
+            code, out = await run_shell(marge_start)
+            print(f"  {sut.name} start issued (exit={code})")
 
     # Reconnect MQTT clients
     await asyncio.sleep(2)
@@ -710,7 +719,12 @@ async def collect_final_metrics(suts: list[SUTConnection]):
 
 async def main():
     speed = float(os.environ.get("SPEED", "10"))
-    chapter_filter = os.environ.get("CHAPTER", "")
+    # CHAPTERS (comma-separated) takes precedence over CHAPTER (single)
+    chapters_csv = os.environ.get("CHAPTERS", "")
+    chapters_filter = set(
+        c.strip() for c in chapters_csv.split(",") if c.strip()
+    )
+    chapter_filter = "" if chapters_filter else os.environ.get("CHAPTER", "")
     target = os.environ.get("TARGET", "both")
 
     scenario_path = os.environ.get("SCENARIO_PATH", "./scenario.json")
@@ -813,6 +827,8 @@ async def main():
         if ch_name not in chapters:
             continue
         if chapter_filter and ch_name != chapter_filter:
+            continue
+        if chapters_filter and ch_name not in chapters_filter:
             continue
         await play_chapter(suts, ch_name, chapters[ch_name], speed, scenario, driver_state)
 

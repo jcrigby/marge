@@ -1011,11 +1011,13 @@ function showScoreCard() {
   const startup_ha = 94;
   const startup_slim = 2.6; // seconds
 
-  // Recovery time row (if outage was run)
-  const haRecStr = haRecoveryTime !== null ? `${haRecoveryTime.toFixed(1)}s` : '~94s';
-  const margeRecStr = margeRecoveryTime !== null ? `${margeRecoveryTime.toFixed(1)}s` : `${startup_marge_ms.toFixed(1)} ms`;
-  const recoveryRatio = haRecoveryTime !== null && margeRecoveryTime !== null
-    ? `${(haRecoveryTime / margeRecoveryTime).toFixed(0)}x faster`
+  // Recovery time (live WS tracking, or fallback to driver-pushed sensor)
+  const haRec = haRecoveryTime ?? (S['sensor.recovery_ha']?.state ? parseFloat(S['sensor.recovery_ha'].state) : null);
+  const margeRec = margeRecoveryTime ?? (S['sensor.recovery_marge']?.state ? parseFloat(S['sensor.recovery_marge'].state) : null);
+  const haRecStr = haRec !== null ? `${haRec.toFixed(1)}s` : '~94s';
+  const margeRecStr = margeRec !== null ? `${margeRec.toFixed(1)}s` : `${startup_marge_ms.toFixed(1)} ms`;
+  const recoveryRatio = haRec !== null && margeRec !== null
+    ? `${(haRec / margeRec).toFixed(0)}x faster`
     : `${(startup_ha * 1000 / startup_marge_ms).toFixed(0)}x faster`;
 
   // [label, stock_ha, slim_ha, marge, ratio]
@@ -1109,8 +1111,8 @@ async function loadHAToken() {
   renderHouse();
   renderTimeline();
 
-  // Auto-show score card if ?score query param present
-  if (params.has('score')) setTimeout(showScoreCard, 1500);
+  // Auto-show score card if ?score query param present (wait for WS data)
+  if (params.has('score')) setTimeout(showScoreCard, 4000);
 })();
 </script>
 
