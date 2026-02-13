@@ -138,6 +138,13 @@ pub fn router(
         .route("/api/config/scene/config", get(list_scenes))
         // Statistics aggregation
         .route("/api/statistics/:entity_id", get(get_statistics))
+        // Area management
+        .route("/api/areas", get(list_areas))
+        .route("/api/areas", post(create_area))
+        .route("/api/areas/:area_id", axum::routing::delete(delete_area_handler))
+        .route("/api/areas/:area_id/entities", get(list_area_entities))
+        .route("/api/areas/:area_id/entities/:entity_id", post(assign_entity_to_area))
+        .route("/api/areas/:area_id/entities/:entity_id", axum::routing::delete(unassign_entity_from_area))
         // Prometheus metrics
         .route("/metrics", get(prometheus_metrics))
         .with_state(router_state)
@@ -761,6 +768,157 @@ async fn list_scenes(
         Some(scenes) => Ok(Json(scenes.get_scenes_info())),
         None => Ok(Json(vec![])),
     }
+}
+
+/// GET /api/areas — list all areas
+async fn list_areas(
+    State(rs): State<RouterState>,
+    headers: HeaderMap,
+) -> Result<Json<Vec<serde_json::Value>>, StatusCode> {
+    check_auth(&rs, &headers)?;
+
+    let db_path = rs.db_path.clone();
+    let result = tokio::task::spawn_blocking(move || {
+        let areas = crate::recorder::init_areas(&db_path)?;
+        let mappings = crate::recorder::load_area_entities(&db_path)?;
+        Ok::<_, anyhow::Error>((areas, mappings))
+    })
+    .await
+    .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
+    .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+    let (areas, mappings) = result;
+
+    let response: Vec<serde_json::Value> = areas.iter().map(|area| {
+        let entity_ids: Vec<&str> = mappings.iter()
+            .filter(|(_, aid)| *aid == area.area_id)
+            .map(|(eid, _)| eid.as_str())
+            .collect();
+        serde_json::json!({
+            "area_id": area.area_id,
+            "name": area.name,
+            "entity_count": entity_ids.len(),
+            "entities": entity_ids,
+        })
+    }).collect();
+
+    Ok(Json(response))
+}
+
+/// POST /api/areas — create or update an area
+async fn create_area(
+    State(rs): State<RouterState>,
+    headers: HeaderMap,
+    Json(body): Json<serde_json::Value>,
+) -> Result<Json<serde_json::Value>, StatusCode> {
+    check_auth(&rs, &headers)?;
+
+    let area_id = body.get("area_id").and_then(|v| v.as_str())
+        .ok_or(StatusCode::BAD_REQUEST)?
+        .to_string();
+    let name = body.get("name").and_then(|v| v.as_str())
+        .ok_or(StatusCode::BAD_REQUEST)?
+        .to_string();
+
+    let db_path = rs.db_path.clone();
+    tokio::task::spawn_blocking(move || {
+        crate::recorder::upsert_area(&db_path, &area_id, &name)
+    })
+    .await
+    .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
+    .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+    Ok(Json(serde_json::json!({"result": "ok"})))
+}
+
+/// DELETE /api/areas/{area_id}
+async fn delete_area_handler(
+    State(rs): State<RouterState>,
+    headers: HeaderMap,
+    Path(area_id): Path<String>,
+) -> Result<Json<serde_json::Value>, StatusCode> {
+    check_auth(&rs, &headers)?;
+
+    let db_path = rs.db_path.clone();
+    tokio::task::spawn_blocking(move || {
+        crate::recorder::delete_area(&db_path, &area_id)
+    })
+    .await
+    .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
+    .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+    Ok(Json(serde_json::json!({"result": "ok"})))
+}
+
+/// GET /api/areas/{area_id}/entities — list entities in an area
+async fn list_area_entities(
+    State(rs): State<RouterState>,
+    headers: HeaderMap,
+    Path(area_id): Path<String>,
+) -> Result<Json<Vec<serde_json::Value>>, StatusCode> {
+    check_auth(&rs, &headers)?;
+
+    let db_path = rs.db_path.clone();
+    let aid = area_id.clone();
+    let mappings = tokio::task::spawn_blocking(move || {
+        crate::recorder::load_area_entities(&db_path)
+    })
+    .await
+    .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
+    .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+    let entity_ids: Vec<&str> = mappings.iter()
+        .filter(|(_, a)| *a == area_id)
+        .map(|(e, _)| e.as_str())
+        .collect();
+
+    let result: Vec<serde_json::Value> = entity_ids.iter().map(|eid| {
+        if let Some(state) = rs.app.state_machine.get(*eid) {
+            serde_json::to_value(&state).unwrap_or(serde_json::json!({"entity_id": eid}))
+        } else {
+            serde_json::json!({"entity_id": eid})
+        }
+    }).collect();
+
+    Ok(Json(result))
+}
+
+/// POST /api/areas/{area_id}/entities/{entity_id} — assign entity to area
+async fn assign_entity_to_area(
+    State(rs): State<RouterState>,
+    headers: HeaderMap,
+    Path((area_id, entity_id)): Path<(String, String)>,
+) -> Result<Json<serde_json::Value>, StatusCode> {
+    check_auth(&rs, &headers)?;
+
+    let db_path = rs.db_path.clone();
+    tokio::task::spawn_blocking(move || {
+        crate::recorder::assign_entity_area(&db_path, &entity_id, &area_id)
+    })
+    .await
+    .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
+    .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+    Ok(Json(serde_json::json!({"result": "ok"})))
+}
+
+/// DELETE /api/areas/{area_id}/entities/{entity_id} — unassign entity from area
+async fn unassign_entity_from_area(
+    State(rs): State<RouterState>,
+    headers: HeaderMap,
+    Path((_area_id, entity_id)): Path<(String, String)>,
+) -> Result<Json<serde_json::Value>, StatusCode> {
+    check_auth(&rs, &headers)?;
+
+    let db_path = rs.db_path.clone();
+    tokio::task::spawn_blocking(move || {
+        crate::recorder::unassign_entity_area(&db_path, &entity_id)
+    })
+    .await
+    .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
+    .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+    Ok(Json(serde_json::json!({"result": "ok"})))
 }
 
 /// GET /metrics — Prometheus-compatible metrics endpoint

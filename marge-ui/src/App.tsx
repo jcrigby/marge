@@ -6,6 +6,7 @@ import type { ConnectionStatus } from './ws'
 import EntityCard from './EntityCard'
 import EntityDetail from './EntityDetail'
 import AutomationList from './AutomationList'
+import AreaManager from './AreaManager'
 import './App.css'
 
 // Domain display order — most interactive first
@@ -118,7 +119,7 @@ function App() {
   const [theme, setTheme] = useState<'dark' | 'light'>(() =>
     (localStorage.getItem('marge_theme') as 'dark' | 'light') || 'dark'
   );
-  const [activeTab, setActiveTab] = useState<'entities' | 'automations'>('entities');
+  const [activeTab, setActiveTab] = useState<'entities' | 'automations' | 'areas'>('entities');
   const filterRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -235,6 +236,12 @@ function App() {
         >
           Automations
         </button>
+        <button
+          className={`tab-btn ${activeTab === 'areas' ? 'active' : ''}`}
+          onClick={() => setActiveTab('areas')}
+        >
+          Areas
+        </button>
       </nav>
 
       {activeTab === 'entities' && (
@@ -274,6 +281,10 @@ function App() {
 
       {activeTab === 'automations' && (
         <AutomationList />
+      )}
+
+      {activeTab === 'areas' && (
+        <AreaManager />
       )}
 
       {selectedEntity && (() => {

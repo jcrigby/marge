@@ -370,6 +370,87 @@ pub struct StatsBucket {
     pub count: usize,
 }
 
+/// ── Area Registry (persisted in SQLite) ──────────────────
+
+/// Open or create the areas table.
+pub fn init_areas(db_path: &Path) -> anyhow::Result<Vec<Area>> {
+    let conn = open_db(db_path)?;
+    conn.execute_batch(
+        "CREATE TABLE IF NOT EXISTS areas (
+            area_id TEXT PRIMARY KEY,
+            name    TEXT NOT NULL
+        );
+        CREATE TABLE IF NOT EXISTS area_entities (
+            entity_id TEXT PRIMARY KEY,
+            area_id   TEXT NOT NULL,
+            FOREIGN KEY(area_id) REFERENCES areas(area_id)
+        );"
+    )?;
+
+    let mut stmt = conn.prepare("SELECT area_id, name FROM areas")?;
+    let areas = stmt.query_map([], |row| {
+        Ok(Area {
+            area_id: row.get(0)?,
+            name: row.get(1)?,
+        })
+    })?.filter_map(|r| r.ok()).collect();
+
+    Ok(areas)
+}
+
+/// Load all entity-to-area mappings.
+pub fn load_area_entities(db_path: &Path) -> anyhow::Result<Vec<(String, String)>> {
+    let conn = open_db(db_path)?;
+    let mut stmt = conn.prepare("SELECT entity_id, area_id FROM area_entities")?;
+    let mappings = stmt.query_map([], |row| {
+        Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?))
+    })?.filter_map(|r| r.ok()).collect();
+    Ok(mappings)
+}
+
+/// Create or update an area.
+pub fn upsert_area(db_path: &Path, area_id: &str, name: &str) -> anyhow::Result<()> {
+    let conn = open_db(db_path)?;
+    conn.execute(
+        "INSERT INTO areas (area_id, name) VALUES (?1, ?2)
+         ON CONFLICT(area_id) DO UPDATE SET name = excluded.name",
+        params![area_id, name],
+    )?;
+    Ok(())
+}
+
+/// Delete an area and unassign all its entities.
+pub fn delete_area(db_path: &Path, area_id: &str) -> anyhow::Result<()> {
+    let conn = open_db(db_path)?;
+    conn.execute("DELETE FROM area_entities WHERE area_id = ?1", params![area_id])?;
+    conn.execute("DELETE FROM areas WHERE area_id = ?1", params![area_id])?;
+    Ok(())
+}
+
+/// Assign an entity to an area.
+pub fn assign_entity_area(db_path: &Path, entity_id: &str, area_id: &str) -> anyhow::Result<()> {
+    let conn = open_db(db_path)?;
+    conn.execute(
+        "INSERT INTO area_entities (entity_id, area_id) VALUES (?1, ?2)
+         ON CONFLICT(entity_id) DO UPDATE SET area_id = excluded.area_id",
+        params![entity_id, area_id],
+    )?;
+    Ok(())
+}
+
+/// Unassign an entity from its area.
+pub fn unassign_entity_area(db_path: &Path, entity_id: &str) -> anyhow::Result<()> {
+    let conn = open_db(db_path)?;
+    conn.execute("DELETE FROM area_entities WHERE entity_id = ?1", params![entity_id])?;
+    Ok(())
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct Area {
+    pub area_id: String,
+    pub name: String,
+}
+
 fn purge_history(conn: &Connection, retention_days: u32) -> rusqlite::Result<usize> {
     let cutoff = chrono::Utc::now()
         - chrono::Duration::days(retention_days as i64);
