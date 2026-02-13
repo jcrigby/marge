@@ -225,6 +225,89 @@ fn flush_batch(conn: &Connection, batch: &[PendingWrite]) {
     }
 }
 
+/// Query state history for an entity within a time range.
+/// Returns Vec of (state, attributes_json, recorded_at).
+pub fn query_history(
+    db_path: &Path,
+    entity_id: &str,
+    start: &str,
+    end: &str,
+) -> anyhow::Result<Vec<HistoryEntry>> {
+    let conn = open_db(db_path)?;
+    let mut stmt = conn.prepare(
+        "SELECT state, attributes, last_changed, last_updated, recorded_at
+         FROM state_history
+         WHERE entity_id = ?1 AND recorded_at >= ?2 AND recorded_at <= ?3
+         ORDER BY recorded_at ASC
+         LIMIT 10000",
+    )?;
+
+    let rows = stmt.query_map(params![entity_id, start, end], |row| {
+        Ok(HistoryEntry {
+            state: row.get(0)?,
+            attributes: row.get(1)?,
+            last_changed: row.get(2)?,
+            last_updated: row.get(3)?,
+            recorded_at: row.get(4)?,
+        })
+    })?;
+
+    let mut entries = Vec::new();
+    for row in rows {
+        entries.push(row?);
+    }
+    Ok(entries)
+}
+
+/// Query state history for multiple entities.
+pub fn query_history_multi(
+    db_path: &Path,
+    entity_ids: &[String],
+    start: &str,
+    end: &str,
+) -> anyhow::Result<std::collections::HashMap<String, Vec<HistoryEntry>>> {
+    let conn = open_db(db_path)?;
+    let mut result = std::collections::HashMap::new();
+
+    for entity_id in entity_ids {
+        let mut stmt = conn.prepare(
+            "SELECT state, attributes, last_changed, last_updated, recorded_at
+             FROM state_history
+             WHERE entity_id = ?1 AND recorded_at >= ?2 AND recorded_at <= ?3
+             ORDER BY recorded_at ASC
+             LIMIT 10000",
+        )?;
+
+        let rows = stmt.query_map(params![entity_id, start, end], |row| {
+            Ok(HistoryEntry {
+                state: row.get(0)?,
+                attributes: row.get(1)?,
+                last_changed: row.get(2)?,
+                last_updated: row.get(3)?,
+                recorded_at: row.get(4)?,
+            })
+        })?;
+
+        let mut entries = Vec::new();
+        for row in rows {
+            entries.push(row?);
+        }
+        if !entries.is_empty() {
+            result.insert(entity_id.clone(), entries);
+        }
+    }
+    Ok(result)
+}
+
+#[derive(Debug, serde::Serialize)]
+pub struct HistoryEntry {
+    pub state: String,
+    pub attributes: String,
+    pub last_changed: String,
+    pub last_updated: String,
+    pub recorded_at: String,
+}
+
 fn purge_history(conn: &Connection, retention_days: u32) -> rusqlite::Result<usize> {
     let cutoff = chrono::Utc::now()
         - chrono::Duration::days(retention_days as i64);
