@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useMemo, useCallback } from 'react'
 import type { EntityState, HealthData } from './types'
 import { getDomain } from './types'
 import { connect, subscribe, subscribeStatus } from './ws'
@@ -27,7 +27,6 @@ function groupByDomain(entities: EntityState[]): Map<string, EntityState[]> {
     if (!groups.has(domain)) groups.set(domain, []);
     groups.get(domain)!.push(e);
   }
-  // Sort entries within each group
   for (const [, list] of groups) {
     list.sort((a, b) => a.entity_id.localeCompare(b.entity_id));
   }
@@ -76,13 +75,44 @@ function HealthBar({ health, connStatus }: { health: HealthData | null; connStat
   );
 }
 
+function DomainChips({
+  domains,
+  active,
+  onToggle,
+}: {
+  domains: Map<string, number>;
+  active: string | null;
+  onToggle: (domain: string | null) => void;
+}) {
+  if (domains.size === 0) return null;
+  return (
+    <div className="domain-chips">
+      <button
+        className={`chip ${active === null ? 'active' : ''}`}
+        onClick={() => onToggle(null)}
+      >
+        All
+      </button>
+      {[...domains.entries()].map(([domain, count]) => (
+        <button
+          key={domain}
+          className={`chip ${active === domain ? 'active' : ''}`}
+          onClick={() => onToggle(active === domain ? null : domain)}
+        >
+          {domain.replace(/_/g, ' ')} ({count})
+        </button>
+      ))}
+    </div>
+  );
+}
+
 function App() {
   const [entities, setEntities] = useState<EntityState[]>([]);
   const [health, setHealth] = useState<HealthData | null>(null);
   const [filter, setFilter] = useState('');
+  const [domainFilter, setDomainFilter] = useState<string | null>(null);
   const [connStatus, setConnStatus] = useState<ConnectionStatus>('disconnected');
 
-  // Connect WebSocket on mount
   useEffect(() => {
     connect();
     const unsubEntities = subscribe((entityMap) => {
@@ -92,7 +122,6 @@ function App() {
     return () => { unsubEntities(); unsubStatus(); };
   }, []);
 
-  // Poll health endpoint
   useEffect(() => {
     const fetchHealth = () => {
       fetch('/api/health')
@@ -105,14 +134,32 @@ function App() {
     return () => clearInterval(id);
   }, []);
 
-  const filtered = useCallback(() => {
-    if (!filter) return entities;
-    const q = filter.toLowerCase();
-    return entities.filter((e) =>
-      e.entity_id.toLowerCase().includes(q) ||
-      e.state.toLowerCase().includes(q)
+  // Count entities per domain (unfiltered) for chips
+  const domainCounts = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const e of entities) {
+      const d = getDomain(e.entity_id);
+      counts.set(d, (counts.get(d) || 0) + 1);
+    }
+    return new Map(
+      [...counts.entries()].sort((a, b) => domainSortKey(a[0]) - domainSortKey(b[0]))
     );
-  }, [entities, filter]);
+  }, [entities]);
+
+  const filtered = useCallback(() => {
+    let list = entities;
+    if (domainFilter) {
+      list = list.filter((e) => getDomain(e.entity_id) === domainFilter);
+    }
+    if (filter) {
+      const q = filter.toLowerCase();
+      list = list.filter((e) =>
+        e.entity_id.toLowerCase().includes(q) ||
+        e.state.toLowerCase().includes(q)
+      );
+    }
+    return list;
+  }, [entities, filter, domainFilter]);
 
   const groups = groupByDomain(filtered());
 
@@ -131,10 +178,19 @@ function App() {
 
       <HealthBar health={health} connStatus={connStatus} />
 
+      <DomainChips
+        domains={domainCounts}
+        active={domainFilter}
+        onToggle={setDomainFilter}
+      />
+
       <main className="entity-groups">
         {[...groups.entries()].map(([domain, domainEntities]) => (
           <section key={domain} className="domain-group">
-            <h2 className="domain-title">{domain.replace(/_/g, ' ')}</h2>
+            <h2 className="domain-title">
+              {domain.replace(/_/g, ' ')}
+              <span className="domain-count">{domainEntities.length}</span>
+            </h2>
             <div className="entity-grid">
               {domainEntities.map((entity) => (
                 <EntityCard key={entity.entity_id} entity={entity} />

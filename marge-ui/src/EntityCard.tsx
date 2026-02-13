@@ -248,6 +248,43 @@ function AutomationCard({ entity }: { entity: EntityState }) {
   );
 }
 
+// Alarm control panel card
+function AlarmCard({ entity }: { entity: EntityState }) {
+  const state = entity.state;
+  const isArmed = state.startsWith('armed');
+  const isTriggered = state === 'triggered';
+
+  const actions = [
+    { label: 'Disarm', service: 'disarm' },
+    { label: 'Home', service: 'arm_home' },
+    { label: 'Away', service: 'arm_away' },
+    { label: 'Night', service: 'arm_night' },
+  ];
+
+  return (
+    <div className={`card card-alarm ${isArmed ? 'is-armed' : ''} ${isTriggered ? 'is-triggered' : ''}`}>
+      <div className="card-header">
+        <span className="card-icon">{domainIcon('alarm_control_panel')}</span>
+        <span className="card-name">{getEntityName(entity.entity_id)}</span>
+        <span className={`card-state ${isArmed ? 'state-armed' : ''} ${isTriggered ? 'state-triggered' : ''}`}>
+          {state.replace(/_/g, ' ')}
+        </span>
+      </div>
+      <div className="card-mode-select">
+        {actions.map((a) => (
+          <button
+            key={a.service}
+            className={`mode-btn ${state === (a.service === 'disarm' ? 'disarmed' : `armed_${a.service.replace('arm_', '')}`) ? 'active' : ''}`}
+            onClick={() => callService('alarm_control_panel', a.service, entity.entity_id)}
+          >
+            {a.label}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 // Input number card with slider
 function InputNumberCard({ entity }: { entity: EntityState }) {
   const min = (entity.attributes.min as number) ?? 0;
@@ -394,6 +431,8 @@ function CardInner({ entity }: { entity: EntityState }) {
       return <ClimateCard entity={entity} />;
     case 'fan':
       return <FanCard entity={entity} />;
+    case 'alarm_control_panel':
+      return <AlarmCard entity={entity} />;
     case 'automation':
     case 'scene':
       return <AutomationCard entity={entity} />;

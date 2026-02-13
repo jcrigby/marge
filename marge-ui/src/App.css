@@ -82,6 +82,34 @@
   font-weight: 600;
 }
 
+/* ── Domain filter chips ──────────────────── */
+.domain-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin-bottom: 1rem;
+}
+.chip {
+  padding: 0.25rem 0.6rem;
+  border: 1px solid #3a3a5a;
+  border-radius: 12px;
+  background: var(--bg-card);
+  color: var(--text-dim);
+  font-size: 0.7rem;
+  cursor: pointer;
+  transition: all 0.15s;
+  text-transform: capitalize;
+}
+.chip:hover {
+  border-color: var(--accent);
+  color: var(--text);
+}
+.chip.active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+
 /* ── Domain groups ─────────────────────────── */
 .entity-groups {
   display: flex;
@@ -92,6 +120,9 @@
 .domain-group {}
 
 .domain-title {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
   font-size: 0.85rem;
   font-weight: 600;
   text-transform: uppercase;
@@ -100,6 +131,15 @@
   padding-bottom: 0.5rem;
   border-bottom: 1px solid #2a2a4a;
   margin-bottom: 0.75rem;
+}
+.domain-count {
+  font-size: 0.7rem;
+  font-weight: 500;
+  color: var(--text-dim);
+  background: rgba(108, 140, 255, 0.15);
+  padding: 0.1rem 0.4rem;
+  border-radius: 8px;
+  letter-spacing: 0;
 }
 
 .entity-grid {
@@ -133,6 +173,17 @@
   background: var(--bg-card-on);
   border-color: rgba(108, 140, 255, 0.3);
 }
+
+.card.is-armed {
+  background: rgba(255, 180, 50, 0.1);
+  border-color: rgba(255, 180, 50, 0.3);
+}
+.card.is-triggered {
+  background: rgba(230, 80, 80, 0.15);
+  border-color: rgba(230, 80, 80, 0.4);
+}
+.card-state.state-armed { color: var(--orange); }
+.card-state.state-triggered { color: #e55; font-weight: 600; }
 
 .card-header {
   display: flex;
