@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react';
 import type { EntityState } from './types';
+import { getDomain } from './types';
+import { callService } from './ws';
 
 interface Props {
   entity: EntityState;
@@ -147,18 +149,198 @@ function HistoryChart({ entries }: { entries: HistoryEntry[] }) {
   );
 }
 
+function EntityControls({ entity }: { entity: EntityState }) {
+  const domain = getDomain(entity.entity_id);
+  const id = entity.entity_id;
+
+  switch (domain) {
+    case 'light':
+    case 'switch':
+    case 'input_boolean': {
+      const isOn = entity.state === 'on';
+      const brightness = entity.attributes.brightness as number | undefined;
+      return (
+        <div className="detail-controls">
+          <div className="detail-btn-row">
+            <button className={`detail-btn ${isOn ? 'active' : ''}`}
+              onClick={() => callService(domain, 'turn_on', id)}>On</button>
+            <button className={`detail-btn ${!isOn ? 'active' : ''}`}
+              onClick={() => callService(domain, 'turn_off', id)}>Off</button>
+            <button className="detail-btn"
+              onClick={() => callService(domain, 'toggle', id)}>Toggle</button>
+          </div>
+          {domain === 'light' && (
+            <div className="detail-slider-row">
+              <label>Brightness</label>
+              <input type="range" min={0} max={255}
+                value={brightness ?? 0}
+                onChange={(e) => callService('light', 'turn_on', id, { brightness: Number(e.target.value) })} />
+              <span>{brightness !== undefined ? `${Math.round((brightness / 255) * 100)}%` : '--'}</span>
+            </div>
+          )}
+        </div>
+      );
+    }
+    case 'lock': {
+      const isLocked = entity.state === 'locked';
+      return (
+        <div className="detail-controls">
+          <div className="detail-btn-row">
+            <button className={`detail-btn ${isLocked ? 'active' : ''}`}
+              onClick={() => callService('lock', 'lock', id)}>Lock</button>
+            <button className={`detail-btn ${!isLocked ? 'active' : ''}`}
+              onClick={() => callService('lock', 'unlock', id)}>Unlock</button>
+          </div>
+        </div>
+      );
+    }
+    case 'cover': {
+      const pos = entity.attributes.current_position as number | undefined;
+      return (
+        <div className="detail-controls">
+          <div className="detail-btn-row">
+            <button className="detail-btn"
+              onClick={() => callService('cover', 'open_cover', id)}>Open</button>
+            <button className="detail-btn"
+              onClick={() => callService('cover', 'stop_cover', id)}>Stop</button>
+            <button className="detail-btn"
+              onClick={() => callService('cover', 'close_cover', id)}>Close</button>
+          </div>
+          <div className="detail-slider-row">
+            <label>Position</label>
+            <input type="range" min={0} max={100}
+              value={pos ?? 0}
+              onChange={(e) => callService('cover', 'set_cover_position', id, { position: Number(e.target.value) })} />
+            <span>{pos !== undefined ? `${pos}%` : '--'}</span>
+          </div>
+        </div>
+      );
+    }
+    case 'fan': {
+      const isOn = entity.state === 'on';
+      const pct = entity.attributes.percentage as number | undefined;
+      return (
+        <div className="detail-controls">
+          <div className="detail-btn-row">
+            <button className={`detail-btn ${isOn ? 'active' : ''}`}
+              onClick={() => callService('fan', 'turn_on', id)}>On</button>
+            <button className={`detail-btn ${!isOn ? 'active' : ''}`}
+              onClick={() => callService('fan', 'turn_off', id)}>Off</button>
+          </div>
+          <div className="detail-slider-row">
+            <label>Speed</label>
+            <input type="range" min={0} max={100}
+              value={pct ?? 0}
+              onChange={(e) => callService('fan', 'set_percentage', id, { percentage: Number(e.target.value) })} />
+            <span>{pct !== undefined ? `${pct}%` : '--'}</span>
+          </div>
+        </div>
+      );
+    }
+    case 'climate': {
+      const temp = entity.attributes.temperature as number | undefined;
+      const modes = (entity.attributes.hvac_modes as string[]) || ['off', 'heat', 'cool', 'auto'];
+      return (
+        <div className="detail-controls">
+          <div className="detail-slider-row">
+            <label>Target</label>
+            <input type="range" min={10} max={35} step={0.5}
+              value={temp ?? 20}
+              onChange={(e) => callService('climate', 'set_temperature', id, { temperature: Number(e.target.value) })} />
+            <span>{temp ?? '--'}&deg;</span>
+          </div>
+          <div className="detail-btn-row">
+            {modes.map((m) => (
+              <button key={m} className={`detail-btn ${entity.state === m ? 'active' : ''}`}
+                onClick={() => callService('climate', 'set_hvac_mode', id, { hvac_mode: m })}>{m}</button>
+            ))}
+          </div>
+        </div>
+      );
+    }
+    case 'alarm_control_panel': {
+      const actions = [
+        { label: 'Disarm', service: 'disarm' },
+        { label: 'Home', service: 'arm_home' },
+        { label: 'Away', service: 'arm_away' },
+        { label: 'Night', service: 'arm_night' },
+      ];
+      return (
+        <div className="detail-controls">
+          <div className="detail-btn-row">
+            {actions.map((a) => (
+              <button key={a.service} className={`detail-btn ${
+                entity.state === (a.service === 'disarm' ? 'disarmed' : `armed_${a.service.replace('arm_', '')}`) ? 'active' : ''
+              }`}
+                onClick={() => callService('alarm_control_panel', a.service, id)}>{a.label}</button>
+            ))}
+          </div>
+        </div>
+      );
+    }
+    case 'automation': {
+      const isOn = entity.state === 'on';
+      return (
+        <div className="detail-controls">
+          <div className="detail-btn-row">
+            <button className="detail-btn"
+              onClick={() => callService('automation', 'trigger', id)}>Trigger</button>
+            <button className={`detail-btn ${isOn ? 'active' : ''}`}
+              onClick={() => callService('automation', isOn ? 'turn_off' : 'turn_on', id)}>
+              {isOn ? 'Disable' : 'Enable'}
+            </button>
+          </div>
+        </div>
+      );
+    }
+    case 'scene':
+      return (
+        <div className="detail-controls">
+          <div className="detail-btn-row">
+            <button className="detail-btn"
+              onClick={() => callService('scene', 'turn_on', id)}>Activate</button>
+          </div>
+        </div>
+      );
+    case 'input_number': {
+      const min = (entity.attributes.min as number) ?? 0;
+      const max = (entity.attributes.max as number) ?? 100;
+      const step = (entity.attributes.step as number) ?? 1;
+      const val = parseFloat(entity.state) || 0;
+      return (
+        <div className="detail-controls">
+          <div className="detail-slider-row">
+            <label>Value</label>
+            <input type="range" min={min} max={max} step={step}
+              value={val}
+              onChange={(e) => callService('input_number', 'set_value', id, { value: Number(e.target.value) })} />
+            <span>{val}</span>
+          </div>
+        </div>
+      );
+    }
+    default:
+      return null;
+  }
+}
+
 export default function EntityDetail({ entity, onClose }: Props) {
   const [history, setHistory] = useState<HistoryEntry[]>([]);
+  // Track entity state changes to auto-refresh history
+  const stateKey = `${entity.entity_id}:${entity.state}:${entity.last_changed}`;
 
   useEffect(() => {
-    const now = new Date();
-    const start = new Date(now.getTime() - 24 * 60 * 60 * 1000);
-    const url = `/api/history/period/${encodeURIComponent(entity.entity_id)}?start=${start.toISOString()}&end=${now.toISOString()}`;
-    fetch(url)
-      .then((r) => r.json())
-      .then((data: HistoryEntry[]) => setHistory(data.slice(-200)))
-      .catch(() => setHistory([]));
-  }, [entity.entity_id]);
+    const fetchHistory = () => {
+      const now = new Date();
+      const start = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+      const url = `/api/history/period/${encodeURIComponent(entity.entity_id)}?start=${start.toISOString()}&end=${now.toISOString()}`;
+      fetch(url)
+        .then((r) => r.json())
+        .then((data: HistoryEntry[]) => setHistory(data.slice(-200)))
+        .catch(() => setHistory([]));
+    };
+    fetchHistory();
+  }, [entity.entity_id, stateKey]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -185,6 +367,8 @@ export default function EntityDetail({ entity, onClose }: Props) {
             Changed {formatTime(entity.last_changed)}
           </span>
         </div>
+
+        <EntityControls entity={entity} />
 
         {attrs.length > 0 && (
           <div className="detail-section">
