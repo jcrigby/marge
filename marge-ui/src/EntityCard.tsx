@@ -1,6 +1,7 @@
 import type { EntityState } from './types';
 import { getDomain, getEntityName } from './types';
 import { callService } from './ws';
+import Sparkline from './Sparkline';
 
 const DOMAIN_ICONS: Record<string, string> = {
   light: '\u{1F4A1}',
@@ -68,6 +69,7 @@ function SensorCard({ entity }: { entity: EntityState }) {
   const domain = getDomain(entity.entity_id);
   const unit = (entity.attributes.unit_of_measurement as string) || '';
   const deviceClass = (entity.attributes.device_class as string) || '';
+  const isNumeric = !isNaN(parseFloat(entity.state));
 
   return (
     <div className="card card-sensor">
@@ -79,6 +81,7 @@ function SensorCard({ entity }: { entity: EntityState }) {
         <span className="value-number">{entity.state}</span>
         {unit && <span className="value-unit">{unit}</span>}
       </div>
+      {isNumeric && <Sparkline entityId={entity.entity_id} />}
       {deviceClass && <div className="card-meta">{deviceClass}</div>}
     </div>
   );
