@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
+import { toastError } from './Toast';
 
 interface AreaInfo {
   area_id: string;
@@ -31,26 +32,30 @@ export default function AreaManager({ allEntityIds }: { allEntityIds: string[] }
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ area_id: newId.trim(), name: newName.trim() }),
-    }).then(() => {
+    }).then((r) => {
+      if (!r.ok) throw new Error(`${r.status}`);
       setNewId('');
       setNewName('');
       setTimeout(fetchAreas, 300);
-    });
+    }).catch(() => toastError('Failed to create area'));
   };
 
   const deleteArea = (areaId: string) => {
     fetch(`/api/areas/${areaId}`, { method: 'DELETE' })
-      .then(() => setTimeout(fetchAreas, 300));
+      .then((r) => { if (!r.ok) throw new Error(`${r.status}`); setTimeout(fetchAreas, 300); })
+      .catch(() => toastError('Failed to delete area'));
   };
 
   const assignEntity = (areaId: string, entityId: string) => {
     fetch(`/api/areas/${areaId}/entities/${entityId}`, { method: 'POST' })
-      .then(() => setTimeout(fetchAreas, 300));
+      .then((r) => { if (!r.ok) throw new Error(`${r.status}`); setTimeout(fetchAreas, 300); })
+      .catch(() => toastError('Failed to assign entity'));
   };
 
   const unassignEntity = (areaId: string, entityId: string) => {
     fetch(`/api/areas/${areaId}/entities/${entityId}`, { method: 'DELETE' })
-      .then(() => setTimeout(fetchAreas, 300));
+      .then((r) => { if (!r.ok) throw new Error(`${r.status}`); setTimeout(fetchAreas, 300); })
+      .catch(() => toastError('Failed to unassign entity'));
   };
 
   return (
