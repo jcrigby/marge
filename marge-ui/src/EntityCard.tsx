@@ -117,10 +117,28 @@ function SensorCard({ entity }: { entity: EntityState }) {
   );
 }
 
+const BINARY_STATE_LABELS: Record<string, [string, string]> = {
+  motion: ['Motion', 'Clear'],
+  door: ['Open', 'Closed'],
+  window: ['Open', 'Closed'],
+  opening: ['Open', 'Closed'],
+  occupancy: ['Occupied', 'Clear'],
+  presence: ['Home', 'Away'],
+  smoke: ['Detected', 'Clear'],
+  moisture: ['Wet', 'Dry'],
+  gas: ['Detected', 'Clear'],
+  vibration: ['Detected', 'Clear'],
+  connectivity: ['Connected', 'Disconnected'],
+  battery: ['Low', 'Normal'],
+  plug: ['Plugged In', 'Unplugged'],
+};
+
 // Binary sensor card with visual on/off state
 function BinarySensorCard({ entity }: { entity: EntityState }) {
   const isOn = entity.state === 'on';
   const deviceClass = (entity.attributes.device_class as string) || '';
+  const labels = BINARY_STATE_LABELS[deviceClass];
+  const stateLabel = labels ? (isOn ? labels[0] : labels[1]) : entity.state;
 
   return (
     <div className={`card card-binary-sensor ${isOn ? 'is-on' : 'is-off'}`}>
@@ -128,7 +146,7 @@ function BinarySensorCard({ entity }: { entity: EntityState }) {
         <span className="card-icon">{isOn ? '\u{1F7E2}' : '\u{26AA}'}</span>
         <CardNameBlock entity={entity} />
         <span className={`card-state ${isOn ? 'state-on' : 'state-off'}`}>
-          {entity.state}
+          {stateLabel}
         </span>
       </div>
       {deviceClass && <div className="card-meta">{deviceClass}</div>}
@@ -504,14 +522,14 @@ function CardInner({ entity }: { entity: EntityState }) {
   }
 }
 
-export default function EntityCard({ entity }: { entity: EntityState }) {
+export default function EntityCard({ entity, onDetail }: { entity: EntityState; onDetail?: () => void }) {
   const updated = entity.last_updated
     ? `Updated ${relativeTime(entity.last_updated)}`
     : '';
   const recentMs = Date.now() - new Date(entity.last_changed).getTime();
   const isRecent = recentMs >= 0 && recentMs < 30000;
   return (
-    <div title={updated} className={isRecent ? 'recent-change' : ''}>
+    <div title={updated} className={isRecent ? 'recent-change' : ''} onDoubleClick={onDetail}>
       <CardInner entity={entity} />
     </div>
   );
