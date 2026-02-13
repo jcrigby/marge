@@ -87,6 +87,7 @@ services:
     volumes:
       - ./scenario.json:/app/scenario.json:ro
       - ./ha-config/.ha_token:/app/.ha_token:ro
+      - /var/run/docker.sock:/var/run/docker.sock
     environment:
       - HA_URL=http://ha-legacy:8123
       - MARGE_URL=http://marge:8124
