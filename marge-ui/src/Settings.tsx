@@ -135,6 +135,25 @@ export default function Settings({ health }: { health: HealthData | null }) {
         </p>
       </div>
 
+      {/* Backup */}
+      <div className="settings-section">
+        <h2 className="domain-title">
+          Backup
+        </h2>
+        <div className="settings-form-row">
+          <button className="reload-btn" onClick={() => {
+            const a = document.createElement('a');
+            a.href = '/api/backup';
+            a.download = '';
+            a.click();
+            toastSuccess('Backup download started');
+          }}>Download Backup</button>
+        </div>
+        <p className="settings-hint">
+          Downloads a tar.gz archive containing the database, automations, and scenes.
+        </p>
+      </div>
+
       {/* Long-Lived Tokens */}
       <div className="settings-section">
         <h2 className="domain-title">
