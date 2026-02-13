@@ -68,8 +68,8 @@ services:
       - "8124:8124"     # REST + WebSocket API
       - "1884:1884"     # Embedded MQTT broker
     volumes:
-      - ./ha-config/automations.yaml:/etc/marge/automations.yaml:ro
-      - ./ha-config/scenes.yaml:/etc/marge/scenes.yaml:ro
+      - ./ha-config/automations.yaml:/etc/marge/automations.yaml
+      - ./ha-config/scenes.yaml:/etc/marge/scenes.yaml
     environment:
       - TZ=America/Denver
       - MARGE_HTTP_PORT=8124

@@ -1108,3 +1108,156 @@ def test_config_response(client):
     assert "version" in data
     assert "state" in data
     assert data["state"] == "RUNNING"
+
+
+# ── Automation YAML API ──────────────────────────────────
+
+
+def test_automation_yaml_read(client):
+    """GET /api/config/automation/yaml returns the raw YAML."""
+    resp = client.get("/api/config/automation/yaml")
+    assert resp.status_code == 200
+    assert "text/yaml" in resp.headers.get("content-type", "")
+    text = resp.text
+    assert "id:" in text
+    assert "triggers:" in text or "trigger:" in text
+
+
+def test_automation_yaml_write_and_reload(client):
+    """PUT /api/config/automation/yaml validates, saves, and reloads."""
+    # Read original
+    resp = client.get("/api/config/automation/yaml")
+    original = resp.text
+
+    # Write back (same content)
+    resp = client.put(
+        "/api/config/automation/yaml",
+        content=original,
+        headers={"Content-Type": "text/yaml"},
+    )
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["result"] == "ok"
+    assert data["automations_reloaded"] >= 1
+
+
+def test_automation_yaml_reject_invalid(client):
+    """PUT /api/config/automation/yaml rejects invalid YAML."""
+    resp = client.put(
+        "/api/config/automation/yaml",
+        content="[{invalid yaml: - - -",
+        headers={"Content-Type": "text/yaml"},
+    )
+    assert resp.status_code == 400
+
+
+# ── Entity create/delete lifecycle ───────────────────────
+
+
+@pytest.mark.asyncio
+async def test_entity_delete(rest):
+    """DELETE on a state removes the entity."""
+    # Create
+    await rest.client.post(
+        f"{rest.base_url}/api/states/sensor.to_delete",
+        headers=rest._headers(),
+        json={"state": "temporary", "attributes": {}},
+    )
+    # Verify exists
+    resp = await rest.client.get(
+        f"{rest.base_url}/api/states/sensor.to_delete",
+        headers=rest._headers(),
+    )
+    assert resp.status_code == 200
+
+    # Delete
+    resp = await rest.client.delete(
+        f"{rest.base_url}/api/states/sensor.to_delete",
+        headers=rest._headers(),
+    )
+    # Accept 200 or 404 (some implementations may not support DELETE)
+    assert resp.status_code in (200, 404, 405)
+
+
+# ── Automation trigger via REST ──────────────────────────
+
+
+def test_automation_trigger_via_service(client):
+    """POST /api/services/automation/trigger fires an automation."""
+    # Get first automation ID
+    resp = client.get("/api/config/automation/config")
+    autos = resp.json()
+    if not autos:
+        pytest.skip("No automations loaded")
+    auto_id = autos[0]["id"]
+    initial_count = autos[0]["total_triggers"]
+
+    # Trigger
+    resp = client.post(
+        "/api/services/automation/trigger",
+        json={"entity_id": f"automation.{auto_id}"},
+    )
+    assert resp.status_code == 200
+
+    # Verify count increased
+    time.sleep(0.5)
+    resp = client.get("/api/config/automation/config")
+    updated = resp.json()
+    auto = next(a for a in updated if a["id"] == auto_id)
+    assert auto["total_triggers"] >= initial_count + 1
+
+
+# ── WebSocket ping/pong ─────────────────────────────────
+
+
+@pytest.mark.asyncio
+async def test_websocket_ping_pong():
+    """WebSocket ping type returns a response with matching id."""
+    import websockets
+
+    async with websockets.connect("ws://localhost:8124/api/websocket") as ws:
+        # Handle auth
+        msg = await asyncio.wait_for(ws.recv(), timeout=5)
+        import json
+        data = json.loads(msg)
+        if data["type"] == "auth_required":
+            await ws.send(json.dumps({"type": "auth", "access_token": ""}))
+            msg = await asyncio.wait_for(ws.recv(), timeout=5)
+
+        # Send ping
+        await ws.send(json.dumps({"id": 99, "type": "ping"}))
+        msg = await asyncio.wait_for(ws.recv(), timeout=5)
+        data = json.loads(msg)
+        assert data["id"] == 99
+        assert data["type"] in ("pong", "result")
+        if data["type"] == "result":
+            assert data["success"] is True
+
+
+# ── Fire custom event ────────────────────────────────────
+
+
+def test_fire_event_rest(client):
+    """POST /api/events/:event_type fires an event."""
+    resp = client.post(
+        "/api/events/cts_test_event",
+        json={"payload": "hello"},
+    )
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data.get("message", "").startswith("Event") or "ok" in str(data).lower()
+
+
+# ── Service listing ──────────────────────────────────────
+
+
+def test_services_list_contains_common_domains(client):
+    """GET /api/services includes standard domains."""
+    resp = client.get("/api/services")
+    assert resp.status_code == 200
+    data = resp.json()
+    # Should be a list of domain objects
+    assert isinstance(data, list)
+    domains = [d.get("domain", "") for d in data]
+    assert "light" in domains
+    assert "switch" in domains

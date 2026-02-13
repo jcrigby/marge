@@ -7,6 +7,8 @@ import EntityCard from './EntityCard'
 import EntityDetail from './EntityDetail'
 import AutomationList from './AutomationList'
 import AreaManager from './AreaManager'
+import DeviceManager from './DeviceManager'
+import EventLog from './EventLog'
 import Settings from './Settings'
 import ToastContainer from './Toast'
 import './App.css'
@@ -121,7 +123,7 @@ function App() {
   const [theme, setTheme] = useState<'dark' | 'light'>(() =>
     (localStorage.getItem('marge_theme') as 'dark' | 'light') || 'dark'
   );
-  const [activeTab, setActiveTab] = useState<'entities' | 'automations' | 'areas' | 'settings'>('entities');
+  const [activeTab, setActiveTab] = useState<'entities' | 'automations' | 'areas' | 'devices' | 'logs' | 'settings'>('entities');
   const filterRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -167,11 +169,13 @@ function App() {
           filterRef.current?.blur();
         }
       }
-      // Tab switching: 1-4
+      // Tab switching: 1-6
       if (e.key === '1') setActiveTab('entities');
       if (e.key === '2') setActiveTab('automations');
       if (e.key === '3') setActiveTab('areas');
-      if (e.key === '4') setActiveTab('settings');
+      if (e.key === '4') setActiveTab('devices');
+      if (e.key === '5') setActiveTab('logs');
+      if (e.key === '6') setActiveTab('settings');
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
@@ -251,6 +255,18 @@ function App() {
           Areas
         </button>
         <button
+          className={`tab-btn ${activeTab === 'devices' ? 'active' : ''}`}
+          onClick={() => setActiveTab('devices')}
+        >
+          Devices
+        </button>
+        <button
+          className={`tab-btn ${activeTab === 'logs' ? 'active' : ''}`}
+          onClick={() => setActiveTab('logs')}
+        >
+          Logs
+        </button>
+        <button
           className={`tab-btn ${activeTab === 'settings' ? 'active' : ''}`}
           onClick={() => setActiveTab('settings')}
         >
@@ -299,6 +315,14 @@ function App() {
 
       {activeTab === 'areas' && (
         <AreaManager />
+      )}
+
+      {activeTab === 'devices' && (
+        <DeviceManager allEntityIds={entities.map((e) => e.entity_id)} />
+      )}
+
+      {activeTab === 'logs' && (
+        <EventLog entities={entities} />
       )}
 
       {activeTab === 'settings' && (
