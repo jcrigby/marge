@@ -237,6 +237,97 @@
 .entity-grid-item {
   position: relative;
 }
+.entity-grid-item.selected .card {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent);
+}
+.entity-checkbox {
+  position: absolute;
+  top: 6px;
+  left: 6px;
+  z-index: 2;
+  opacity: 0;
+  width: 14px;
+  height: 14px;
+  cursor: pointer;
+}
+.entity-grid-item:hover .entity-checkbox,
+.entity-grid-item.selected .entity-checkbox {
+  opacity: 1;
+}
+.bulk-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  background: var(--bg-card);
+  border: 1px solid var(--accent);
+  border-radius: var(--radius);
+  margin-bottom: 0.5rem;
+  font-size: 0.85rem;
+}
+.bulk-btn {
+  padding: 0.3rem 0.6rem;
+  background: var(--bg);
+  border: 1px solid var(--border-subtle);
+  color: var(--text);
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.8rem;
+}
+.bulk-btn:hover {
+  border-color: var(--accent);
+}
+.bulk-btn-danger {
+  color: #f44;
+  border-color: #f44;
+}
+.bulk-btn-danger:hover {
+  background: rgba(255, 68, 68, 0.1);
+}
+.confirm-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 200;
+}
+.confirm-panel {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1.5rem;
+  max-width: 400px;
+  text-align: center;
+}
+.confirm-panel p {
+  margin: 0 0 1rem;
+  font-size: 0.95rem;
+}
+.confirm-actions {
+  display: flex;
+  gap: 0.5rem;
+  justify-content: center;
+}
+.confirm-btn {
+  padding: 0.4rem 1rem;
+  border-radius: 4px;
+  border: 1px solid var(--border-subtle);
+  background: var(--bg);
+  color: var(--text);
+  cursor: pointer;
+  font-size: 0.85rem;
+}
+.confirm-btn-danger {
+  background: #f44;
+  color: #fff;
+  border-color: #f44;
+}
+.confirm-btn-danger:hover {
+  background: #d33;
+}
 .card-expand-btn {
   position: absolute;
   top: 4px;
