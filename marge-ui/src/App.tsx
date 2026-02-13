@@ -173,6 +173,7 @@ function App() {
   const [activeTab, setActiveTab] = useState<'entities' | 'automations' | 'areas' | 'devices' | 'logs' | 'settings'>('entities');
   const [groupMode, setGroupMode] = useState<GroupMode>('domain');
   const [areas, setAreas] = useState<AreaInfo[]>([]);
+  const [showHelp, setShowHelp] = useState(false);
   const filterRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -222,8 +223,14 @@ function App() {
         e.preventDefault();
         filterRef.current?.focus();
       }
+      if (e.key === '?') {
+        setShowHelp((v) => !v);
+        return;
+      }
       if (e.key === 'Escape') {
-        if (selectedEntity) {
+        if (showHelp) {
+          setShowHelp(false);
+        } else if (selectedEntity) {
           setSelectedEntity(null);
         } else if (filter || domainFilter) {
           setFilter('');
@@ -241,7 +248,7 @@ function App() {
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [selectedEntity, filter, domainFilter]);
+  }, [selectedEntity, filter, domainFilter, showHelp]);
 
   // Count entities per domain (unfiltered) for chips
   const domainCounts = useMemo(() => {
@@ -472,6 +479,40 @@ function App() {
           <EntityDetail entity={entity} onClose={() => setSelectedEntity(null)} />
         ) : null;
       })()}
+
+      {showHelp && (
+        <div className="help-overlay" onClick={() => setShowHelp(false)}>
+          <div className="help-panel" onClick={(e) => e.stopPropagation()}>
+            <div className="help-header">
+              <h3>Keyboard Shortcuts</h3>
+              <button className="detail-close" onClick={() => setShowHelp(false)}>X</button>
+            </div>
+            <div className="help-grid">
+              <div className="help-section">
+                <h4>Navigation</h4>
+                <div className="help-row"><kbd>1</kbd><span>Entities</span></div>
+                <div className="help-row"><kbd>2</kbd><span>Automations</span></div>
+                <div className="help-row"><kbd>3</kbd><span>Areas</span></div>
+                <div className="help-row"><kbd>4</kbd><span>Devices</span></div>
+                <div className="help-row"><kbd>5</kbd><span>Logs</span></div>
+                <div className="help-row"><kbd>6</kbd><span>Settings</span></div>
+              </div>
+              <div className="help-section">
+                <h4>Actions</h4>
+                <div className="help-row"><kbd>/</kbd><span>Focus search</span></div>
+                <div className="help-row"><kbd>f</kbd><span>Focus search</span></div>
+                <div className="help-row"><kbd>?</kbd><span>Toggle help</span></div>
+                <div className="help-row"><kbd>Esc</kbd><span>Close / Clear</span></div>
+              </div>
+              <div className="help-section">
+                <h4>Entity Cards</h4>
+                <div className="help-row"><span className="help-hint">Click</span><span>Toggle lights, switches, locks</span></div>
+                <div className="help-row"><span className="help-hint">Double-click</span><span>Open detail panel</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       <ToastContainer />
     </div>
