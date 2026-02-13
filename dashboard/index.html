@@ -961,19 +961,24 @@ function getEventRate() {
 
 // ── Timeline ────────────────────────────────
 
+let lastRenderedChapter = null;
 function renderTimeline() {
-  const chapEl = document.getElementById('timeline-chapters');
-  chapEl.innerHTML = CHAPTERS.map(c =>
-    `<span class="timeline-chapter ${c.name === currentChapter ? 'active' : ''}" style="border-left:3px solid ${c.color}">${c.name}</span>`
-  ).join('');
-
-  // Update fill based on sim time
+  // Update fill based on sim time (every call)
   if (simTimeStr !== '--:--:--') {
     const parts = simTimeStr.split(':');
     const mins = parseInt(parts[0]) * 60 + parseInt(parts[1]);
     const pct = (mins / 1440) * 100;
     document.getElementById('timeline-fill').style.width = pct + '%';
   }
+
+  // Only recreate chapter elements when chapter changes
+  if (lastRenderedChapter === currentChapter) return;
+  lastRenderedChapter = currentChapter;
+
+  const chapEl = document.getElementById('timeline-chapters');
+  chapEl.innerHTML = CHAPTERS.map(c =>
+    `<span class="timeline-chapter ${c.name === currentChapter ? 'active' : ''}" style="border-left:3px solid ${c.color}">${c.name}</span>`
+  ).join('');
 
   // Render chapter markers on the track
   const track = document.getElementById('timeline-track');
@@ -1015,7 +1020,7 @@ function showScoreCard() {
     ['Avg Latency',     haLatencyMs !== null ? `${haLatencyMs.toFixed(0)} ms` : '~23 ms', `${lat_marge.toFixed(1)} \u00B5s`, `${(lat_ha / lat_marge).toFixed(0)}x faster`],
     ['Startup Time',    `~${startup_ha}s`,       `${startup_marge_ms.toFixed(1)} ms`,  `${(startup_ha * 1000 / startup_marge_ms).toFixed(0)}x faster`],
     ['Recovery Time',   haRecStr,                margeRecStr,                      recoveryRatio],
-    ['Binary Size',     '~1.2 GB (installed)',    '6.1 MB',                         '200x smaller'],
+    ['Docker Image',    '1.78 GB',                '90 MB (6.1 MB binary)',           '20x smaller'],
     ['Events Seen',     haEvents.toLocaleString(), changes_marge.toLocaleString(), haEvents > 0 ? 'both processing' : '\u2014'],
     ['Verifications',   S['sensor.verify_ha']?.state || '17/21',  S['sensor.verify_marge']?.state || '21/21',  'Marge: 100%'],
     ['Dependencies',    'Python + 3800 packages', 'Zero (static binary)',          '\u2014'],
