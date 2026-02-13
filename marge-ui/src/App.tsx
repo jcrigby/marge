@@ -113,6 +113,53 @@ function DomainChips({
   );
 }
 
+interface AreaInfo {
+  area_id: string;
+  name: string;
+  entities: string[];
+}
+
+type GroupMode = 'domain' | 'area';
+
+function groupByArea(entities: EntityState[], areas: AreaInfo[]): Map<string, EntityState[]> {
+  const areaMap = new Map<string, Set<string>>();
+  const areaNames = new Map<string, string>();
+  for (const area of areas) {
+    areaMap.set(area.area_id, new Set(area.entities));
+    areaNames.set(area.area_id, area.name);
+  }
+
+  const groups = new Map<string, EntityState[]>();
+  const unassigned: EntityState[] = [];
+
+  for (const e of entities) {
+    let found = false;
+    for (const [areaId, entitySet] of areaMap) {
+      if (entitySet.has(e.entity_id)) {
+        const name = areaNames.get(areaId) || areaId;
+        if (!groups.has(name)) groups.set(name, []);
+        groups.get(name)!.push(e);
+        found = true;
+        break;
+      }
+    }
+    if (!found) unassigned.push(e);
+  }
+
+  // Sort within groups
+  for (const [, list] of groups) {
+    list.sort((a, b) => a.entity_id.localeCompare(b.entity_id));
+  }
+
+  // Sorted groups + unassigned at end
+  const sorted = new Map([...groups.entries()].sort((a, b) => a[0].localeCompare(b[0])));
+  if (unassigned.length > 0) {
+    unassigned.sort((a, b) => a.entity_id.localeCompare(b.entity_id));
+    sorted.set('Unassigned', unassigned);
+  }
+  return sorted;
+}
+
 function App() {
   const [entities, setEntities] = useState<EntityState[]>([]);
   const [health, setHealth] = useState<HealthData | null>(null);
@@ -124,6 +171,8 @@ function App() {
     (localStorage.getItem('marge_theme') as 'dark' | 'light') || 'dark'
   );
   const [activeTab, setActiveTab] = useState<'entities' | 'automations' | 'areas' | 'devices' | 'logs' | 'settings'>('entities');
+  const [groupMode, setGroupMode] = useState<GroupMode>('domain');
+  const [areas, setAreas] = useState<AreaInfo[]>([]);
   const filterRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -149,6 +198,19 @@ function App() {
     };
     fetchHealth();
     const id = setInterval(fetchHealth, 5000);
+    return () => clearInterval(id);
+  }, []);
+
+  // Fetch areas for area grouping
+  useEffect(() => {
+    const fetchAreas = () => {
+      fetch('/api/areas')
+        .then((r) => r.json())
+        .then(setAreas)
+        .catch(() => setAreas([]));
+    };
+    fetchAreas();
+    const id = setInterval(fetchAreas, 10000);
     return () => clearInterval(id);
   }, []);
 
@@ -209,7 +271,10 @@ function App() {
     return list;
   }, [entities, filter, domainFilter]);
 
-  const groups = groupByDomain(filtered());
+  const filteredList = filtered();
+  const groups = groupMode === 'area'
+    ? groupByArea(filteredList, areas)
+    : groupByDomain(filteredList);
 
   return (
     <div className="app">
@@ -276,11 +341,27 @@ function App() {
 
       {activeTab === 'entities' && (
         <>
-          <DomainChips
-            domains={domainCounts}
-            active={domainFilter}
-            onToggle={setDomainFilter}
-          />
+          <div className="entity-toolbar">
+            <DomainChips
+              domains={domainCounts}
+              active={domainFilter}
+              onToggle={setDomainFilter}
+            />
+            <div className="group-toggle">
+              <button
+                className={`chip ${groupMode === 'domain' ? 'active' : ''}`}
+                onClick={() => setGroupMode('domain')}
+              >
+                By Domain
+              </button>
+              <button
+                className={`chip ${groupMode === 'area' ? 'active' : ''}`}
+                onClick={() => setGroupMode('area')}
+              >
+                By Area
+              </button>
+            </div>
+          </div>
 
           <main className="entity-groups">
             {[...groups.entries()].map(([domain, domainEntities]) => (
