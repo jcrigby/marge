@@ -156,6 +156,10 @@ pub fn router(
         .route("/api/devices", post(create_device_handler))
         .route("/api/devices/:device_id", axum::routing::delete(delete_device_handler))
         .route("/api/devices/:device_id/entities/:entity_id", post(assign_entity_device_handler))
+        // Notifications
+        .route("/api/notifications", get(list_notifications_handler))
+        .route("/api/notifications/:notification_id/dismiss", post(dismiss_notification_handler))
+        .route("/api/notifications/dismiss_all", post(dismiss_all_notifications_handler))
         // Label registry
         .route("/api/labels", get(list_labels_handler).post(create_label_handler))
         .route("/api/labels/:label_id", axum::routing::delete(delete_label_handler))
@@ -398,6 +402,47 @@ async fn call_service(
                 }
                 _ => {}
             }
+        }
+        return Ok(Json(ServiceResponse { changed_states: vec![] }));
+    }
+
+    // Handle persistent_notification services
+    if domain == "persistent_notification" {
+        match service.as_str() {
+            "create" => {
+                let notif_id = body.get("notification_id")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or_else(|| {
+                        // Use a generated ID if none provided
+                        "auto"
+                    }).to_string();
+                let notif_id = if notif_id == "auto" {
+                    uuid::Uuid::new_v4().to_string()
+                } else {
+                    notif_id
+                };
+                let title = body.get("title").and_then(|v| v.as_str()).unwrap_or("").to_string();
+                let message = body.get("message").and_then(|v| v.as_str()).unwrap_or("").to_string();
+                let db_path = rs.db_path.clone();
+                let _ = tokio::task::spawn_blocking(move || {
+                    crate::recorder::create_notification(&db_path, &notif_id, &title, &message)
+                }).await;
+            }
+            "dismiss" => {
+                let notif_id = body.get("notification_id")
+                    .and_then(|v| v.as_str()).unwrap_or("").to_string();
+                let db_path = rs.db_path.clone();
+                let _ = tokio::task::spawn_blocking(move || {
+                    crate::recorder::dismiss_notification(&db_path, &notif_id)
+                }).await;
+            }
+            "dismiss_all" => {
+                let db_path = rs.db_path.clone();
+                let _ = tokio::task::spawn_blocking(move || {
+                    crate::recorder::dismiss_all_notifications(&db_path)
+                }).await;
+            }
+            _ => {}
         }
         return Ok(Json(ServiceResponse { changed_states: vec![] }));
     }
@@ -1293,6 +1338,67 @@ async fn assign_entity_device_handler(
     let db_path = rs.db_path.clone();
     tokio::task::spawn_blocking(move || {
         crate::recorder::assign_entity_device(&db_path, &entity_id, &device_id)
+    })
+    .await
+    .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
+    .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+    Ok(Json(serde_json::json!({"result": "ok"})))
+}
+
+/// ── Persistent Notifications ────────────────────────────
+
+/// GET /api/notifications — list active notifications
+async fn list_notifications_handler(
+    State(rs): State<RouterState>,
+    headers: HeaderMap,
+) -> Result<Json<Vec<crate::recorder::Notification>>, StatusCode> {
+    check_auth(&rs, &headers)?;
+
+    let db_path = rs.db_path.clone();
+    let notifs = tokio::task::spawn_blocking(move || {
+        crate::recorder::list_notifications(&db_path)
+    })
+    .await
+    .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
+    .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+    Ok(Json(notifs))
+}
+
+/// POST /api/notifications/{id}/dismiss
+async fn dismiss_notification_handler(
+    State(rs): State<RouterState>,
+    headers: HeaderMap,
+    Path(notification_id): Path<String>,
+) -> Result<Json<serde_json::Value>, StatusCode> {
+    check_auth(&rs, &headers)?;
+
+    let db_path = rs.db_path.clone();
+    let dismissed = tokio::task::spawn_blocking(move || {
+        crate::recorder::dismiss_notification(&db_path, &notification_id)
+    })
+    .await
+    .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
+    .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+    if dismissed {
+        Ok(Json(serde_json::json!({"result": "ok"})))
+    } else {
+        Err(StatusCode::NOT_FOUND)
+    }
+}
+
+/// POST /api/notifications/dismiss_all
+async fn dismiss_all_notifications_handler(
+    State(rs): State<RouterState>,
+    headers: HeaderMap,
+) -> Result<Json<serde_json::Value>, StatusCode> {
+    check_auth(&rs, &headers)?;
+
+    let db_path = rs.db_path.clone();
+    tokio::task::spawn_blocking(move || {
+        crate::recorder::dismiss_all_notifications(&db_path)
     })
     .await
     .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?

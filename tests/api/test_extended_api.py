@@ -1600,3 +1600,90 @@ def test_search_results_sorted(client):
     results = r.json()
     ids = [e["entity_id"] for e in results]
     assert ids == sorted(ids)
+
+
+# ── Persistent Notifications ──────────────────────────
+
+
+def test_notification_create_via_service(client):
+    """Create a notification via persistent_notification.create service."""
+    r = client.post("/api/services/persistent_notification/create", json={
+        "notification_id": "test_notif_1",
+        "title": "Test Alert",
+        "message": "This is a test notification",
+    })
+    assert r.status_code == 200
+
+    # Verify it appears in the list
+    r = client.get("/api/notifications")
+    assert r.status_code == 200
+    notifs = r.json()
+    found = [n for n in notifs if n["notification_id"] == "test_notif_1"]
+    assert len(found) == 1
+    assert found[0]["title"] == "Test Alert"
+    assert found[0]["message"] == "This is a test notification"
+    assert found[0]["dismissed"] is False
+
+
+def test_notification_dismiss(client):
+    """Dismiss a single notification."""
+    # Ensure it exists
+    client.post("/api/services/persistent_notification/create", json={
+        "notification_id": "test_notif_dismiss",
+        "title": "Dismiss Me",
+        "message": "Will be dismissed",
+    })
+
+    r = client.post("/api/notifications/test_notif_dismiss/dismiss")
+    assert r.status_code == 200
+
+    # Verify it's gone from active list
+    r = client.get("/api/notifications")
+    notifs = r.json()
+    found = [n for n in notifs if n["notification_id"] == "test_notif_dismiss"]
+    assert len(found) == 0
+
+
+def test_notification_dismiss_all(client):
+    """Dismiss all notifications at once."""
+    # Create multiple
+    for i in range(3):
+        client.post("/api/services/persistent_notification/create", json={
+            "notification_id": f"test_dismiss_all_{i}",
+            "title": f"Batch {i}",
+            "message": f"Batch notification {i}",
+        })
+
+    r = client.post("/api/notifications/dismiss_all")
+    assert r.status_code == 200
+
+    # Verify all gone
+    r = client.get("/api/notifications")
+    notifs = r.json()
+    batch = [n for n in notifs if n["notification_id"].startswith("test_dismiss_all_")]
+    assert len(batch) == 0
+
+
+def test_notification_dismiss_nonexistent(client):
+    """Dismissing a nonexistent notification returns 404."""
+    r = client.post("/api/notifications/nonexistent_notif_999/dismiss")
+    assert r.status_code == 404
+
+
+def test_notification_service_dismiss(client):
+    """Dismiss via persistent_notification.dismiss service."""
+    client.post("/api/services/persistent_notification/create", json={
+        "notification_id": "test_svc_dismiss",
+        "title": "Service Dismiss",
+        "message": "Dismissed via service",
+    })
+
+    r = client.post("/api/services/persistent_notification/dismiss", json={
+        "notification_id": "test_svc_dismiss",
+    })
+    assert r.status_code == 200
+
+    r = client.get("/api/notifications")
+    notifs = r.json()
+    found = [n for n in notifs if n["notification_id"] == "test_svc_dismiss"]
+    assert len(found) == 0

@@ -10,6 +10,7 @@ import AreaManager from './AreaManager'
 import DeviceManager from './DeviceManager'
 import EventLog from './EventLog'
 import LabelManager from './LabelManager'
+import NotificationCenter from './NotificationCenter'
 import Settings from './Settings'
 import ToastContainer from './Toast'
 import './App.css'
@@ -312,6 +313,7 @@ function App() {
           onChange={(e) => setFilter(e.target.value)}
           onKeyDown={(e) => { if (e.key === 'Escape') { setFilter(''); filterRef.current?.blur(); }}}
         />
+        <NotificationCenter />
         <button
           className="theme-toggle"
           onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
