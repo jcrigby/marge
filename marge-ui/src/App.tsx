@@ -337,12 +337,16 @@ function App() {
           onClick={() => setActiveTab('automations')}
         >
           Automations
+          {(domainCounts.get('automation') ?? 0) > 0 && (
+            <span className="tab-badge">{domainCounts.get('automation')}</span>
+          )}
         </button>
         <button
           className={`tab-btn ${activeTab === 'areas' ? 'active' : ''}`}
           onClick={() => setActiveTab('areas')}
         >
           Areas
+          {areas.length > 0 && <span className="tab-badge">{areas.length}</span>}
         </button>
         <button
           className={`tab-btn ${activeTab === 'devices' ? 'active' : ''}`}

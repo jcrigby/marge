@@ -330,6 +330,8 @@ function EntityControls({ entity }: { entity: EntityState }) {
 
 export default function EntityDetail({ entity, onClose }: Props) {
   const [history, setHistory] = useState<HistoryEntry[]>([]);
+  const [editState, setEditState] = useState('');
+  const [editing, setEditing] = useState(false);
   // Track entity state changes to auto-refresh history
   const stateKey = `${entity.entity_id}:${entity.state}:${entity.last_changed}`;
 
@@ -369,7 +371,45 @@ export default function EntityDetail({ entity, onClose }: Props) {
         </div>
 
         <div className="detail-state">
-          <span className="detail-state-value">{entity.state}</span>
+          {editing ? (
+            <div className="detail-state-edit">
+              <input
+                type="text"
+                className="detail-state-input"
+                value={editState}
+                onChange={(e) => setEditState(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    fetch(`/api/states/${entity.entity_id}`, {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ state: editState, attributes: entity.attributes }),
+                    });
+                    setEditing(false);
+                  }
+                  if (e.key === 'Escape') setEditing(false);
+                }}
+                autoFocus
+              />
+              <button className="detail-btn" onClick={() => {
+                fetch(`/api/states/${entity.entity_id}`, {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ state: editState, attributes: entity.attributes }),
+                });
+                setEditing(false);
+              }}>Set</button>
+              <button className="detail-btn" onClick={() => setEditing(false)}>Cancel</button>
+            </div>
+          ) : (
+            <span
+              className="detail-state-value detail-state-clickable"
+              onClick={() => { setEditState(entity.state); setEditing(true); }}
+              title="Click to edit state"
+            >
+              {entity.state}
+            </span>
+          )}
           <span className="detail-state-time">
             Changed {formatTime(entity.last_changed)}
           </span>

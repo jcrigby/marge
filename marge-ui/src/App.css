@@ -592,6 +592,29 @@
   font-size: 1.5rem;
   font-weight: 700;
 }
+.detail-state-clickable {
+  cursor: pointer;
+  border-bottom: 1px dashed var(--border);
+}
+.detail-state-clickable:hover {
+  border-bottom-color: var(--accent);
+}
+.detail-state-edit {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.detail-state-input {
+  font-size: 1.2rem;
+  font-weight: 700;
+  padding: 0.25rem 0.5rem;
+  border: 1px solid var(--accent);
+  border-radius: 4px;
+  background: var(--bg-card);
+  color: var(--text);
+  width: 150px;
+  outline: none;
+}
 .detail-state-time {
   font-size: 0.75rem;
   color: var(--text-dim);
