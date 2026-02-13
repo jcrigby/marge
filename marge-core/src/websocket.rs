@@ -221,6 +221,60 @@ async fn handle_ws(
                                     }).await.ok().and_then(|r| r.ok()).unwrap_or_default();
                                     ws_result(id, true, Some(serde_json::to_value(&areas).unwrap()))
                                 }
+                                "config/device_registry/list" => {
+                                    let db = db_path.clone();
+                                    let result = tokio::task::spawn_blocking(move || {
+                                        let devices = crate::recorder::list_devices(&db)?;
+                                        let mappings = crate::recorder::load_device_entities(&db)?;
+                                        Ok::<_, anyhow::Error>((devices, mappings))
+                                    }).await.ok().and_then(|r| r.ok());
+                                    let entries: Vec<serde_json::Value> = match result {
+                                        Some((devices, mappings)) => {
+                                            devices.into_iter().map(|d| {
+                                                let ents: Vec<&str> = mappings.iter()
+                                                    .filter(|(_, did)| did == &d.device_id)
+                                                    .map(|(eid, _)| eid.as_str())
+                                                    .collect();
+                                                serde_json::json!({
+                                                    "id": d.device_id,
+                                                    "name": d.name,
+                                                    "manufacturer": d.manufacturer,
+                                                    "model": d.model,
+                                                    "area_id": d.area_id,
+                                                    "entities": ents,
+                                                })
+                                            }).collect()
+                                        }
+                                        None => vec![],
+                                    };
+                                    ws_result(id, true, Some(serde_json::to_value(&entries).unwrap()))
+                                }
+                                "config/label_registry/list" => {
+                                    let db = db_path.clone();
+                                    let result = tokio::task::spawn_blocking(move || {
+                                        let labels = crate::recorder::list_labels(&db)?;
+                                        let mappings = crate::recorder::load_entity_labels(&db)?;
+                                        Ok::<_, anyhow::Error>((labels, mappings))
+                                    }).await.ok().and_then(|r| r.ok());
+                                    let entries: Vec<serde_json::Value> = match result {
+                                        Some((labels, mappings)) => {
+                                            labels.into_iter().map(|l| {
+                                                let ents: Vec<&str> = mappings.iter()
+                                                    .filter(|(_, lid)| lid == &l.label_id)
+                                                    .map(|(eid, _)| eid.as_str())
+                                                    .collect();
+                                                serde_json::json!({
+                                                    "label_id": l.label_id,
+                                                    "name": l.name,
+                                                    "color": l.color,
+                                                    "entities": ents,
+                                                })
+                                            }).collect()
+                                        }
+                                        None => vec![],
+                                    };
+                                    ws_result(id, true, Some(serde_json::to_value(&entries).unwrap()))
+                                }
                                 "ping" => {
                                     // HA-compatible pong response
                                     serde_json::to_string(&serde_json::json!({
