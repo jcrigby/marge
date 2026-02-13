@@ -92,6 +92,14 @@ fn open_db(path: &Path) -> rusqlite::Result<Connection> {
             label_id  TEXT NOT NULL,
             PRIMARY KEY(entity_id, label_id),
             FOREIGN KEY(label_id) REFERENCES labels(label_id)
+        );
+
+        CREATE TABLE IF NOT EXISTS notifications (
+            notification_id TEXT PRIMARY KEY,
+            title       TEXT NOT NULL DEFAULT '',
+            message     TEXT NOT NULL,
+            created_at  TEXT NOT NULL,
+            dismissed   INTEGER NOT NULL DEFAULT 0
         );",
     )?;
 
@@ -712,6 +720,71 @@ pub fn load_entity_labels(db_path: &Path) -> anyhow::Result<Vec<(String, String)
         Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?))
     })?.filter_map(|r| r.ok()).collect();
     Ok(mappings)
+}
+
+/// ── Persistent Notifications ────────────────────────────
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct Notification {
+    pub notification_id: String,
+    pub title: String,
+    pub message: String,
+    pub created_at: String,
+    pub dismissed: bool,
+}
+
+/// List all active (non-dismissed) notifications.
+pub fn list_notifications(db_path: &Path) -> anyhow::Result<Vec<Notification>> {
+    let conn = open_db(db_path)?;
+    let mut stmt = conn.prepare(
+        "SELECT notification_id, title, message, created_at, dismissed
+         FROM notifications WHERE dismissed = 0
+         ORDER BY created_at DESC"
+    )?;
+    let notifs = stmt.query_map([], |row| {
+        Ok(Notification {
+            notification_id: row.get(0)?,
+            title: row.get(1)?,
+            message: row.get(2)?,
+            created_at: row.get(3)?,
+            dismissed: row.get::<_, i32>(4)? != 0,
+        })
+    })?.filter_map(|r| r.ok()).collect();
+    Ok(notifs)
+}
+
+/// Create a new persistent notification.
+pub fn create_notification(db_path: &Path, id: &str, title: &str, message: &str) -> anyhow::Result<()> {
+    let conn = open_db(db_path)?;
+    let now = chrono::Utc::now().to_rfc3339();
+    conn.execute(
+        "INSERT INTO notifications (notification_id, title, message, created_at)
+         VALUES (?1, ?2, ?3, ?4)
+         ON CONFLICT(notification_id) DO UPDATE SET
+            title = excluded.title,
+            message = excluded.message,
+            created_at = excluded.created_at,
+            dismissed = 0",
+        params![id, title, message, now],
+    )?;
+    Ok(())
+}
+
+/// Dismiss a notification by ID.
+pub fn dismiss_notification(db_path: &Path, id: &str) -> anyhow::Result<bool> {
+    let conn = open_db(db_path)?;
+    let updated = conn.execute(
+        "UPDATE notifications SET dismissed = 1 WHERE notification_id = ?1",
+        params![id],
+    )?;
+    Ok(updated > 0)
+}
+
+/// Dismiss all notifications.
+pub fn dismiss_all_notifications(db_path: &Path) -> anyhow::Result<()> {
+    let conn = open_db(db_path)?;
+    conn.execute("UPDATE notifications SET dismissed = 1", [])?;
+    Ok(())
 }
 
 fn purge_history(conn: &Connection, retention_days: u32) -> rusqlite::Result<usize> {
