@@ -129,18 +129,22 @@ async fn main() -> anyhow::Result<()> {
     let engine = if automations_path.exists() {
         match automation::load_automations(&automations_path) {
             Ok(automations) => {
-                let mut engine = AutomationEngine::new(automations, app_state.clone(), service_registry.clone());
+                let engine = AutomationEngine::new(automations, app_state.clone(), service_registry.clone());
                 // Wire scene engine into automation engine for scene.turn_on actions
                 if let Some(se) = &scene_engine {
                     engine.set_scenes(se.clone());
                 }
+                engine.set_automations_path(automations_path.clone());
                 let engine = Arc::new(engine);
-                // Register automation entities
-                for auto_id in engine.automation_ids() {
+                // Register automation entities with friendly_name attribute
+                for (auto_id, alias) in engine.automation_ids() {
+                    let mut attrs = serde_json::Map::new();
+                    attrs.insert("friendly_name".to_string(), serde_json::json!(alias));
+                    attrs.insert("current".to_string(), serde_json::json!(0));
                     app_state.state_machine.set(
                         format!("automation.{}", auto_id),
                         "on".to_string(),
-                        Default::default(),
+                        attrs,
                     );
                 }
                 Some(engine)
@@ -234,6 +238,7 @@ async fn main() -> anyhow::Result<()> {
         service_registry,
         auth.clone(),
         db_path_for_api,
+        automations_path,
     )
     .merge(websocket::router(app_state.clone(), auth.clone(), service_registry_for_ws));
 

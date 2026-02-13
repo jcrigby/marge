@@ -168,6 +168,24 @@ async fn handle_ws(
                                     tracing::info!(event_type = %event_type, "WS event fired");
                                     ws_result(id, true, None)
                                 }
+                                "get_config" => {
+                                    let config = serde_json::json!({
+                                        "location_name": "Marge Demo Home",
+                                        "latitude": 40.3916,
+                                        "longitude": -111.8508,
+                                        "elevation": 1387,
+                                        "unit_system": {
+                                            "length": "mi",
+                                            "mass": "lb",
+                                            "temperature": "\u{00b0}F",
+                                            "volume": "gal",
+                                        },
+                                        "time_zone": "America/Denver",
+                                        "version": env!("CARGO_PKG_VERSION"),
+                                        "state": "RUNNING",
+                                    });
+                                    ws_result(id, true, Some(config))
+                                }
                                 "ping" => {
                                     ws_result(id, true, None)
                                 }

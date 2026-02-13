@@ -3,7 +3,7 @@ use std::time::Duration;
 
 use chrono::Datelike;
 use dashmap::DashMap;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::path::Path;
 use std::sync::Arc;
@@ -311,13 +311,41 @@ fn time_in_range(time: &str, after: Option<&str>, before: Option<&str>) -> bool 
     true
 }
 
+// ── Automation Metadata ──────────────────────────────────
+
+/// Runtime metadata for each automation, tracked across trigger events.
+#[derive(Debug, Clone)]
+pub struct AutomationMeta {
+    pub last_triggered: Option<String>,
+    pub trigger_count: u64,
+    pub enabled: bool,
+}
+
+/// Summary of an automation for API responses.
+#[derive(Debug, Clone, Serialize)]
+pub struct AutomationInfo {
+    pub id: String,
+    pub alias: String,
+    pub description: String,
+    pub mode: String,
+    pub trigger_count: usize,
+    pub condition_count: usize,
+    pub action_count: usize,
+    pub last_triggered: Option<String>,
+    pub total_triggers: u64,
+    pub enabled: bool,
+}
+
 // ── Engine ───────────────────────────────────────────────
 
 pub struct AutomationEngine {
-    automations: Vec<Automation>,
+    automations: std::sync::RwLock<Vec<Automation>>,
+    automations_path: std::sync::RwLock<Option<std::path::PathBuf>>,
     app: Arc<AppState>,
-    scenes: Option<Arc<SceneEngine>>,
+    scenes: std::sync::RwLock<Option<Arc<SceneEngine>>>,
     services: Arc<std::sync::RwLock<ServiceRegistry>>,
+    /// Runtime metadata per automation (keyed by automation id).
+    meta: DashMap<String, AutomationMeta>,
     /// Tracks last fired HH:MM for time/sun triggers to prevent duplicate fires.
     last_time_triggers: DashMap<String, String>,
     /// Calculated sunrise/sunset times (HH:MM:SS).
@@ -331,6 +359,7 @@ impl AutomationEngine {
         services: Arc<std::sync::RwLock<ServiceRegistry>>,
     ) -> Self {
         tracing::info!("Loaded {} automations", automations.len());
+        let meta = DashMap::new();
         for auto in &automations {
             tracing::info!(
                 "  [{}] {} — {} trigger(s), {} condition(s), {} action(s)",
@@ -340,6 +369,11 @@ impl AutomationEngine {
                 auto.conditions.len(),
                 auto.actions.len()
             );
+            meta.insert(auto.id.clone(), AutomationMeta {
+                last_triggered: None,
+                trigger_count: 0,
+                enabled: true,
+            });
         }
 
         // Calculate initial sun times for configured location
@@ -350,17 +384,127 @@ impl AutomationEngine {
         tracing::info!("Sun times (day {}): sunrise={}, sunset={}", day, sunrise, sunset);
 
         Self {
-            automations,
+            automations: std::sync::RwLock::new(automations),
+            automations_path: std::sync::RwLock::new(None),
             app,
-            scenes: None,
+            scenes: std::sync::RwLock::new(None),
             services,
+            meta,
             last_time_triggers: DashMap::new(),
             sun_times: std::sync::RwLock::new((sunrise, sunset)),
         }
     }
 
-    pub fn set_scenes(&mut self, scenes: Arc<SceneEngine>) {
-        self.scenes = Some(scenes);
+    /// Set the path for reloading automations from disk.
+    pub fn set_automations_path(&self, path: std::path::PathBuf) {
+        *self.automations_path.write().unwrap() = Some(path);
+    }
+
+    pub fn set_scenes(&self, scenes: Arc<SceneEngine>) {
+        *self.scenes.write().unwrap() = Some(scenes);
+    }
+
+    // ── Reload ────────────────────────────────────────────
+
+    /// Reload automations from the YAML file on disk.
+    /// Returns the number of automations loaded, or an error.
+    pub fn reload(&self) -> anyhow::Result<usize> {
+        let path = self.automations_path.read().unwrap().clone();
+        let path = path.ok_or_else(|| anyhow::anyhow!("No automations path configured"))?;
+
+        let new_automations = load_automations(&path)?;
+        let count = new_automations.len();
+
+        tracing::info!("Reloading {} automations from {:?}", count, path);
+
+        // Initialize metadata for new automations, preserve existing
+        for auto in &new_automations {
+            if !self.meta.contains_key(&auto.id) {
+                self.meta.insert(auto.id.clone(), AutomationMeta {
+                    last_triggered: None,
+                    trigger_count: 0,
+                    enabled: true,
+                });
+            }
+        }
+
+        // Update automation entities in state machine
+        for auto in &new_automations {
+            let mut attrs = serde_json::Map::new();
+            attrs.insert("friendly_name".to_string(), serde_json::json!(auto.alias));
+            if let Some(m) = self.meta.get(&auto.id) {
+                if let Some(ref lt) = m.last_triggered {
+                    attrs.insert("last_triggered".to_string(), serde_json::json!(lt));
+                }
+                attrs.insert("current".to_string(), serde_json::json!(m.trigger_count));
+            }
+            self.app.state_machine.set(
+                format!("automation.{}", auto.id),
+                "on".to_string(),
+                attrs,
+            );
+        }
+
+        *self.automations.write().unwrap() = new_automations;
+        self.last_time_triggers.clear();
+
+        Ok(count)
+    }
+
+    /// Get summary info for all automations (for API responses).
+    pub fn get_automations_info(&self) -> Vec<AutomationInfo> {
+        let automations = self.automations.read().unwrap();
+        automations.iter().map(|auto| {
+            let meta = self.meta.get(&auto.id);
+            AutomationInfo {
+                id: auto.id.clone(),
+                alias: auto.alias.clone(),
+                description: auto.description.clone(),
+                mode: auto.mode.clone(),
+                trigger_count: auto.triggers.len(),
+                condition_count: auto.conditions.len(),
+                action_count: auto.actions.len(),
+                last_triggered: meta.as_ref().and_then(|m| m.last_triggered.clone()),
+                total_triggers: meta.as_ref().map(|m| m.trigger_count).unwrap_or(0),
+                enabled: meta.as_ref().map(|m| m.enabled).unwrap_or(true),
+            }
+        }).collect()
+    }
+
+    /// Record that an automation was triggered and update its entity attributes.
+    fn record_trigger(&self, auto_id: &str) {
+        let now = chrono::Utc::now().to_rfc3339();
+        if let Some(mut m) = self.meta.get_mut(auto_id) {
+            m.trigger_count += 1;
+            m.last_triggered = Some(now.clone());
+        }
+        // Update the automation entity's attributes
+        let entity_id = format!("automation.{}", auto_id);
+        if let Some(current) = self.app.state_machine.get(&entity_id) {
+            let mut attrs = current.attributes.clone();
+            attrs.insert("last_triggered".to_string(), serde_json::json!(now));
+            let count = self.meta.get(auto_id).map(|m| m.trigger_count).unwrap_or(0);
+            attrs.insert("current".to_string(), serde_json::json!(count));
+            self.app.state_machine.set(entity_id, current.state.clone(), attrs);
+        }
+    }
+
+    /// Check if an automation is enabled.
+    fn is_enabled(&self, auto_id: &str) -> bool {
+        self.meta.get(auto_id).map(|m| m.enabled).unwrap_or(true)
+    }
+
+    /// Enable or disable an automation by ID.
+    pub fn set_enabled(&self, automation_id: &str, enabled: bool) {
+        let id = automation_id.strip_prefix("automation.").unwrap_or(automation_id);
+        if let Some(mut m) = self.meta.get_mut(id) {
+            m.enabled = enabled;
+        }
+        let entity_id = format!("automation.{}", id);
+        if let Some(current) = self.app.state_machine.get(&entity_id) {
+            let state = if enabled { "on" } else { "off" };
+            self.app.state_machine.set(entity_id, state.to_string(), current.attributes.clone());
+        }
     }
 
     // ── State Change Handler ──────────────────────────────
@@ -370,10 +514,15 @@ impl AutomationEngine {
     pub async fn on_state_changed(&self, event: &StateChangedEvent) -> Vec<String> {
         let mut fired = Vec::new();
 
-        for auto in &self.automations {
+        let automations = self.automations.read().unwrap().clone();
+        for auto in &automations {
+            if !self.is_enabled(&auto.id) {
+                continue;
+            }
             if self.triggers_match(auto, event) && self.conditions_met(auto) {
                 tracing::info!("Automation [{}] triggered by {}", auto.id, event.entity_id);
                 self.execute_actions(auto).await;
+                self.record_trigger(&auto.id);
                 fired.push(auto.id.clone());
             }
         }
@@ -387,10 +536,12 @@ impl AutomationEngine {
         // Strip "automation." prefix if present
         let id = automation_id.strip_prefix("automation.").unwrap_or(automation_id);
 
-        for auto in &self.automations {
+        let automations = self.automations.read().unwrap().clone();
+        for auto in &automations {
             if auto.id == id {
                 tracing::info!("Automation [{}] force-triggered", auto.id);
                 self.execute_actions(auto).await;
+                self.record_trigger(&auto.id);
                 return true;
             }
         }
@@ -402,7 +553,11 @@ impl AutomationEngine {
     pub async fn on_event(&self, event_type: &str) -> Vec<String> {
         let mut fired = Vec::new();
 
-        for auto in &self.automations {
+        let automations = self.automations.read().unwrap().clone();
+        for auto in &automations {
+            if !self.is_enabled(&auto.id) {
+                continue;
+            }
             let matches = auto.triggers.iter().any(|t| {
                 matches!(t, Trigger::Event { event_type: et } if et == event_type)
             });
@@ -410,6 +565,7 @@ impl AutomationEngine {
             if matches && self.conditions_met(auto) {
                 tracing::info!("Automation [{}] triggered by event {}", auto.id, event_type);
                 self.execute_actions(auto).await;
+                self.record_trigger(&auto.id);
                 fired.push(auto.id.clone());
             }
         }
@@ -452,7 +608,11 @@ impl AutomationEngine {
                 continue;
             };
 
-            for auto in &self.automations {
+            let automations = self.automations.read().unwrap().clone();
+            for auto in &automations {
+                if !self.is_enabled(&auto.id) {
+                    continue;
+                }
                 for trigger in &auto.triggers {
                     let trigger_hhmm = match trigger {
                         Trigger::Time { at } => {
@@ -492,6 +652,7 @@ impl AutomationEngine {
                                     current_time
                                 );
                                 self.execute_actions(auto).await;
+                                self.record_trigger(&auto.id);
                                 self.last_time_triggers
                                     .insert(key, current_hhmm.to_string());
                             }
@@ -717,7 +878,7 @@ impl AutomationEngine {
 
         // Special case: scene.turn_on goes through scene engine
         if domain == "scene" && service == "turn_on" {
-            if let Some(scenes) = &self.scenes {
+            if let Some(scenes) = self.scenes.read().unwrap().as_ref() {
                 for eid in &entity_ids {
                     scenes.turn_on(eid);
                 }
@@ -844,9 +1005,11 @@ impl AutomationEngine {
         }
     }
 
-    /// Get automation IDs (for registering automation entities)
-    pub fn automation_ids(&self) -> Vec<String> {
-        self.automations.iter().map(|a| a.id.clone()).collect()
+    /// Get automation IDs and aliases (for registering automation entities)
+    pub fn automation_ids(&self) -> Vec<(String, String)> {
+        self.automations.read().unwrap().iter()
+            .map(|a| (a.id.clone(), a.alias.clone()))
+            .collect()
     }
 }
 

@@ -226,24 +226,48 @@ function FanCard({ entity }: { entity: EntityState }) {
   );
 }
 
-// Automation/scene card
+// Automation/scene card with metadata and trigger button
 function AutomationCard({ entity }: { entity: EntityState }) {
   const domain = getDomain(entity.entity_id);
+  const [firing, setFiring] = useState(false);
+  const friendlyName = (entity.attributes.friendly_name as string) || getEntityName(entity.entity_id);
+  const lastTriggered = entity.attributes.last_triggered as string | undefined;
+  const triggerCount = entity.attributes.current as number | undefined;
+
   const trigger = () => {
+    setFiring(true);
     if (domain === 'automation') {
       callService('automation', 'trigger', entity.entity_id);
     } else if (domain === 'scene') {
       callService('scene', 'turn_on', entity.entity_id);
     }
+    setTimeout(() => setFiring(false), 600);
   };
 
   return (
-    <div className="card card-automation">
-      <div className="card-header" onClick={trigger}>
+    <div className={`card card-automation ${firing ? 'is-firing' : ''}`}>
+      <div className="card-header">
         <span className="card-icon">{domainIcon(domain)}</span>
-        <span className="card-name">{getEntityName(entity.entity_id)}</span>
-        <span className="card-state">{entity.state}</span>
+        <span className="card-name">{friendlyName}</span>
+        <span className={`card-state ${entity.state === 'on' ? 'state-on' : 'state-off'}`}>
+          {entity.state}
+        </span>
       </div>
+      <div className="card-actions">
+        <button onClick={trigger}>
+          {domain === 'scene' ? 'Activate' : 'Trigger'}
+        </button>
+      </div>
+      {(lastTriggered || triggerCount !== undefined) && (
+        <div className="card-meta">
+          {triggerCount !== undefined && triggerCount > 0 && (
+            <span>Fired {triggerCount}x</span>
+          )}
+          {lastTriggered && (
+            <span>{triggerCount ? ' \u2022 ' : ''}Last: {relativeTime(lastTriggered)}</span>
+          )}
+        </div>
+      )}
     </div>
   );
 }
