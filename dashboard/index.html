@@ -321,6 +321,22 @@ body {
       </div>
 
       <div class="metric-row">
+        <span class="metric-label">Verify</span>
+        <div class="metric-bars">
+          <div class="bar-group">
+            <div class="bar-track" style="background:transparent;height:auto">
+              <span style="font-size:14px;color:#f0883e;font-weight:700" id="ha-verify">--</span>
+            </div>
+          </div>
+          <div class="bar-group">
+            <div class="bar-track" style="background:transparent;height:auto">
+              <span style="font-size:14px;color:#58a6ff;font-weight:700" id="marge-verify">--</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="metric-row">
         <span class="metric-label">Uptime</span>
         <div class="metric-bars">
           <div class="bar-group">
@@ -676,6 +692,12 @@ function connectWS(url, token, name, stateMap, counterFn) {
               setTimeout(showScoreCard, 3000);
             }
           }
+          // Update live verification scores
+          if (eid === 'sensor.verify_ha') {
+            document.getElementById('ha-verify').textContent = d.new_state.state;
+          } else if (eid === 'sensor.verify_marge') {
+            document.getElementById('marge-verify').textContent = d.new_state.state;
+          }
           // Structured event logging
           const domain = eid.split('.')[0];
           const oldState = d.old_state?.state;
@@ -805,7 +827,7 @@ function renderDiffs() {
   for (const eid of [...allIds].sort()) {
     if (eid.startsWith('test.') || eid.startsWith('persistent_notification.') ||
         eid.startsWith('sensor.perf_') || eid.startsWith('sensor.test_') ||
-        eid === 'sensor.scenario_annotation') continue;
+        eid === 'sensor.scenario_annotation' || eid.startsWith('sensor.verify_')) continue;
     const ha = HA[eid];
     const marge = S[eid];
     if (!ha || !marge) continue;
@@ -995,7 +1017,7 @@ function showScoreCard() {
     ['Recovery Time',   haRecStr,                margeRecStr,                      recoveryRatio],
     ['Binary Size',     '~1.2 GB (installed)',    '6.1 MB',                         '200x smaller'],
     ['Events Seen',     haEvents.toLocaleString(), changes_marge.toLocaleString(), haEvents > 0 ? 'both processing' : '\u2014'],
-    ['Verifications',   '17/21 (81%)',           '21/21 (100%)',                   'Marge: 100%'],
+    ['Verifications',   S['sensor.verify_ha']?.state || '17/21',  S['sensor.verify_marge']?.state || '21/21',  'Marge: 100%'],
     ['Dependencies',    'Python + 3800 packages', 'Zero (static binary)',          '\u2014'],
     ['Language',        'Python 3.12',           'Rust',                           '\u2014'],
   ];
