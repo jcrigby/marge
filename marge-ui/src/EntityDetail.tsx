@@ -1,7 +1,8 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import type { EntityState } from './types';
 import { getDomain, getEntityName } from './types';
 import { callService } from './ws';
+import { toastSuccess, toastError } from './Toast';
 
 function getFriendlyName(entity: EntityState): string {
   return (entity.attributes.friendly_name as string) || getEntityName(entity.entity_id);
@@ -328,10 +329,124 @@ function EntityControls({ entity }: { entity: EntityState }) {
   }
 }
 
+function AttributeEditor({ entity }: { entity: EntityState }) {
+  const [editingKey, setEditingKey] = useState<string | null>(null);
+  const [editVal, setEditVal] = useState('');
+  const attrs = Object.entries(entity.attributes);
+
+  const commitEdit = useCallback((key: string, rawVal: string) => {
+    // Try to parse as JSON (numbers, booleans, arrays, objects), fall back to string
+    let parsed: unknown;
+    try { parsed = JSON.parse(rawVal); } catch { parsed = rawVal; }
+    const newAttrs = { ...entity.attributes, [key]: parsed };
+    fetch(`/api/states/${entity.entity_id}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ state: entity.state, attributes: newAttrs }),
+    }).then((r) => {
+      if (r.ok) toastSuccess(`Set ${key}`);
+      else toastError(`Failed to set ${key}`);
+    });
+    setEditingKey(null);
+  }, [entity]);
+
+  if (attrs.length === 0) return null;
+
+  return (
+    <div className="detail-section">
+      <h4>Attributes</h4>
+      <table className="detail-attrs">
+        <tbody>
+          {attrs.map(([key, val]) => (
+            <tr key={key}>
+              <td className="attr-key">{key}</td>
+              <td className="attr-val">
+                {editingKey === key ? (
+                  <div className="attr-edit-row">
+                    <input
+                      type="text"
+                      className="attr-edit-input"
+                      value={editVal}
+                      onChange={(e) => setEditVal(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') commitEdit(key, editVal);
+                        if (e.key === 'Escape') setEditingKey(null);
+                      }}
+                      autoFocus
+                    />
+                    <button className="attr-edit-btn" onClick={() => commitEdit(key, editVal)}>OK</button>
+                    <button className="attr-edit-btn" onClick={() => setEditingKey(null)}>X</button>
+                  </div>
+                ) : (
+                  <span
+                    className="attr-val-clickable"
+                    onClick={() => {
+                      setEditingKey(key);
+                      setEditVal(typeof val === 'object' ? JSON.stringify(val) : String(val));
+                    }}
+                    title="Click to edit"
+                  >
+                    {typeof val === 'object' ? JSON.stringify(val) : String(val)}
+                  </span>
+                )}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function ServiceCallDialog({ entityId, onClose }: { entityId: string; onClose: () => void }) {
+  const domain = getDomain(entityId);
+  const [svcDomain, setSvcDomain] = useState(domain);
+  const [service, setService] = useState('');
+  const [dataJson, setDataJson] = useState('{}');
+  const [error, setError] = useState('');
+
+  const submit = () => {
+    let data: Record<string, unknown>;
+    try {
+      data = JSON.parse(dataJson);
+    } catch {
+      setError('Invalid JSON');
+      return;
+    }
+    callService(svcDomain, service, entityId, data);
+    onClose();
+  };
+
+  return (
+    <div className="svc-dialog">
+      <h4>Call Service</h4>
+      <div className="svc-row">
+        <label>Domain</label>
+        <input type="text" value={svcDomain} onChange={(e) => setSvcDomain(e.target.value)} />
+      </div>
+      <div className="svc-row">
+        <label>Service</label>
+        <input type="text" value={service} onChange={(e) => setService(e.target.value)}
+          placeholder="e.g. turn_on, set_value" />
+      </div>
+      <div className="svc-row">
+        <label>Data (JSON)</label>
+        <textarea rows={3} value={dataJson} onChange={(e) => { setDataJson(e.target.value); setError(''); }} />
+      </div>
+      {error && <div className="svc-error">{error}</div>}
+      <div className="detail-btn-row">
+        <button className="detail-btn" onClick={submit} disabled={!service.trim()}>Call</button>
+        <button className="detail-btn" onClick={onClose}>Cancel</button>
+      </div>
+    </div>
+  );
+}
+
 export default function EntityDetail({ entity, onClose }: Props) {
   const [history, setHistory] = useState<HistoryEntry[]>([]);
   const [editState, setEditState] = useState('');
   const [editing, setEditing] = useState(false);
+  const [showSvcDialog, setShowSvcDialog] = useState(false);
   // Track entity state changes to auto-refresh history
   const stateKey = `${entity.entity_id}:${entity.state}:${entity.last_changed}`;
 
@@ -356,7 +471,6 @@ export default function EntityDetail({ entity, onClose }: Props) {
     return () => window.removeEventListener('keydown', onKey);
   }, [onClose]);
 
-  const attrs = Object.entries(entity.attributes);
   const hasNumericHistory = history.some((h) => isNumeric(h.state));
 
   return (
@@ -417,23 +531,16 @@ export default function EntityDetail({ entity, onClose }: Props) {
 
         <EntityControls entity={entity} />
 
-        {attrs.length > 0 && (
-          <div className="detail-section">
-            <h4>Attributes</h4>
-            <table className="detail-attrs">
-              <tbody>
-                {attrs.map(([key, val]) => (
-                  <tr key={key}>
-                    <td className="attr-key">{key}</td>
-                    <td className="attr-val">
-                      {typeof val === 'object' ? JSON.stringify(val) : String(val)}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
+        <AttributeEditor entity={entity} />
+
+        <div className="detail-section">
+          <button className="detail-btn svc-call-btn" onClick={() => setShowSvcDialog(!showSvcDialog)}>
+            {showSvcDialog ? 'Hide' : 'Call Service...'}
+          </button>
+          {showSvcDialog && (
+            <ServiceCallDialog entityId={entity.entity_id} onClose={() => setShowSvcDialog(false)} />
+          )}
+        </div>
 
         {hasNumericHistory && (
           <div className="detail-section">
