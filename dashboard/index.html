@@ -1108,6 +1108,9 @@ async function loadHAToken() {
 
   renderHouse();
   renderTimeline();
+
+  // Auto-show score card if ?score query param present
+  if (params.has('score')) setTimeout(showScoreCard, 1500);
 })();
 </script>
 
