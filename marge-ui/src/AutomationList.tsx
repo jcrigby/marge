@@ -15,6 +15,13 @@ interface AutomationInfo {
   enabled: boolean;
 }
 
+interface SceneInfo {
+  id: string;
+  name: string;
+  entity_count: number;
+  entities: string[];
+}
+
 function relativeTime(iso: string): string {
   const diff = Date.now() - new Date(iso).getTime();
   if (diff < 0) return 'just now';
@@ -37,6 +44,26 @@ export default function AutomationList() {
   const [yamlDirty, setYamlDirty] = useState(false);
   const [saving, setSaving] = useState(false);
   const [yamlError, setYamlError] = useState<string | null>(null);
+  const [scenes, setScenes] = useState<SceneInfo[]>([]);
+  const [showSceneEditor, setShowSceneEditor] = useState(false);
+  const [sceneYaml, setSceneYaml] = useState('');
+  const [sceneYamlDirty, setSceneYamlDirty] = useState(false);
+  const [sceneSaving, setSceneSaving] = useState(false);
+  const [sceneYamlError, setSceneYamlError] = useState<string | null>(null);
+  const [activatingScene, setActivatingScene] = useState<string | null>(null);
+
+  const fetchScenes = useCallback(() => {
+    fetch('/api/config/scene/config')
+      .then((r) => r.json())
+      .then(setScenes)
+      .catch(() => setScenes([]));
+  }, []);
+
+  useEffect(() => {
+    fetchScenes();
+    const id = setInterval(fetchScenes, 5000);
+    return () => clearInterval(id);
+  }, [fetchScenes]);
 
   const fetchAutomations = useCallback(() => {
     fetch('/api/config/automation/config')
@@ -117,6 +144,53 @@ export default function AutomationList() {
         }, 500);
       })
       .catch(() => setReloading(false));
+  };
+
+  const loadSceneYaml = () => {
+    fetch('/api/config/scene/yaml')
+      .then((r) => {
+        if (!r.ok) throw new Error(`${r.status}`);
+        return r.text();
+      })
+      .then((text) => {
+        setSceneYaml(text);
+        setSceneYamlDirty(false);
+        setSceneYamlError(null);
+        setShowSceneEditor(true);
+      })
+      .catch(() => toastError('Failed to load scene YAML'));
+  };
+
+  const saveSceneYaml = () => {
+    setSceneSaving(true);
+    setSceneYamlError(null);
+    fetch('/api/config/scene/yaml', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'text/yaml' },
+      body: sceneYaml,
+    })
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.result === 'ok') {
+          toastSuccess('Scene YAML saved');
+          setSceneYamlDirty(false);
+          setTimeout(fetchScenes, 500);
+        } else {
+          setSceneYamlError(data.message || 'Save failed');
+          toastError('Invalid YAML — check syntax');
+        }
+        setSceneSaving(false);
+      })
+      .catch(() => {
+        toastError('Failed to save scene YAML');
+        setSceneSaving(false);
+      });
+  };
+
+  const activateScene = (sceneId: string) => {
+    setActivatingScene(sceneId);
+    callService('scene', 'turn_on', `scene.${sceneId}`);
+    setTimeout(() => setActivatingScene(null), 800);
   };
 
   return (
@@ -238,6 +312,87 @@ export default function AutomationList() {
               ))}
             </tbody>
           </table>
+        </div>
+      )}
+
+      {/* ── Scenes ── */}
+      <div className="automation-header" style={{ marginTop: '2rem' }}>
+        <h2 className="domain-title">
+          Scenes
+          <span className="domain-count">{scenes.length}</span>
+        </h2>
+        <div className="automation-header-actions">
+          <button
+            className={`reload-btn ${showSceneEditor ? 'active-btn' : ''}`}
+            onClick={() => showSceneEditor ? setShowSceneEditor(false) : loadSceneYaml()}
+          >
+            {showSceneEditor ? 'Close Editor' : 'Edit YAML'}
+          </button>
+        </div>
+      </div>
+
+      {showSceneEditor && (
+        <div className="yaml-editor-panel">
+          <div className="yaml-editor-header">
+            <span className="yaml-editor-title">
+              scenes.yaml
+              {sceneYamlDirty && <span className="yaml-dirty"> (modified)</span>}
+            </span>
+            <button
+              className="reload-btn"
+              onClick={saveSceneYaml}
+              disabled={sceneSaving || !sceneYamlDirty}
+            >
+              {sceneSaving ? 'Saving...' : 'Save'}
+            </button>
+          </div>
+          {sceneYamlError && (
+            <div className="yaml-error">{sceneYamlError}</div>
+          )}
+          <textarea
+            className="yaml-textarea"
+            value={sceneYaml}
+            onChange={(e) => {
+              setSceneYaml(e.target.value);
+              setSceneYamlDirty(true);
+              setSceneYamlError(null);
+            }}
+            spellCheck={false}
+          />
+        </div>
+      )}
+
+      {scenes.length === 0 ? (
+        <div className="empty-state">No scenes loaded</div>
+      ) : (
+        <div className="scene-grid">
+          {scenes.map((scene) => (
+            <div
+              key={scene.id}
+              className={`card scene-card ${activatingScene === scene.id ? 'firing-row' : ''}`}
+            >
+              <div className="card-header">
+                <span className="card-name">{scene.name}</span>
+                <span className="domain-count">{scene.entity_count}</span>
+              </div>
+              <div className="auto-id">scene.{scene.id}</div>
+              {scene.entities.length > 0 && (
+                <div className="area-entities">
+                  {scene.entities.map((eid) => (
+                    <span key={eid} className="chip">{eid.split('.')[1]?.replace(/_/g, ' ')}</span>
+                  ))}
+                </div>
+              )}
+              <div className="card-actions">
+                <button
+                  className="trigger-btn"
+                  onClick={() => activateScene(scene.id)}
+                >
+                  Activate
+                </button>
+              </div>
+            </div>
+          ))}
         </div>
       )}
     </div>

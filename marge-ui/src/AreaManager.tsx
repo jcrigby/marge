@@ -7,7 +7,7 @@ interface AreaInfo {
   entities: string[];
 }
 
-export default function AreaManager() {
+export default function AreaManager({ allEntityIds }: { allEntityIds: string[] }) {
   const [areas, setAreas] = useState<AreaInfo[]>([]);
   const [newId, setNewId] = useState('');
   const [newName, setNewName] = useState('');
@@ -40,6 +40,16 @@ export default function AreaManager() {
 
   const deleteArea = (areaId: string) => {
     fetch(`/api/areas/${areaId}`, { method: 'DELETE' })
+      .then(() => setTimeout(fetchAreas, 300));
+  };
+
+  const assignEntity = (areaId: string, entityId: string) => {
+    fetch(`/api/areas/${areaId}/entities/${entityId}`, { method: 'POST' })
+      .then(() => setTimeout(fetchAreas, 300));
+  };
+
+  const unassignEntity = (areaId: string, entityId: string) => {
+    fetch(`/api/areas/${areaId}/entities/${entityId}`, { method: 'DELETE' })
       .then(() => setTimeout(fetchAreas, 300));
   };
 
@@ -81,12 +91,39 @@ export default function AreaManager() {
               </div>
               <div className="auto-id">{area.area_id}</div>
               {area.entities.length > 0 && (
-                <div className="area-entities">
+                <div className="label-entities">
                   {area.entities.map((eid) => (
-                    <span key={eid} className="chip">{eid.split('.')[1]?.replace(/_/g, ' ')}</span>
+                    <span
+                      key={eid}
+                      className="chip label-entity-chip"
+                      onClick={() => unassignEntity(area.area_id, eid)}
+                      title="Click to remove"
+                    >
+                      {eid.split('.')[1]?.replace(/_/g, ' ')} &times;
+                    </span>
                   ))}
                 </div>
               )}
+              <div className="label-assign-row">
+                <select
+                  className="area-input"
+                  defaultValue=""
+                  onChange={(e) => {
+                    if (e.target.value) {
+                      assignEntity(area.area_id, e.target.value);
+                      e.target.value = '';
+                    }
+                  }}
+                >
+                  <option value="">Add entity...</option>
+                  {allEntityIds
+                    .filter((id) => !area.entities.includes(id))
+                    .sort()
+                    .map((id) => (
+                      <option key={id} value={id}>{id}</option>
+                    ))}
+                </select>
+              </div>
               <div className="card-actions">
                 <button onClick={() => deleteArea(area.area_id)}>Delete</button>
               </div>

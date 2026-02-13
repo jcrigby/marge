@@ -1564,3 +1564,19 @@
   flex: 1;
   min-width: 0;
 }
+
+/* ── Scene grid ──────────────────────────── */
+.scene-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 0.75rem;
+}
+.scene-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+.scene-card .card-actions {
+  margin-top: auto;
+  padding-top: 0.5rem;
+}
