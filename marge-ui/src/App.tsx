@@ -546,7 +546,7 @@ function App() {
                         checked={selected.has(entity.entity_id)}
                         onChange={() => toggleSelect(entity.entity_id)}
                       />
-                      <EntityCard entity={entity} />
+                      <EntityCard entity={entity} onDetail={() => setSelectedEntity(entity.entity_id)} />
                       <button
                         className="card-expand-btn"
                         onClick={() => setSelectedEntity(entity.entity_id)}
