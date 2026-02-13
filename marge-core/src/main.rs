@@ -1,4 +1,5 @@
 mod api;
+mod auth;
 mod automation;
 mod discovery;
 mod integrations;
@@ -16,6 +17,7 @@ use std::sync::Arc;
 use tracing_subscriber::EnvFilter;
 
 use api::AppState;
+use auth::AuthConfig;
 use automation::AutomationEngine;
 use scene::SceneEngine;
 use services::ServiceRegistry;
@@ -31,6 +33,9 @@ async fn main() -> anyhow::Result<()> {
         .init();
 
     tracing::info!("Starting Marge v{}", env!("CARGO_PKG_VERSION"));
+
+    // ── Authentication (Phase 4 §4.3) ──────────────────────
+    let auth = Arc::new(AuthConfig::from_env());
 
     // Initialize state machine (SSS §4.1.2)
     let state_machine = state::StateMachine::new(4096);
@@ -220,8 +225,27 @@ async fn main() -> anyhow::Result<()> {
     }
 
     // Build combined router: REST API + WebSocket
-    let app = api::router(app_state.clone(), engine_for_api, scene_engine, service_registry)
-        .merge(websocket::router(app_state.clone()));
+    let mut app = api::router(
+        app_state.clone(),
+        engine_for_api,
+        scene_engine,
+        service_registry,
+        auth.clone(),
+    )
+    .merge(websocket::router(app_state.clone(), auth.clone()));
+
+    // ── Static File Serving (Phase 4 §4.1) ─────────────────
+    let dashboard_path = std::env::var("MARGE_DASHBOARD_PATH")
+        .unwrap_or_else(|_| "/usr/share/marge/ui".to_string());
+    if std::path::Path::new(&dashboard_path).exists() {
+        tracing::info!("Serving dashboard from {:?}", dashboard_path);
+        app = app.fallback_service(
+            tower_http::services::ServeDir::new(&dashboard_path)
+                .fallback(tower_http::services::ServeFile::new(
+                    format!("{}/index.html", dashboard_path),
+                )),
+        );
+    }
 
     // Bind to configured port
     let port: u16 = std::env::var("MARGE_HTTP_PORT")
@@ -238,7 +262,36 @@ async fn main() -> anyhow::Result<()> {
     app_state.startup_us.store(startup_us, std::sync::atomic::Ordering::Relaxed);
     tracing::info!("Listening on {} (startup: {}us / {:.1}ms)", addr, startup_us, startup_us as f64 / 1000.0);
 
-    axum::serve(listener, app).await?;
+    // ── Graceful Shutdown (Phase 6 §6.1) ────────────────────
+    axum::serve(listener, app)
+        .with_graceful_shutdown(shutdown_signal())
+        .await?;
 
+    tracing::info!("Marge shutdown complete");
     Ok(())
+}
+
+/// Wait for SIGTERM or SIGINT for graceful shutdown.
+async fn shutdown_signal() {
+    let ctrl_c = async {
+        tokio::signal::ctrl_c()
+            .await
+            .expect("failed to install Ctrl+C handler");
+    };
+
+    #[cfg(unix)]
+    let terminate = async {
+        tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate())
+            .expect("failed to install signal handler")
+            .recv()
+            .await;
+    };
+
+    #[cfg(not(unix))]
+    let terminate = std::future::pending::<()>();
+
+    tokio::select! {
+        _ = ctrl_c => { tracing::info!("Received SIGINT, shutting down"); }
+        _ = terminate => { tracing::info!("Received SIGTERM, shutting down"); }
+    }
 }

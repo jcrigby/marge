@@ -10,6 +10,7 @@ use std::sync::Arc;
 use tokio::sync::mpsc;
 
 use crate::api::AppState;
+use crate::auth::AuthConfig;
 use crate::state::StateChangedEvent;
 
 /// WebSocket message types (SSS §5.1.2 — HA WebSocket API compatible)
@@ -20,6 +21,8 @@ enum WsOutgoing {
     AuthRequired { ha_version: String },
     #[serde(rename = "auth_ok")]
     AuthOk { ha_version: String },
+    #[serde(rename = "auth_invalid")]
+    AuthInvalid { message: String },
     #[serde(rename = "result")]
     Result { id: u64, success: bool, result: Option<serde_json::Value> },
     #[serde(rename = "event")]
@@ -31,24 +34,33 @@ struct WsIncoming {
     id: Option<u64>,
     #[serde(rename = "type")]
     msg_type: String,
+    access_token: Option<String>,
     #[serde(flatten)]
     _data: serde_json::Value,
 }
 
-pub fn router(state: Arc<AppState>) -> Router {
+/// Combined WebSocket state
+#[derive(Clone)]
+struct WsState {
+    app: Arc<AppState>,
+    auth: Arc<AuthConfig>,
+}
+
+pub fn router(state: Arc<AppState>, auth: Arc<AuthConfig>) -> Router {
+    let ws_state = WsState { app: state, auth };
     Router::new()
         .route("/api/websocket", get(ws_handler))
-        .with_state(state)
+        .with_state(ws_state)
 }
 
 async fn ws_handler(
     ws: WebSocketUpgrade,
-    State(app): State<Arc<AppState>>,
+    State(ws_state): State<WsState>,
 ) -> impl IntoResponse {
-    ws.on_upgrade(move |socket| handle_ws(socket, app))
+    ws.on_upgrade(move |socket| handle_ws(socket, ws_state.app, ws_state.auth))
 }
 
-async fn handle_ws(mut socket: WebSocket, app: Arc<AppState>) {
+async fn handle_ws(mut socket: WebSocket, app: Arc<AppState>, auth: Arc<AuthConfig>) {
     // Send auth_required
     let auth_req = serde_json::to_string(&WsOutgoing::AuthRequired {
         ha_version: env!("CARGO_PKG_VERSION").to_string(),
@@ -63,17 +75,27 @@ async fn handle_ws(mut socket: WebSocket, app: Arc<AppState>) {
         _ => return,
     };
 
-    // Accept any auth (demo mode — no real auth)
+    // Validate auth token
     let parsed: Result<WsIncoming, _> = serde_json::from_str(&auth_msg);
-    if let Ok(msg) = parsed {
-        if msg.msg_type == "auth" {
-            let auth_ok = serde_json::to_string(&WsOutgoing::AuthOk {
-                ha_version: env!("CARGO_PKG_VERSION").to_string(),
-            }).unwrap();
-            if socket.send(Message::Text(auth_ok)).await.is_err() {
+    match parsed {
+        Ok(msg) if msg.msg_type == "auth" => {
+            let token = msg.access_token.as_deref().unwrap_or("");
+            if auth.validate(token) {
+                let auth_ok = serde_json::to_string(&WsOutgoing::AuthOk {
+                    ha_version: env!("CARGO_PKG_VERSION").to_string(),
+                }).unwrap();
+                if socket.send(Message::Text(auth_ok)).await.is_err() {
+                    return;
+                }
+            } else {
+                let auth_invalid = serde_json::to_string(&WsOutgoing::AuthInvalid {
+                    message: "Invalid access token".to_string(),
+                }).unwrap();
+                let _ = socket.send(Message::Text(auth_invalid)).await;
                 return;
             }
         }
+        _ => return,
     }
 
     // Use a channel to bridge state_changed events into the socket loop.

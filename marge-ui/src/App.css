@@ -1,0 +1,231 @@
+/* ── App layout ─────────────────────────────── */
+.app {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 1rem;
+}
+
+.app-header {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  padding: 0.5rem 0 1rem;
+}
+
+.app-header h1 {
+  font-size: 1.5rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.filter-input {
+  flex: 1;
+  max-width: 400px;
+  padding: 0.5rem 1rem;
+  border: 1px solid #3a3a5a;
+  border-radius: var(--radius);
+  background: var(--bg-card);
+  color: var(--text);
+  font-size: 0.9rem;
+  outline: none;
+}
+.filter-input:focus {
+  border-color: var(--accent);
+}
+
+/* ── Health bar ────────────────────────────── */
+.health-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  padding: 0.6rem 1rem;
+  background: var(--bg-card);
+  border-radius: var(--radius);
+  font-size: 0.8rem;
+  color: var(--text-dim);
+  margin-bottom: 1.5rem;
+}
+.health-item strong {
+  color: var(--accent);
+}
+.health-item.sim-time {
+  color: var(--orange);
+  font-weight: 600;
+}
+
+/* ── Domain groups ─────────────────────────── */
+.entity-groups {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.domain-group {}
+
+.domain-title {
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-dim);
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid #2a2a4a;
+  margin-bottom: 0.75rem;
+}
+
+.entity-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 0.75rem;
+}
+
+.empty-state {
+  text-align: center;
+  padding: 4rem 1rem;
+  color: var(--text-dim);
+  font-size: 1.1rem;
+}
+
+/* ── Card base ─────────────────────────────── */
+.card {
+  background: var(--bg-card);
+  border-radius: var(--radius);
+  padding: 0.75rem 1rem;
+  transition: background 0.15s, transform 0.1s;
+  border: 1px solid transparent;
+}
+.card:hover {
+  border-color: #3a3a5a;
+}
+
+.card.is-on,
+.card.is-unlocked,
+.card.is-open {
+  background: var(--bg-card-on);
+  border-color: rgba(108, 140, 255, 0.3);
+}
+
+.card-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+  user-select: none;
+}
+
+.card-icon {
+  font-size: 1.2rem;
+  flex-shrink: 0;
+  width: 1.5rem;
+  text-align: center;
+}
+
+.card-name {
+  flex: 1;
+  font-size: 0.85rem;
+  font-weight: 500;
+  text-transform: capitalize;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.card-state {
+  font-size: 0.75rem;
+  color: var(--text-dim);
+  font-weight: 500;
+}
+.card-state.state-on {
+  color: var(--green);
+}
+.card-state.state-off {
+  color: var(--text-dim);
+}
+
+/* ── Sensor card value ─────────────────────── */
+.card-value {
+  display: flex;
+  align-items: baseline;
+  gap: 0.25rem;
+  padding-top: 0.5rem;
+}
+
+.value-number {
+  font-size: 1.5rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.value-unit {
+  font-size: 0.8rem;
+  color: var(--text-dim);
+}
+
+.value-target {
+  font-size: 0.8rem;
+  color: var(--text-dim);
+  margin-left: 0.5rem;
+}
+
+.card-meta {
+  font-size: 0.7rem;
+  color: var(--text-dim);
+  padding-top: 0.25rem;
+}
+
+/* ── Slider (light brightness) ─────────────── */
+.card-slider {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding-top: 0.5rem;
+}
+
+.card-slider input[type="range"] {
+  flex: 1;
+  accent-color: var(--accent);
+  height: 4px;
+}
+
+.slider-label {
+  font-size: 0.75rem;
+  color: var(--text-dim);
+  min-width: 2.5rem;
+  text-align: right;
+}
+
+/* ── Action buttons (cover) ────────────────── */
+.card-actions {
+  display: flex;
+  gap: 0.5rem;
+  padding-top: 0.5rem;
+}
+
+.card-actions button {
+  flex: 1;
+  padding: 0.3rem 0.5rem;
+  border: 1px solid #3a3a5a;
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--text);
+  font-size: 0.75rem;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.card-actions button:hover {
+  background: var(--bg-card-on);
+  border-color: var(--accent);
+}
+
+/* ── Responsive ────────────────────────────── */
+@media (max-width: 600px) {
+  .app { padding: 0.5rem; }
+  .app-header { flex-direction: column; align-items: stretch; gap: 0.5rem; }
+  .filter-input { max-width: none; }
+  .entity-grid { grid-template-columns: 1fr 1fr; }
+  .health-bar { gap: 0.5rem; font-size: 0.7rem; }
+}
+
+@media (max-width: 380px) {
+  .entity-grid { grid-template-columns: 1fr; }
+}

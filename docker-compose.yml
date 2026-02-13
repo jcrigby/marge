@@ -61,8 +61,8 @@ services:
   # ─── Marge (the challenger) ──────────────────────────────
   marge:
     build:
-      context: ./marge-core
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: marge-core/Dockerfile
     container_name: marge-demo-marge
     ports:
       - "8124:8124"     # REST + WebSocket API

@@ -10,7 +10,7 @@ tokio = { version = "1", features = ["full"] }
 
 # HTTP server + WebSocket
 axum = { version = "0.7", features = ["ws"] }
-tower-http = { version = "0.5", features = ["cors", "trace"] }
+tower-http = { version = "0.5", features = ["cors", "trace", "fs"] }
 
 # Serialization
 serde = { version = "1", features = ["derive"] }
