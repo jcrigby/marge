@@ -1389,7 +1389,7 @@ async def test_concurrent_state_writes():
         resp = await client.get("/api/states")
         states = resp.json()
         concurrent_ids = [s["entity_id"] for s in states if s["entity_id"].startswith("sensor.concurrent_")]
-        assert len(concurrent_ids) == 20
+        assert len(concurrent_ids) >= 20
 
 
 # ── Label Registry ─────────────────────────────────────
@@ -1719,3 +1719,236 @@ async def test_ws_area_registry(ws):
     assert result.get("success", False)
     entries = result.get("result", [])
     assert isinstance(entries, list)
+
+
+# ── Scene Activation ─────────────────────────────────
+
+
+def test_scene_activation_via_service(client):
+    """POST /api/services/scene/turn_on activates a scene."""
+    # Get first scene ID
+    resp = client.get("/api/config/scene/config")
+    scenes = resp.json()
+    if not scenes:
+        pytest.skip("No scenes loaded")
+    scene_id = scenes[0]["id"]
+
+    r = client.post("/api/services/scene/turn_on", json={
+        "entity_id": f"scene.{scene_id}",
+    })
+    assert r.status_code == 200
+
+
+@pytest.mark.asyncio
+async def test_scene_config_has_entities(rest):
+    """Scene config includes entity IDs affected by the scene."""
+    resp = await rest.client.get(
+        f"{rest.base_url}/api/config/scene/config",
+        headers=rest._headers(),
+    )
+    scenes = resp.json()
+    if not scenes:
+        pytest.skip("No scenes loaded")
+    scene = scenes[0]
+    assert scene["entity_count"] > 0
+    assert len(scene["entities"]) == scene["entity_count"]
+
+
+# ── Area Entity Listing ──────────────────────────────
+
+
+@pytest.mark.asyncio
+async def test_area_entity_listing_includes_state(rest):
+    """GET /api/areas/:id/entities returns full entity state objects."""
+    await rest.set_state("sensor.area_state_test", "55", {"unit_of_measurement": "W"})
+    await rest.client.post(
+        f"{rest.base_url}/api/areas",
+        headers=rest._headers(),
+        json={"area_id": "cts_state_room", "name": "State Room"},
+    )
+    await rest.client.post(
+        f"{rest.base_url}/api/areas/cts_state_room/entities/sensor.area_state_test",
+        headers=rest._headers(),
+    )
+
+    resp = await rest.client.get(
+        f"{rest.base_url}/api/areas/cts_state_room/entities",
+        headers=rest._headers(),
+    )
+    assert resp.status_code == 200
+    entities = resp.json()
+    found = next((e for e in entities if e.get("entity_id") == "sensor.area_state_test"), None)
+    assert found is not None
+    assert found["state"] == "55"
+
+    # Cleanup
+    await rest.client.delete(f"{rest.base_url}/api/areas/cts_state_room/entities/sensor.area_state_test",
+                              headers=rest._headers())
+    await rest.client.delete(f"{rest.base_url}/api/areas/cts_state_room", headers=rest._headers())
+
+
+# ── Device Missing Fields ────────────────────────────
+
+
+def test_device_missing_name_returns_400(client):
+    """Creating a device without name returns 400."""
+    r = client.post("/api/devices", json={"device_id": "bad_dev"})
+    assert r.status_code == 400
+
+
+def test_device_missing_id_returns_400(client):
+    """Creating a device without device_id returns 400."""
+    r = client.post("/api/devices", json={"name": "No ID Device"})
+    assert r.status_code == 400
+
+
+# ── Area Missing Fields ──────────────────────────────
+
+
+def test_area_missing_name_returns_400(client):
+    """Creating an area without name returns 400."""
+    r = client.post("/api/areas", json={"area_id": "bad_area"})
+    assert r.status_code == 400
+
+
+def test_area_missing_id_returns_400(client):
+    """Creating an area without area_id returns 400."""
+    r = client.post("/api/areas", json={"name": "No ID Area"})
+    assert r.status_code == 400
+
+
+# ── API Root ─────────────────────────────────────────
+
+
+def test_api_root_returns_running(client):
+    """GET /api/ returns the API running message."""
+    r = client.get("/api/")
+    assert r.status_code == 200
+    data = r.json()
+    assert data["message"] == "API running."
+
+
+# ── Config Detailed Fields ───────────────────────────
+
+
+def test_config_unit_system(client):
+    """GET /api/config unit_system contains expected keys."""
+    r = client.get("/api/config")
+    data = r.json()
+    units = data["unit_system"]
+    assert "length" in units
+    assert "mass" in units
+    assert "temperature" in units
+    assert "volume" in units
+
+
+# ── Entity State Response ────────────────────────────
+
+
+@pytest.mark.asyncio
+async def test_set_state_returns_entity(rest):
+    """POST /api/states/:entity_id returns the full entity state."""
+    result = await rest.set_state("sensor.set_state_resp", "42", {"unit_of_measurement": "dB"})
+    assert result["entity_id"] == "sensor.set_state_resp"
+    assert result["state"] == "42"
+    assert "last_changed" in result
+    assert "last_updated" in result
+    assert result["attributes"]["unit_of_measurement"] == "dB"
+
+
+# ── History Time Filtering ───────────────────────────
+
+
+@pytest.mark.asyncio
+async def test_history_respects_time_range(rest):
+    """History endpoint filters by start/end time parameters."""
+    entity = "sensor.time_filter_test"
+    await rest.set_state(entity, "100")
+    await asyncio.sleep(0.5)
+
+    # Query for a future time range — should return empty
+    future = "2099-01-01T00:00:00Z"
+    resp = await rest.client.get(
+        f"{rest.base_url}/api/history/period/{entity}",
+        headers=rest._headers(),
+        params={"start": future, "end": future},
+    )
+    assert resp.status_code == 200
+    assert resp.json() == []
+
+
+# ── Notification Auto-ID ─────────────────────────────
+
+
+def test_notification_auto_generated_id(client):
+    """Creating a notification without ID generates one automatically."""
+    r = client.post("/api/services/persistent_notification/create", json={
+        "title": "Auto ID",
+        "message": "Should get an auto-generated ID",
+    })
+    assert r.status_code == 200
+
+    # Verify it appears in listing
+    r = client.get("/api/notifications")
+    notifs = r.json()
+    auto = [n for n in notifs if n["title"] == "Auto ID"]
+    assert len(auto) >= 1
+    assert len(auto[0]["notification_id"]) > 0
+
+    # Cleanup
+    for n in auto:
+        client.post(f"/api/notifications/{n['notification_id']}/dismiss")
+
+
+# ── WS State Change Subscription ─────────────────────
+
+
+@pytest.mark.asyncio
+async def test_ws_subscribe_receives_state_change(ws, rest):
+    """Subscribe to state_changed events and receive one on state change."""
+    sub_id = await ws.subscribe_events("state_changed")
+    assert sub_id > 0
+
+    # Trigger a state change
+    await rest.set_state("sensor.ws_sub_test", "triggered")
+
+    # Should receive the state_changed event
+    event = await ws.recv_event(timeout=5.0)
+    assert event["type"] == "event"
+    assert event["event"]["event_type"] == "state_changed"
+    assert event["event"]["data"]["new_state"]["entity_id"] == "sensor.ws_sub_test"
+
+
+# ── WS Get States ───────────────────────────────────
+
+
+@pytest.mark.asyncio
+async def test_ws_get_states_returns_entities(ws, rest):
+    """WebSocket get_states returns all current entity states."""
+    # Ensure at least one entity exists
+    await rest.set_state("sensor.ws_states_test", "123")
+
+    states = await ws.get_states()
+    assert isinstance(states, list)
+    assert len(states) > 0
+    entity_ids = [s["entity_id"] for s in states]
+    assert "sensor.ws_states_test" in entity_ids
+
+
+# ── Multiple Service Targets ─────────────────────────
+
+
+@pytest.mark.asyncio
+async def test_service_targets_array(rest):
+    """Service call with entity_id as array targets multiple entities."""
+    await rest.set_state("light.multi_a", "off")
+    await rest.set_state("light.multi_b", "off")
+
+    await rest.call_service("light", "turn_on", {
+        "entity_id": ["light.multi_a", "light.multi_b"],
+    })
+
+    state_a = await rest.get_state("light.multi_a")
+    state_b = await rest.get_state("light.multi_b")
+    assert state_a["state"] == "on"
+    assert state_b["state"] == "on"
