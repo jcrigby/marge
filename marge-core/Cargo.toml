@@ -38,6 +38,12 @@ uuid = { version = "1", features = ["v4"] }
 anyhow = "1"
 thiserror = "1"
 
+# State persistence (Phase 2 §1.1)
+rusqlite = { version = "0.31", features = ["bundled"] }
+
+# Template engine (Phase 2 §1.3)
+minijinja = "2"
+
 [profile.release]
 opt-level = 3
 lto = true

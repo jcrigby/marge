@@ -6,6 +6,7 @@ use rumqttd::{Broker, Config, ConnectionSettings, Notification, RouterConfig, Se
 use tokio::task::JoinHandle;
 
 use crate::api::AppState;
+use crate::discovery::DiscoveryEngine;
 
 /// Start the embedded MQTT broker and an internal subscriber that
 /// bridges MQTT messages into the state machine.
@@ -13,10 +14,14 @@ use crate::api::AppState;
 /// Topic convention (from ha-assumptions-deep-dive.md):
 ///   home/{domain}/{object_id}/state -> entity_id = {domain}.{object_id}
 ///
+/// Also handles HA MQTT Discovery topics (Phase 2 §1.2):
+///   homeassistant/+/+/config and homeassistant/+/+/+/config
+///
 /// Returns handles for the broker and subscriber tasks.
 pub fn start_mqtt(
     app: Arc<AppState>,
     port: u16,
+    discovery: Arc<DiscoveryEngine>,
 ) -> anyhow::Result<(JoinHandle<()>, JoinHandle<()>)> {
     let addr: SocketAddr = format!("0.0.0.0:{}", port).parse()?;
 
@@ -81,16 +86,41 @@ pub fn start_mqtt(
         tokio::time::sleep(std::time::Duration::from_millis(100)).await;
 
         tokio::task::spawn_blocking(move || {
+            // Subscribe to original home/# topic and discovery topics
             if let Err(e) = link_tx.subscribe("home/#") {
-                tracing::error!("MQTT subscribe failed: {}", e);
+                tracing::error!("MQTT subscribe home/# failed: {}", e);
                 return;
             }
-            tracing::info!("MQTT subscriber listening on home/#");
+            if let Err(e) = link_tx.subscribe("homeassistant/#") {
+                tracing::error!("MQTT subscribe homeassistant/# failed: {}", e);
+                return;
+            }
+            tracing::info!("MQTT subscriber listening on home/# and homeassistant/#");
 
             loop {
                 match link_rx.recv() {
                     Ok(Some(notification)) => {
                         if let Some((topic, payload)) = extract_publish(&notification) {
+                            // Check if this is a discovery topic
+                            if DiscoveryEngine::is_discovery_topic(&topic) {
+                                if let Some(new_topics) = discovery.process_discovery(&topic, &payload) {
+                                    // Subscribe to newly discovered state topics
+                                    for t in new_topics {
+                                        if let Err(e) = link_tx.subscribe(&t) {
+                                            tracing::warn!("Failed to subscribe to {}: {}", t, e);
+                                        }
+                                    }
+                                }
+                                continue;
+                            }
+
+                            // Check if this is a state update for a discovered entity
+                            if discovery.is_subscribed_topic(&topic) {
+                                discovery.process_state_update(&topic, &payload);
+                                continue;
+                            }
+
+                            // Original home/{domain}/{object_id}/state handling
                             if let Some(entity_id) = topic_to_entity_id(&topic) {
                                 let state = String::from_utf8_lossy(&payload).to_string();
                                 tracing::debug!("MQTT -> {} = {}", entity_id, state);
