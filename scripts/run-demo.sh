@@ -125,6 +125,14 @@ case "${1:-full}" in
       HA_TOKEN=$(cat ha-config/.ha_token)
     fi
 
+    # Reset verify scores for clean run
+    curl -sf -X POST http://localhost:8124/api/states/sensor.verify_ha \
+      -H 'Content-Type: application/json' \
+      -d '{"state":"0/0","attributes":{"ok":0,"fail":0,"total":0}}' > /dev/null 2>&1 || true
+    curl -sf -X POST http://localhost:8124/api/states/sensor.verify_marge \
+      -H 'Content-Type: application/json' \
+      -d '{"state":"0/0","attributes":{"ok":0,"fail":0,"total":0}}' > /dev/null 2>&1 || true
+
     for ch in dawn morning sunset goodnight outage; do
       echo -e "\n${BLUE}>>> Chapter: ${ch}${NC}"
       env TARGET=both \
@@ -213,6 +221,14 @@ case "${1:-full}" in
 
     MARGE_BIN="$(pwd)/marge-core/target/release/marge"
     MARGE_START="MARGE_AUTOMATIONS_PATH=$(pwd)/ha-config/automations.yaml MARGE_SCENES_PATH=$(pwd)/ha-config/scenes.yaml MARGE_MQTT_PORT=1884 RUST_LOG=info $MARGE_BIN &"
+
+    # Reset verify scores for clean run
+    curl -sf -X POST http://localhost:8124/api/states/sensor.verify_ha \
+      -H 'Content-Type: application/json' \
+      -d '{"state":"0/0","attributes":{"ok":0,"fail":0,"total":0}}' > /dev/null 2>&1 || true
+    curl -sf -X POST http://localhost:8124/api/states/sensor.verify_marge \
+      -H 'Content-Type: application/json' \
+      -d '{"state":"0/0","attributes":{"ok":0,"fail":0,"total":0}}' > /dev/null 2>&1 || true
 
     for ch in dawn morning sunset goodnight outage; do
       echo -e "\n${BLUE}>>> Chapter: ${ch}${NC}"
