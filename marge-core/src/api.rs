@@ -5,7 +5,10 @@ use axum::{
     routing::{get, post},
     Json, Router,
 };
+use axum::body::Body;
+use axum::extract::Query;
 use serde::{Deserialize, Serialize};
+use std::path::PathBuf;
 use std::sync::Arc;
 
 use crate::auth::AuthConfig;
@@ -32,6 +35,7 @@ struct RouterState {
     scenes: Option<Arc<SceneEngine>>,
     services: Arc<std::sync::RwLock<ServiceRegistry>>,
     auth: Arc<AuthConfig>,
+    db_path: PathBuf,
 }
 
 /// POST /api/states/{entity_id} request body
@@ -88,6 +92,7 @@ pub fn router(
     scenes: Option<Arc<SceneEngine>>,
     services: Arc<std::sync::RwLock<ServiceRegistry>>,
     auth: Arc<AuthConfig>,
+    db_path: PathBuf,
 ) -> Router {
     let router_state = RouterState {
         app: state,
@@ -95,6 +100,7 @@ pub fn router(
         scenes,
         services,
         auth,
+        db_path,
     };
 
     Router::new()
@@ -108,6 +114,14 @@ pub fn router(
         .route("/api/services/:domain/:service", post(call_service))
         .route("/api/health", get(health))
         .route("/api/sim/time", post(set_sim_time))
+        // History API (Phase 5)
+        .route("/api/history/period/:entity_id", get(get_history))
+        // Webhook receiver (Phase 5)
+        .route("/api/webhook/:webhook_id", post(webhook_receiver))
+        // Backup (Phase 6 §6.2)
+        .route("/api/backup", get(create_backup))
+        // Logbook (HA-compatible)
+        .route("/api/logbook/:entity_id", get(get_logbook))
         .with_state(router_state)
 }
 
@@ -333,6 +347,209 @@ async fn health(State(rs): State<RouterState>) -> Json<serde_json::Value> {
         "sim_chapter": sim_chapter,
         "sim_speed": sim_speed,
     }))
+}
+
+/// Query parameters for history endpoint
+#[derive(Deserialize)]
+struct HistoryParams {
+    /// ISO 8601 start time (defaults to 24h ago)
+    start: Option<String>,
+    /// ISO 8601 end time (defaults to now)
+    end: Option<String>,
+}
+
+/// GET /api/history/period/{entity_id} — query state history (HA-compatible)
+async fn get_history(
+    State(rs): State<RouterState>,
+    headers: HeaderMap,
+    Path(entity_id): Path<String>,
+    Query(params): Query<HistoryParams>,
+) -> Result<Json<Vec<serde_json::Value>>, StatusCode> {
+    check_auth(&rs, &headers)?;
+
+    let now = chrono::Utc::now();
+    let end = params.end.unwrap_or_else(|| now.to_rfc3339());
+    let start = params.start.unwrap_or_else(|| {
+        (now - chrono::Duration::hours(24)).to_rfc3339()
+    });
+
+    let db_path = rs.db_path.clone();
+    let eid = entity_id.clone();
+    let entries = tokio::task::spawn_blocking(move || {
+        crate::recorder::query_history(&db_path, &eid, &start, &end)
+    })
+    .await
+    .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
+    .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+    // Return HA-compatible format: array of state objects
+    let result: Vec<serde_json::Value> = entries
+        .into_iter()
+        .map(|e| {
+            let attrs: serde_json::Value = serde_json::from_str(&e.attributes)
+                .unwrap_or(serde_json::Value::Object(Default::default()));
+            serde_json::json!({
+                "entity_id": entity_id,
+                "state": e.state,
+                "attributes": attrs,
+                "last_changed": e.last_changed,
+                "last_updated": e.last_updated,
+            })
+        })
+        .collect();
+
+    Ok(Json(result))
+}
+
+/// POST /api/webhook/{webhook_id} — receive webhook events from external services
+///
+/// Webhooks can set entity state or fire events. The webhook_id maps to an
+/// entity or event based on the payload:
+/// - `{"entity_id": "...", "state": "...", "attributes": {...}}` — set state
+/// - `{"event_type": "...", "data": {...}}` — fire event
+/// - If no entity_id or event_type, fires a `webhook.<webhook_id>` event
+async fn webhook_receiver(
+    State(rs): State<RouterState>,
+    Path(webhook_id): Path<String>,
+    body: Option<Json<serde_json::Value>>,
+) -> Json<serde_json::Value> {
+    let payload = body.map(|b| b.0).unwrap_or(serde_json::Value::Object(Default::default()));
+    tracing::info!(webhook_id = %webhook_id, "Webhook received");
+
+    // If payload specifies entity_id + state, set the state
+    if let (Some(entity_id), Some(state)) = (
+        payload.get("entity_id").and_then(|v| v.as_str()),
+        payload.get("state").and_then(|v| v.as_str()),
+    ) {
+        let attrs = payload
+            .get("attributes")
+            .and_then(|v| v.as_object())
+            .cloned()
+            .unwrap_or_default();
+        rs.app.state_machine.set(entity_id.to_string(), state.to_string(), attrs);
+        return Json(serde_json::json!({"message": "State updated"}));
+    }
+
+    // If payload specifies event_type, fire the event
+    if let Some(event_type) = payload.get("event_type").and_then(|v| v.as_str()) {
+        if let Some(engine) = &rs.engine {
+            engine.on_event(event_type).await;
+        }
+        return Json(serde_json::json!({"message": format!("Event {} fired", event_type)}));
+    }
+
+    // Default: fire a webhook.<id> event
+    let event_type = format!("webhook.{}", webhook_id);
+    if let Some(engine) = &rs.engine {
+        engine.on_event(&event_type).await;
+    }
+    Json(serde_json::json!({"message": format!("Event {} fired", event_type)}))
+}
+
+/// GET /api/backup — download a backup archive (tar.gz of config + DB)
+async fn create_backup(
+    State(rs): State<RouterState>,
+    headers: HeaderMap,
+) -> Result<impl IntoResponse, StatusCode> {
+    check_auth(&rs, &headers)?;
+
+    let db_path = rs.db_path.clone();
+    let backup_data = tokio::task::spawn_blocking(move || {
+        create_backup_archive(&db_path)
+    })
+    .await
+    .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
+    .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+    let timestamp = chrono::Utc::now().format("%Y%m%d_%H%M%S");
+    let disposition = format!("attachment; filename=\"marge_backup_{}.tar.gz\"", timestamp);
+    Ok((
+        [
+            (axum::http::header::CONTENT_TYPE.as_str(), "application/gzip".to_string()),
+            (axum::http::header::CONTENT_DISPOSITION.as_str(), disposition),
+        ],
+        Body::from(backup_data),
+    ))
+}
+
+/// Create a tar.gz backup containing the database and config files.
+fn create_backup_archive(db_path: &std::path::Path) -> anyhow::Result<Vec<u8>> {
+    let buf = Vec::new();
+    let encoder = flate2::write::GzEncoder::new(buf, flate2::Compression::fast());
+    let mut tar = tar::Builder::new(encoder);
+
+    // Add the database file
+    if db_path.exists() {
+        tar.append_path_with_name(db_path, "marge.db")
+            .unwrap_or_else(|e| tracing::warn!("Backup: skip DB: {}", e));
+    }
+
+    // Add WAL files if they exist
+    let wal_path = db_path.with_extension("db-wal");
+    if wal_path.exists() {
+        tar.append_path_with_name(&wal_path, "marge.db-wal")
+            .unwrap_or_else(|e| tracing::warn!("Backup: skip WAL: {}", e));
+    }
+
+    // Add config files
+    let configs = [
+        ("/etc/marge/automations.yaml", "automations.yaml"),
+        ("/etc/marge/scenes.yaml", "scenes.yaml"),
+    ];
+    for (path, name) in configs {
+        let p = std::path::Path::new(path);
+        if p.exists() {
+            tar.append_path_with_name(p, name)
+                .unwrap_or_else(|e| tracing::warn!("Backup: skip {}: {}", name, e));
+        }
+    }
+
+    let encoder = tar.into_inner()?;
+    let archive = encoder.finish()?;
+
+    tracing::info!("Backup created: {} bytes", archive.len());
+    Ok(archive)
+}
+
+/// GET /api/logbook/{entity_id} — return recent state changes as logbook entries
+async fn get_logbook(
+    State(rs): State<RouterState>,
+    headers: HeaderMap,
+    Path(entity_id): Path<String>,
+    Query(params): Query<HistoryParams>,
+) -> Result<Json<Vec<serde_json::Value>>, StatusCode> {
+    check_auth(&rs, &headers)?;
+
+    let now = chrono::Utc::now();
+    let end = params.end.unwrap_or_else(|| now.to_rfc3339());
+    let start = params.start.unwrap_or_else(|| {
+        (now - chrono::Duration::hours(24)).to_rfc3339()
+    });
+
+    let db_path = rs.db_path.clone();
+    let eid = entity_id.clone();
+    let entries = tokio::task::spawn_blocking(move || {
+        crate::recorder::query_history(&db_path, &eid, &start, &end)
+    })
+    .await
+    .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
+    .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+    // Format as logbook entries (simplified state changes with context)
+    let mut logbook = Vec::new();
+    let mut prev_state: Option<String> = None;
+    for e in entries {
+        if prev_state.as_deref() != Some(&e.state) {
+            logbook.push(serde_json::json!({
+                "entity_id": entity_id,
+                "state": e.state,
+                "when": e.last_changed,
+            }));
+            prev_state = Some(e.state);
+        }
+    }
+
+    Ok(Json(logbook))
 }
 
 /// Read RSS from /proc/self/status on Linux

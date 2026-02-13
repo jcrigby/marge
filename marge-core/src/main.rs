@@ -65,6 +65,7 @@ async fn main() -> anyhow::Result<()> {
         .ok()
         .and_then(|v| v.parse().ok())
         .unwrap_or(10);
+    let db_path_for_api = db_path.clone();
     let recorder_tx = recorder::spawn_writer(db_path, retention_days);
 
     let app_state = Arc::new(AppState {
@@ -231,6 +232,7 @@ async fn main() -> anyhow::Result<()> {
         scene_engine,
         service_registry,
         auth.clone(),
+        db_path_for_api,
     )
     .merge(websocket::router(app_state.clone(), auth.clone()));
 

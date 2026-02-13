@@ -44,6 +44,10 @@ rusqlite = { version = "0.31", features = ["bundled"] }
 # Template engine (Phase 2 §1.3)
 minijinja = "2"
 
+# Backup archive (Phase 6 §6.2)
+tar = "0.4"
+flate2 = "1"
+
 [profile.release]
 opt-level = 3
 lto = true
