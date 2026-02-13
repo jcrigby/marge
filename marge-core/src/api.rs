@@ -114,6 +114,7 @@ pub fn router(
         .route("/api/", get(api_status))
         .route("/api/config", get(api_config))
         .route("/api/states", get(get_states))
+        .route("/api/states/search", get(search_states))
         .route("/api/states/:entity_id", get(get_state).post(set_state).delete(delete_state))
         .route("/api/events/:event_type", post(fire_event))
         .route("/api/services/:domain/:service", post(call_service))
@@ -258,6 +259,92 @@ async fn delete_state(
     } else {
         Err(StatusCode::NOT_FOUND)
     }
+}
+
+/// GET /api/states/search?q=text&domain=light&label=critical&area=living_room&state=on
+#[derive(Debug, Deserialize)]
+struct SearchParams {
+    q: Option<String>,
+    domain: Option<String>,
+    state: Option<String>,
+    label: Option<String>,
+    area: Option<String>,
+}
+
+async fn search_states(
+    State(rs): State<RouterState>,
+    headers: HeaderMap,
+    Query(params): Query<SearchParams>,
+) -> Result<Json<Vec<EntityState>>, StatusCode> {
+    check_auth(&rs, &headers)?;
+
+    let mut results = rs.app.state_machine.get_all();
+
+    // Filter by domain
+    if let Some(ref domain) = params.domain {
+        results.retain(|e| e.entity_id.starts_with(&format!("{}.", domain)));
+    }
+
+    // Filter by state value
+    if let Some(ref state_val) = params.state {
+        results.retain(|e| e.state == *state_val);
+    }
+
+    // Filter by text query (entity_id, state, or friendly_name)
+    if let Some(ref q) = params.q {
+        let q_lower = q.to_lowercase();
+        results.retain(|e| {
+            e.entity_id.to_lowercase().contains(&q_lower)
+                || e.state.to_lowercase().contains(&q_lower)
+                || e.attributes.get("friendly_name")
+                    .and_then(|v| v.as_str())
+                    .map(|n| n.to_lowercase().contains(&q_lower))
+                    .unwrap_or(false)
+        });
+    }
+
+    // Filter by label
+    if let Some(ref label_id) = params.label {
+        let db_path = rs.db_path.clone();
+        let lid = label_id.clone();
+        let mappings = tokio::task::spawn_blocking(move || {
+            crate::recorder::load_entity_labels(&db_path)
+        })
+        .await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+        let label_entities: std::collections::HashSet<String> = mappings
+            .into_iter()
+            .filter(|(_, l)| *l == lid)
+            .map(|(e, _)| e)
+            .collect();
+        results.retain(|e| label_entities.contains(&e.entity_id));
+    }
+
+    // Filter by area
+    if let Some(ref area_id) = params.area {
+        let db_path = rs.db_path.clone();
+        let aid = area_id.clone();
+        let mappings = tokio::task::spawn_blocking(move || {
+            crate::recorder::load_area_entities(&db_path)
+        })
+        .await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+        let area_entities: std::collections::HashSet<String> = mappings
+            .into_iter()
+            .filter(|(_, a)| *a == aid)
+            .map(|(e, _)| e)
+            .collect();
+        results.retain(|e| area_entities.contains(&e.entity_id));
+    }
+
+    // Sort by entity_id for deterministic output
+    results.sort_by(|a, b| a.entity_id.cmp(&b.entity_id));
+
+    Ok(Json(results))
 }
 
 /// POST /api/events/{event_type} — fire an event
