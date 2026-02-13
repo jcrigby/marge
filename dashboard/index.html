@@ -473,7 +473,7 @@ const CHAPTERS = [
   { name: 'sunset',    start: '17:25', color: '#f0883e' },
   { name: 'evening',   start: '17:40', color: '#bc8cff' },
   { name: 'goodnight', start: '21:55', color: '#484f58' },
-  { name: 'night',     start: '22:05', color: '#21262d' },
+  { name: 'night',     start: '22:05', color: '#30363d' },
   { name: 'outage',    start: '03:45', color: '#f85149' },
 ];
 
@@ -1023,6 +1023,7 @@ function showScoreCard() {
     ['Docker Image',    '1.78 GB',                '90 MB (6.1 MB binary)',           '20x smaller'],
     ['Events Seen',     haEvents.toLocaleString(), changes_marge.toLocaleString(), haEvents > 0 ? 'both processing' : '\u2014'],
     ['Verifications',   S['sensor.verify_ha']?.state || '17/21',  S['sensor.verify_marge']?.state || '21/21',  'Marge: 100%'],
+    ['API Compat (CTS)', 'Baseline',               '77/77 passing',                 '100%'],
     ['Dependencies',    'Python + 3800 packages', 'Zero (static binary)',          '\u2014'],
     ['Language',        'Python 3.12',           'Rust',                           '\u2014'],
   ];
@@ -1095,6 +1096,7 @@ async function loadHAToken() {
     badge.textContent = currentChapter.toUpperCase() || 'IDLE';
     const chap = CHAPTERS.find(c => c.name === currentChapter);
     badge.style.background = chap ? chap.color : '#238636';
+    badge.style.color = ['night', 'goodnight', 'daytime'].includes(currentChapter) ? '#c9d1d9' : '#fff';
     renderTimeline();
     // Update event rate
     const rate = getEventRate();
