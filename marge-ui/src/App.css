@@ -510,6 +510,166 @@
   font-size: 0.75rem;
 }
 
+/* ── Tab navigation ──────────────────────── */
+.tab-nav {
+  display: flex;
+  gap: 0;
+  margin-bottom: 1rem;
+  border-bottom: 2px solid var(--border-subtle);
+}
+.tab-btn {
+  padding: 0.5rem 1.25rem;
+  border: none;
+  background: none;
+  color: var(--text-dim);
+  font-size: 0.85rem;
+  font-weight: 500;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -2px;
+  transition: all 0.15s;
+}
+.tab-btn:hover {
+  color: var(--text);
+}
+.tab-btn.active {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+}
+.tab-badge {
+  font-size: 0.7rem;
+  font-weight: 500;
+  background: rgba(108, 140, 255, 0.15);
+  padding: 0.1rem 0.35rem;
+  border-radius: 8px;
+  margin-left: 0.3rem;
+}
+
+/* ── Automation list ─────────────────────── */
+.automation-list {
+  padding-top: 0.5rem;
+}
+.automation-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+.reload-btn {
+  padding: 0.35rem 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg-card);
+  color: var(--text);
+  font-size: 0.75rem;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.reload-btn:hover {
+  border-color: var(--accent);
+  background: var(--bg-card-on);
+}
+.reload-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.automation-table-wrap {
+  overflow-x: auto;
+}
+.automation-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8rem;
+}
+.automation-table th {
+  text-align: left;
+  padding: 0.5rem 0.75rem;
+  color: var(--text-dim);
+  font-weight: 500;
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  border-bottom: 1px solid var(--border-subtle);
+}
+.automation-table td {
+  padding: 0.6rem 0.75rem;
+  border-bottom: 1px solid var(--border-subtle);
+  vertical-align: top;
+}
+.automation-table tr:hover {
+  background: var(--bg-card);
+}
+.automation-table tr.disabled-row {
+  opacity: 0.5;
+}
+.automation-table tr.firing-row {
+  animation: fire-flash 0.6s ease-out;
+}
+.auto-alias {
+  font-weight: 500;
+  color: var(--text);
+}
+.auto-desc {
+  font-size: 0.7rem;
+  color: var(--text-dim);
+  margin-top: 0.15rem;
+}
+.auto-id {
+  font-family: monospace;
+  font-size: 0.65rem;
+  color: var(--text-dim);
+  margin-top: 0.15rem;
+}
+.auto-mode {
+  font-size: 0.7rem;
+  padding: 0.15rem 0.4rem;
+  border-radius: 4px;
+  background: rgba(108, 140, 255, 0.1);
+  color: var(--accent);
+}
+.auto-counts {
+  font-family: monospace;
+  font-size: 0.75rem;
+  color: var(--text-dim);
+}
+.auto-fired {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  color: var(--accent);
+}
+.auto-last-triggered {
+  font-size: 0.75rem;
+  color: var(--text-dim);
+}
+.auto-status {
+  font-size: 0.7rem;
+  font-weight: 600;
+  padding: 0.15rem 0.4rem;
+  border-radius: 4px;
+}
+.auto-status.status-on {
+  background: rgba(76, 175, 80, 0.15);
+  color: var(--green);
+}
+.auto-status.status-off {
+  background: rgba(230, 80, 80, 0.15);
+  color: var(--red);
+}
+.trigger-btn {
+  padding: 0.25rem 0.5rem;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--bg);
+  color: var(--text);
+  font-size: 0.7rem;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.trigger-btn:hover {
+  border-color: var(--accent);
+  background: var(--bg-card-on);
+}
+
 /* ── Responsive ────────────────────────────── */
 @media (max-width: 600px) {
   .app { padding: 0.5rem; }

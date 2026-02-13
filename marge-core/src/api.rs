@@ -134,6 +134,10 @@ pub fn router(
         // Automation config + reload
         .route("/api/config/automation/config", get(list_automations))
         .route("/api/config/core/reload", post(reload_automations))
+        // Scene config
+        .route("/api/config/scene/config", get(list_scenes))
+        // Prometheus metrics
+        .route("/metrics", get(prometheus_metrics))
         .with_state(router_state)
 }
 
@@ -704,6 +708,96 @@ async fn reload_automations(
             })))
         }
     }
+}
+
+/// GET /api/config/scene/config — list all scenes with metadata
+async fn list_scenes(
+    State(rs): State<RouterState>,
+    headers: HeaderMap,
+) -> Result<Json<Vec<serde_json::Value>>, StatusCode> {
+    check_auth(&rs, &headers)?;
+
+    match &rs.scenes {
+        Some(scenes) => Ok(Json(scenes.get_scenes_info())),
+        None => Ok(Json(vec![])),
+    }
+}
+
+/// GET /metrics — Prometheus-compatible metrics endpoint
+async fn prometheus_metrics(State(rs): State<RouterState>) -> impl IntoResponse {
+    use std::sync::atomic::Ordering;
+    use std::fmt::Write;
+
+    let pid = std::process::id();
+    let rss_kb = read_rss_kb(pid).unwrap_or(0);
+    let uptime = rs.app.started_at.elapsed().as_secs();
+
+    let m = &rs.app.state_machine.metrics;
+    let state_changes = m.state_changes.load(Ordering::Relaxed);
+    let events_fired = m.events_fired.load(Ordering::Relaxed);
+    let total_ns = m.total_transition_ns.load(Ordering::Relaxed);
+    let max_ns = m.max_transition_ns.load(Ordering::Relaxed);
+    let startup_us = rs.app.startup_us.load(Ordering::Relaxed);
+
+    let avg_us = if state_changes > 0 {
+        (total_ns / state_changes) as f64 / 1000.0
+    } else {
+        0.0
+    };
+
+    let mut out = String::with_capacity(2048);
+
+    let _ = writeln!(out, "# HELP marge_info Marge version info");
+    let _ = writeln!(out, "# TYPE marge_info gauge");
+    let _ = writeln!(out, "marge_info{{version=\"{}\"}} 1", env!("CARGO_PKG_VERSION"));
+
+    let _ = writeln!(out, "# HELP marge_uptime_seconds Time since Marge started");
+    let _ = writeln!(out, "# TYPE marge_uptime_seconds counter");
+    let _ = writeln!(out, "marge_uptime_seconds {}", uptime);
+
+    let _ = writeln!(out, "# HELP marge_startup_seconds Time to start Marge");
+    let _ = writeln!(out, "# TYPE marge_startup_seconds gauge");
+    let _ = writeln!(out, "marge_startup_seconds {:.6}", startup_us as f64 / 1_000_000.0);
+
+    let _ = writeln!(out, "# HELP marge_entity_count Number of entities in state machine");
+    let _ = writeln!(out, "# TYPE marge_entity_count gauge");
+    let _ = writeln!(out, "marge_entity_count {}", rs.app.state_machine.len());
+
+    let _ = writeln!(out, "# HELP marge_state_changes_total Total state transitions");
+    let _ = writeln!(out, "# TYPE marge_state_changes_total counter");
+    let _ = writeln!(out, "marge_state_changes_total {}", state_changes);
+
+    let _ = writeln!(out, "# HELP marge_events_fired_total Total events fired");
+    let _ = writeln!(out, "# TYPE marge_events_fired_total counter");
+    let _ = writeln!(out, "marge_events_fired_total {}", events_fired);
+
+    let _ = writeln!(out, "# HELP marge_latency_avg_microseconds Average state transition latency");
+    let _ = writeln!(out, "# TYPE marge_latency_avg_microseconds gauge");
+    let _ = writeln!(out, "marge_latency_avg_microseconds {:.2}", avg_us);
+
+    let _ = writeln!(out, "# HELP marge_latency_max_microseconds Max state transition latency");
+    let _ = writeln!(out, "# TYPE marge_latency_max_microseconds gauge");
+    let _ = writeln!(out, "marge_latency_max_microseconds {:.2}", max_ns as f64 / 1000.0);
+
+    let _ = writeln!(out, "# HELP marge_memory_rss_bytes Resident set size in bytes");
+    let _ = writeln!(out, "# TYPE marge_memory_rss_bytes gauge");
+    let _ = writeln!(out, "marge_memory_rss_bytes {}", rss_kb * 1024);
+
+    // Automation trigger counts
+    if let Some(engine) = &rs.engine {
+        let infos = engine.get_automations_info();
+        let _ = writeln!(out, "# HELP marge_automation_triggers_total Total triggers per automation");
+        let _ = writeln!(out, "# TYPE marge_automation_triggers_total counter");
+        for info in &infos {
+            let _ = writeln!(out, "marge_automation_triggers_total{{id=\"{}\",alias=\"{}\"}} {}",
+                info.id, info.alias.replace('"', "\\\""), info.total_triggers);
+        }
+    }
+
+    (
+        [(axum::http::header::CONTENT_TYPE.as_str(), "text/plain; version=0.0.4; charset=utf-8")],
+        out,
+    )
 }
 
 /// Read RSS from /proc/self/status on Linux

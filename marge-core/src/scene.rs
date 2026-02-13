@@ -67,7 +67,21 @@ impl SceneEngine {
         false
     }
 
-    pub fn scene_ids(&self) -> Vec<String> {
-        self.scenes.iter().map(|s| s.id.clone()).collect()
+    /// Get scene IDs and names (for entity registration).
+    pub fn scene_ids(&self) -> Vec<(String, String)> {
+        self.scenes.iter().map(|s| (s.id.clone(), s.name.clone())).collect()
+    }
+
+    /// Get scene info for API responses.
+    pub fn get_scenes_info(&self) -> Vec<serde_json::Value> {
+        self.scenes.iter().map(|s| {
+            let entity_ids: Vec<&str> = s.entities.keys().map(|k| k.as_str()).collect();
+            serde_json::json!({
+                "id": s.id,
+                "name": s.name,
+                "entity_count": s.entities.len(),
+                "entities": entity_ids,
+            })
+        }).collect()
     }
 }
