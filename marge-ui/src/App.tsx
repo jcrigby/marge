@@ -121,7 +121,51 @@ interface AreaInfo {
   entities: string[];
 }
 
-type GroupMode = 'domain' | 'area';
+interface LabelInfo {
+  label_id: string;
+  name: string;
+  color: string;
+  entities: string[];
+}
+
+type GroupMode = 'domain' | 'area' | 'label';
+
+function groupByLabel(entities: EntityState[], labels: LabelInfo[]): Map<string, EntityState[]> {
+  const labelMap = new Map<string, Set<string>>();
+  const labelNames = new Map<string, string>();
+  for (const label of labels) {
+    labelMap.set(label.label_id, new Set(label.entities));
+    labelNames.set(label.label_id, label.name);
+  }
+
+  const groups = new Map<string, EntityState[]>();
+  const unassigned: EntityState[] = [];
+
+  for (const e of entities) {
+    let found = false;
+    for (const [labelId, entitySet] of labelMap) {
+      if (entitySet.has(e.entity_id)) {
+        const name = labelNames.get(labelId) || labelId;
+        if (!groups.has(name)) groups.set(name, []);
+        groups.get(name)!.push(e);
+        found = true;
+        // Don't break — entity can be in multiple labels
+      }
+    }
+    if (!found) unassigned.push(e);
+  }
+
+  for (const [, list] of groups) {
+    list.sort((a, b) => a.entity_id.localeCompare(b.entity_id));
+  }
+
+  const sorted = new Map([...groups.entries()].sort((a, b) => a[0].localeCompare(b[0])));
+  if (unassigned.length > 0) {
+    unassigned.sort((a, b) => a.entity_id.localeCompare(b.entity_id));
+    sorted.set('Unassigned', unassigned);
+  }
+  return sorted;
+}
 
 function groupByArea(entities: EntityState[], areas: AreaInfo[]): Map<string, EntityState[]> {
   const areaMap = new Map<string, Set<string>>();
@@ -215,6 +259,7 @@ function App() {
   const [activeTab, setActiveTab] = useState<TabName>(initial.tab);
   const [groupMode, setGroupMode] = useState<GroupMode>('domain');
   const [areas, setAreas] = useState<AreaInfo[]>([]);
+  const [labels, setLabels] = useState<LabelInfo[]>([]);
   const [showHelp, setShowHelp] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -284,16 +329,17 @@ function App() {
     return () => clearInterval(id);
   }, []);
 
-  // Fetch areas for area grouping
+  // Fetch areas and labels for grouping
   useEffect(() => {
     const fetchAreas = () => {
-      fetch('/api/areas')
-        .then((r) => r.json())
-        .then(setAreas)
-        .catch(() => setAreas([]));
+      fetch('/api/areas').then((r) => r.json()).then(setAreas).catch(() => setAreas([]));
+    };
+    const fetchLabels = () => {
+      fetch('/api/labels').then((r) => r.json()).then(setLabels).catch(() => setLabels([]));
     };
     fetchAreas();
-    const id = setInterval(fetchAreas, 10000);
+    fetchLabels();
+    const id = setInterval(() => { fetchAreas(); fetchLabels(); }, 10000);
     return () => clearInterval(id);
   }, []);
 
@@ -383,6 +429,8 @@ function App() {
   const filteredList = filtered();
   const groups = groupMode === 'area'
     ? groupByArea(filteredList, areas)
+    : groupMode === 'label'
+    ? groupByLabel(filteredList, labels)
     : groupByDomain(filteredList);
 
   return (
@@ -521,6 +569,12 @@ function App() {
                 onClick={() => setGroupMode('area')}
               >
                 By Area
+              </button>
+              <button
+                className={`chip ${groupMode === 'label' ? 'active' : ''}`}
+                onClick={() => setGroupMode('label')}
+              >
+                By Label
               </button>
             </div>
           </div>
