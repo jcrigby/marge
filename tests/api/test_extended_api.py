@@ -2806,3 +2806,122 @@ async def test_events_list_includes_state_changed(rest):
     data = resp.json()
     events = [e["event"] for e in data]
     assert "state_changed" in events
+
+
+# ── Media Player Services ──────────────────────────
+
+
+@pytest.mark.asyncio
+async def test_media_player_play_pause(rest):
+    """media_player.media_play and media_pause toggle state."""
+    await rest.set_state("media_player.speaker", "paused")
+    await rest.call_service("media_player", "media_play", {"entity_id": "media_player.speaker"})
+    state = await rest.get_state("media_player.speaker")
+    assert state["state"] == "playing"
+
+    await rest.call_service("media_player", "media_pause", {"entity_id": "media_player.speaker"})
+    state = await rest.get_state("media_player.speaker")
+    assert state["state"] == "paused"
+
+
+@pytest.mark.asyncio
+async def test_media_player_volume_set(rest):
+    """media_player.volume_set updates volume_level attribute."""
+    await rest.set_state("media_player.tv", "on")
+    await rest.call_service("media_player", "volume_set", {"entity_id": "media_player.tv", "volume_level": 0.65})
+    state = await rest.get_state("media_player.tv")
+    assert state["attributes"]["volume_level"] == 0.65
+
+
+@pytest.mark.asyncio
+async def test_media_player_turn_on_off(rest):
+    """media_player.turn_on and turn_off toggle power."""
+    await rest.set_state("media_player.amp", "off")
+    await rest.call_service("media_player", "turn_on", {"entity_id": "media_player.amp"})
+    state = await rest.get_state("media_player.amp")
+    assert state["state"] == "on"
+
+    await rest.call_service("media_player", "turn_off", {"entity_id": "media_player.amp"})
+    state = await rest.get_state("media_player.amp")
+    assert state["state"] == "off"
+
+
+# ── Vacuum Services ────────────────────────────────
+
+
+@pytest.mark.asyncio
+async def test_vacuum_start_stop(rest):
+    """vacuum.start and stop control cleaning state."""
+    await rest.set_state("vacuum.roborock", "idle")
+    await rest.call_service("vacuum", "start", {"entity_id": "vacuum.roborock"})
+    state = await rest.get_state("vacuum.roborock")
+    assert state["state"] == "cleaning"
+
+    await rest.call_service("vacuum", "stop", {"entity_id": "vacuum.roborock"})
+    state = await rest.get_state("vacuum.roborock")
+    assert state["state"] == "idle"
+
+
+@pytest.mark.asyncio
+async def test_vacuum_return_to_base(rest):
+    """vacuum.return_to_base sets state to returning."""
+    await rest.set_state("vacuum.dyson", "cleaning")
+    await rest.call_service("vacuum", "return_to_base", {"entity_id": "vacuum.dyson"})
+    state = await rest.get_state("vacuum.dyson")
+    assert state["state"] == "returning"
+
+
+# ── Number Services ────────────────────────────────
+
+
+@pytest.mark.asyncio
+async def test_number_set_value(rest):
+    """number.set_value sets the state to the numeric value."""
+    await rest.set_state("number.brightness", "50")
+    await rest.call_service("number", "set_value", {"entity_id": "number.brightness", "value": 75})
+    state = await rest.get_state("number.brightness")
+    assert state["state"] == "75"
+
+
+# ── Select Services ────────────────────────────────
+
+
+@pytest.mark.asyncio
+async def test_select_option(rest):
+    """select.select_option sets the selected option as state."""
+    await rest.set_state("select.color_mode", "warm")
+    await rest.call_service("select", "select_option", {"entity_id": "select.color_mode", "option": "cool"})
+    state = await rest.get_state("select.color_mode")
+    assert state["state"] == "cool"
+
+
+# ── Siren Services ─────────────────────────────────
+
+
+@pytest.mark.asyncio
+async def test_siren_on_off(rest):
+    """siren.turn_on and turn_off toggle siren state."""
+    await rest.set_state("siren.alarm", "off")
+    await rest.call_service("siren", "turn_on", {"entity_id": "siren.alarm"})
+    state = await rest.get_state("siren.alarm")
+    assert state["state"] == "on"
+
+    await rest.call_service("siren", "turn_off", {"entity_id": "siren.alarm"})
+    state = await rest.get_state("siren.alarm")
+    assert state["state"] == "off"
+
+
+# ── Valve Services ─────────────────────────────────
+
+
+@pytest.mark.asyncio
+async def test_valve_open_close(rest):
+    """valve.open_valve and close_valve toggle valve state."""
+    await rest.set_state("valve.water_main", "closed")
+    await rest.call_service("valve", "open_valve", {"entity_id": "valve.water_main"})
+    state = await rest.get_state("valve.water_main")
+    assert state["state"] == "open"
+
+    await rest.call_service("valve", "close_valve", {"entity_id": "valve.water_main"})
+    state = await rest.get_state("valve.water_main")
+    assert state["state"] == "closed"
