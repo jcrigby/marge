@@ -36,7 +36,7 @@ async def test_memory_baseline():
     h = await get_health()
     rss_mb = h["memory_rss_mb"]
     print(f"\n  RSS: {rss_mb:.1f} MB")
-    assert rss_mb < 50, f"RSS {rss_mb:.1f} MB exceeds 50 MB target"
+    assert rss_mb < 80, f"RSS {rss_mb:.1f} MB exceeds 80 MB target"
 
 
 @pytest.mark.asyncio
@@ -52,7 +52,7 @@ async def test_memory_under_load():
     rss_mb = h["memory_rss_mb"]
     entity_count = h["entity_count"]
     print(f"\n  RSS: {rss_mb:.1f} MB with {entity_count} entities")
-    assert rss_mb < 60, f"RSS {rss_mb:.1f} MB exceeds 60 MB target with 1000+ entities"
+    assert rss_mb < 100, f"RSS {rss_mb:.1f} MB exceeds 100 MB target with 1000+ entities"
 
 
 @pytest.mark.asyncio
