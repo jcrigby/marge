@@ -444,6 +444,46 @@ function ServiceCallDialog({ entityId, onClose }: { entityId: string; onClose: (
   );
 }
 
+interface StatsBucket {
+  hour: string;
+  min: number;
+  max: number;
+  mean: number;
+  count: number;
+}
+
+function StatsPanel({ entityId }: { entityId: string }) {
+  const [stats, setStats] = useState<StatsBucket[]>([]);
+
+  useEffect(() => {
+    const now = new Date();
+    const start = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+    fetch(`/api/statistics/${encodeURIComponent(entityId)}?start=${start.toISOString()}&end=${now.toISOString()}`)
+      .then((r) => r.json())
+      .then((data: StatsBucket[]) => setStats(data))
+      .catch(() => setStats([]));
+  }, [entityId]);
+
+  if (stats.length === 0) return null;
+
+  const allMin = Math.min(...stats.map((s) => s.min));
+  const allMax = Math.max(...stats.map((s) => s.max));
+  const allMean = stats.reduce((a, s) => a + s.mean * s.count, 0) / Math.max(1, stats.reduce((a, s) => a + s.count, 0));
+  const total = stats.reduce((a, s) => a + s.count, 0);
+
+  return (
+    <div className="detail-section">
+      <h4>Statistics (24h)</h4>
+      <div className="stats-summary">
+        <div className="stats-kv"><span className="stats-label">Min</span><span className="stats-val">{allMin.toFixed(1)}</span></div>
+        <div className="stats-kv"><span className="stats-label">Max</span><span className="stats-val">{allMax.toFixed(1)}</span></div>
+        <div className="stats-kv"><span className="stats-label">Mean</span><span className="stats-val">{allMean.toFixed(1)}</span></div>
+        <div className="stats-kv"><span className="stats-label">Samples</span><span className="stats-val">{total}</span></div>
+      </div>
+    </div>
+  );
+}
+
 export default function EntityDetail({ entity, onClose, onPrev, onNext }: Props) {
   const [history, setHistory] = useState<HistoryEntry[]>([]);
   const [editState, setEditState] = useState('');
@@ -560,6 +600,8 @@ export default function EntityDetail({ entity, onClose, onPrev, onNext }: Props)
             <HistoryChart entries={history} />
           </div>
         )}
+
+        {isNumeric(entity.state) && <StatsPanel entityId={entity.entity_id} />}
 
         {history.length > 0 && (
           <div className="detail-section">

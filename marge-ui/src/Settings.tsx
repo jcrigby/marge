@@ -18,6 +18,68 @@ interface DiagnosticData {
   labels: number;
 }
 
+interface MetricEntry {
+  name: string;
+  value: string;
+  labels: string;
+}
+
+function parsePrometheus(text: string): MetricEntry[] {
+  const entries: MetricEntry[] = [];
+  for (const line of text.split('\n')) {
+    if (line.startsWith('#') || line.trim() === '') continue;
+    const match = line.match(/^(\w+)(?:\{(.+?)\})?\s+(.+)$/);
+    if (match) {
+      entries.push({ name: match[1], value: match[3], labels: match[2] || '' });
+    }
+  }
+  return entries;
+}
+
+function MetricsPanel() {
+  const [metrics, setMetrics] = useState<MetricEntry[]>([]);
+
+  useEffect(() => {
+    const fetchMetrics = () => {
+      fetch('/metrics')
+        .then((r) => r.text())
+        .then((text) => setMetrics(parsePrometheus(text)))
+        .catch(() => setMetrics([]));
+    };
+    fetchMetrics();
+    const id = setInterval(fetchMetrics, 5000);
+    return () => clearInterval(id);
+  }, []);
+
+  if (metrics.length === 0) return null;
+
+  return (
+    <div className="settings-section">
+      <h2 className="domain-title">Prometheus Metrics</h2>
+      <div className="metrics-table-wrap">
+        <table className="metrics-table">
+          <thead>
+            <tr>
+              <th>Metric</th>
+              <th>Labels</th>
+              <th>Value</th>
+            </tr>
+          </thead>
+          <tbody>
+            {metrics.map((m, i) => (
+              <tr key={i}>
+                <td className="metric-name">{m.name}</td>
+                <td className="metric-labels">{m.labels}</td>
+                <td className="metric-value">{m.value}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
 export default function Settings({ health }: { health: HealthData | null }) {
   const [tokens, setTokens] = useState<TokenInfo[]>([]);
   const [newTokenName, setNewTokenName] = useState('');
@@ -182,6 +244,9 @@ export default function Settings({ health }: { health: HealthData | null }) {
           Downloads a tar.gz archive containing the database, automations, and scenes.
         </p>
       </div>
+
+      {/* Live Metrics */}
+      <MetricsPanel />
 
       {/* Diagnostics */}
       {diag && (

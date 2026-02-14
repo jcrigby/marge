@@ -245,6 +245,61 @@ function ConfirmDialog({ message, onConfirm, onCancel }: {
   );
 }
 
+function QuickActions({ entities }: { entities: EntityState[] }) {
+  const [open, setOpen] = useState(false);
+  const scenes = entities.filter((e) => getDomain(e.entity_id) === 'scene');
+  const automations = entities.filter((e) => getDomain(e.entity_id) === 'automation');
+
+  if (scenes.length === 0 && automations.length === 0) return null;
+
+  const activate = (e: EntityState) => {
+    const domain = getDomain(e.entity_id);
+    if (domain === 'scene') {
+      import('./ws').then((ws) => ws.callService('scene', 'turn_on', e.entity_id));
+    } else {
+      import('./ws').then((ws) => ws.callService('automation', 'trigger', e.entity_id));
+    }
+  };
+
+  return (
+    <div className="notif-center">
+      <button className="theme-toggle" onClick={() => setOpen(!open)} title="Quick actions">
+        {'\u26A1'}
+      </button>
+      {open && (
+        <div className="notif-dropdown quick-actions-dropdown" onClick={(e) => e.stopPropagation()}>
+          <div className="notif-header">
+            <span className="notif-title">Quick Actions</span>
+            <button className="notif-dismiss" onClick={() => setOpen(false)}>&times;</button>
+          </div>
+          <div className="quick-actions-list">
+            {scenes.length > 0 && (
+              <div className="quick-actions-group">
+                <div className="quick-actions-group-title">Scenes</div>
+                {scenes.map((s) => (
+                  <button key={s.entity_id} className="quick-action-btn" onClick={() => activate(s)}>
+                    {(s.attributes.friendly_name as string) || s.entity_id.split('.')[1]?.replace(/_/g, ' ')}
+                  </button>
+                ))}
+              </div>
+            )}
+            {automations.length > 0 && (
+              <div className="quick-actions-group">
+                <div className="quick-actions-group-title">Automations</div>
+                {automations.map((a) => (
+                  <button key={a.entity_id} className="quick-action-btn" onClick={() => activate(a)}>
+                    {(a.attributes.friendly_name as string) || a.entity_id.split('.')[1]?.replace(/_/g, ' ')}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function App() {
   const initial = readUrlParams();
   const [entities, setEntities] = useState<EntityState[]>([]);
@@ -426,6 +481,26 @@ function App() {
     return { lights, lightsOn, locks, locksLocked, climate, alarm, numericSensors };
   }, [entities]);
 
+  // Compute entity badges (area + label names)
+  const entityBadges = useMemo(() => {
+    const badges = new Map<string, { area?: string; labels: Array<{ name: string; color: string }> }>();
+    for (const area of areas) {
+      for (const eid of area.entities) {
+        const b = badges.get(eid) || { labels: [] };
+        b.area = area.name;
+        badges.set(eid, b);
+      }
+    }
+    for (const label of labels) {
+      for (const eid of label.entities) {
+        const b = badges.get(eid) || { labels: [] };
+        b.labels.push({ name: label.name, color: label.color });
+        badges.set(eid, b);
+      }
+    }
+    return badges;
+  }, [areas, labels]);
+
   const filteredList = filtered();
   const groups = groupMode === 'area'
     ? groupByArea(filteredList, areas)
@@ -446,6 +521,7 @@ function App() {
           onChange={(e) => setFilter(e.target.value)}
           onKeyDown={(e) => { if (e.key === 'Escape') { setFilter(''); filterRef.current?.blur(); }}}
         />
+        <QuickActions entities={entities} />
         <NotificationCenter />
         <button
           className="theme-toggle"
@@ -584,6 +660,40 @@ function App() {
               <span>{selected.size} selected</span>
               <button className="bulk-btn" onClick={selectAll}>Select All</button>
               <button className="bulk-btn" onClick={clearSelection}>Clear</button>
+              {areas.length > 0 && (
+                <select
+                  className="bulk-select"
+                  value=""
+                  onChange={(e) => {
+                    const areaId = e.target.value;
+                    if (!areaId) return;
+                    Promise.all([...selected].map((eid) =>
+                      fetch(`/api/areas/${areaId}/entities/${encodeURIComponent(eid)}`, { method: 'POST' })
+                    ));
+                    e.target.value = '';
+                  }}
+                >
+                  <option value="">Assign to Area...</option>
+                  {areas.map((a) => <option key={a.area_id} value={a.area_id}>{a.name}</option>)}
+                </select>
+              )}
+              {labels.length > 0 && (
+                <select
+                  className="bulk-select"
+                  value=""
+                  onChange={(e) => {
+                    const labelId = e.target.value;
+                    if (!labelId) return;
+                    Promise.all([...selected].map((eid) =>
+                      fetch(`/api/labels/${labelId}/entities/${encodeURIComponent(eid)}`, { method: 'POST' })
+                    ));
+                    e.target.value = '';
+                  }}
+                >
+                  <option value="">Assign to Label...</option>
+                  {labels.map((l) => <option key={l.label_id} value={l.label_id}>{l.name}</option>)}
+                </select>
+              )}
               <button className="bulk-btn bulk-btn-danger" onClick={() => setConfirmDelete(true)}>
                 Delete Selected
               </button>
@@ -606,7 +716,7 @@ function App() {
                         checked={selected.has(entity.entity_id)}
                         onChange={() => toggleSelect(entity.entity_id)}
                       />
-                      <EntityCard entity={entity} onDetail={() => setSelectedEntity(entity.entity_id)} />
+                      <EntityCard entity={entity} onDetail={() => setSelectedEntity(entity.entity_id)} badges={entityBadges.get(entity.entity_id)} />
                       <button
                         className="card-expand-btn"
                         onClick={() => setSelectedEntity(entity.entity_id)}
