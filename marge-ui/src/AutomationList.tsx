@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { callService } from './ws';
 import { toastSuccess, toastError } from './Toast';
+import AutomationEditor from './AutomationEditor';
 
 interface AutomationInfo {
   id: string;
@@ -51,6 +52,7 @@ export default function AutomationList() {
   const [sceneSaving, setSceneSaving] = useState(false);
   const [sceneYamlError, setSceneYamlError] = useState<string | null>(null);
   const [activatingScene, setActivatingScene] = useState<string | null>(null);
+  const [showVisualEditor, setShowVisualEditor] = useState(false);
 
   const fetchScenes = useCallback(() => {
     fetch('/api/config/scene/config')
@@ -202,8 +204,14 @@ export default function AutomationList() {
         </h2>
         <div className="automation-header-actions">
           <button
+            className={`reload-btn ${showVisualEditor ? 'active-btn' : ''}`}
+            onClick={() => { setShowVisualEditor((v) => !v); if (!showVisualEditor) setShowEditor(false); }}
+          >
+            {showVisualEditor ? 'Close Builder' : 'New Automation'}
+          </button>
+          <button
             className={`reload-btn ${showEditor ? 'active-btn' : ''}`}
-            onClick={() => showEditor ? setShowEditor(false) : loadYaml()}
+            onClick={() => { if (showEditor) { setShowEditor(false); } else { loadYaml(); setShowVisualEditor(false); } }}
           >
             {showEditor ? 'Close Editor' : 'Edit YAML'}
           </button>
@@ -246,6 +254,16 @@ export default function AutomationList() {
             spellCheck={false}
           />
         </div>
+      )}
+
+      {showVisualEditor && (
+        <AutomationEditor
+          onClose={() => setShowVisualEditor(false)}
+          onSaved={() => {
+            setShowVisualEditor(false);
+            setTimeout(fetchAutomations, 500);
+          }}
+        />
       )}
 
       {automations.length === 0 ? (
