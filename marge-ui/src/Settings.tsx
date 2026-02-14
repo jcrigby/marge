@@ -198,6 +198,10 @@ export default function Settings({ health }: { health: HealthData | null }) {
               <span className="settings-key">State Changes</span>
               <span className="settings-val">{health.state_changes}</span>
             </div>
+            <div className="settings-kv">
+              <span className="settings-key">WS Clients</span>
+              <span className="settings-val">{health.ws_connections}</span>
+            </div>
           </div>
         ) : (
           <div className="empty-state">Connecting...</div>

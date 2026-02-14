@@ -2619,3 +2619,190 @@ async def test_history_entries_ordered_by_time(rest):
     data = resp.json()
     timestamps = [e["last_changed"] for e in data]
     assert timestamps == sorted(timestamps)
+
+
+# ── Health & Metrics Endpoint ──────────────────────
+
+
+@pytest.mark.asyncio
+async def test_health_ws_connections_field(rest):
+    """Health endpoint includes ws_connections field."""
+    resp = await rest.client.get(
+        f"{rest.base_url}/api/health",
+        headers=rest._headers(),
+    )
+    assert resp.status_code == 200
+    data = resp.json()
+    assert "ws_connections" in data
+    assert isinstance(data["ws_connections"], int)
+    assert data["ws_connections"] >= 0
+
+
+@pytest.mark.asyncio
+async def test_health_all_fields_present(rest):
+    """Health endpoint returns all expected fields."""
+    resp = await rest.client.get(
+        f"{rest.base_url}/api/health",
+        headers=rest._headers(),
+    )
+    data = resp.json()
+    required = [
+        "status", "version", "entity_count", "memory_rss_mb",
+        "uptime_seconds", "startup_ms", "state_changes",
+        "latency_avg_us", "latency_max_us", "ws_connections",
+    ]
+    for field in required:
+        assert field in data, f"Missing field: {field}"
+
+
+@pytest.mark.asyncio
+async def test_prometheus_metrics_endpoint(rest):
+    """GET /metrics returns Prometheus-format text."""
+    resp = await rest.client.get(f"{rest.base_url}/metrics")
+    assert resp.status_code == 200
+    text = resp.text
+    assert "marge_entity_count" in text
+    assert "marge_uptime_seconds" in text
+    assert "marge_ws_connections" in text
+    assert "marge_memory_rss_bytes" in text
+
+
+# ── Search API ─────────────────────────────────────
+
+
+@pytest.mark.asyncio
+async def test_search_by_domain_async(rest):
+    """GET /api/states/search?domain=light filters by domain (async)."""
+    await rest.set_state("light.search_test1", "on")
+    await rest.set_state("sensor.search_test1", "42")
+    resp = await rest.client.get(
+        f"{rest.base_url}/api/states/search?domain=light",
+        headers=rest._headers(),
+    )
+    assert resp.status_code == 200
+    results = resp.json()
+    assert all(e["entity_id"].startswith("light.") for e in results)
+
+
+@pytest.mark.asyncio
+async def test_search_by_state_async(rest):
+    """GET /api/states/search?state=on filters by state value (async)."""
+    await rest.set_state("switch.search_on", "on")
+    await rest.set_state("switch.search_off", "off")
+    resp = await rest.client.get(
+        f"{rest.base_url}/api/states/search?state=on",
+        headers=rest._headers(),
+    )
+    assert resp.status_code == 200
+    results = resp.json()
+    assert all(e["state"] == "on" for e in results)
+
+
+@pytest.mark.asyncio
+async def test_search_by_text_query(rest):
+    """GET /api/states/search?q=text matches entity_id."""
+    await rest.set_state("sensor.unique_search_xyz", "99")
+    resp = await rest.client.get(
+        f"{rest.base_url}/api/states/search?q=unique_search_xyz",
+        headers=rest._headers(),
+    )
+    assert resp.status_code == 200
+    results = resp.json()
+    assert any(e["entity_id"] == "sensor.unique_search_xyz" for e in results)
+
+
+# ── Label CRUD ─────────────────────────────────────
+
+
+@pytest.mark.asyncio
+async def test_label_crud_async(rest):
+    """Labels can be created, listed, and deleted (async)."""
+    resp = await rest.client.post(
+        f"{rest.base_url}/api/labels",
+        headers=rest._headers(),
+        json={"label_id": "cts_test_label", "name": "CTS Label", "color": "#ff0000"},
+    )
+    assert resp.status_code == 200
+
+    resp = await rest.client.get(
+        f"{rest.base_url}/api/labels",
+        headers=rest._headers(),
+    )
+    labels = resp.json()
+    assert any(l["label_id"] == "cts_test_label" for l in labels)
+
+    resp = await rest.client.delete(
+        f"{rest.base_url}/api/labels/cts_test_label",
+        headers=rest._headers(),
+    )
+    assert resp.status_code == 200
+
+
+@pytest.mark.asyncio
+async def test_label_entity_assign_unassign(rest):
+    """Entities can be labeled and unlabeled."""
+    await rest.set_state("sensor.label_test", "42")
+    await rest.client.post(
+        f"{rest.base_url}/api/labels",
+        headers=rest._headers(),
+        json={"label_id": "cts_assign_label", "name": "Assign Label", "color": "#00ff00"},
+    )
+
+    resp = await rest.client.post(
+        f"{rest.base_url}/api/labels/cts_assign_label/entities/sensor.label_test",
+        headers=rest._headers(),
+    )
+    assert resp.status_code == 200
+
+    resp = await rest.client.get(
+        f"{rest.base_url}/api/labels",
+        headers=rest._headers(),
+    )
+    label = next(l for l in resp.json() if l["label_id"] == "cts_assign_label")
+    assert "sensor.label_test" in label["entities"]
+
+    # Unassign
+    resp = await rest.client.delete(
+        f"{rest.base_url}/api/labels/cts_assign_label/entities/sensor.label_test",
+        headers=rest._headers(),
+    )
+    assert resp.status_code == 200
+
+    # Cleanup
+    await rest.client.delete(
+        f"{rest.base_url}/api/labels/cts_assign_label",
+        headers=rest._headers(),
+    )
+
+
+# ── Service Listing ────────────────────────────────
+
+
+@pytest.mark.asyncio
+async def test_services_list_includes_light(rest):
+    """GET /api/services includes light domain with turn_on."""
+    resp = await rest.client.get(
+        f"{rest.base_url}/api/services",
+        headers=rest._headers(),
+    )
+    assert resp.status_code == 200
+    data = resp.json()
+    light = next((d for d in data if d["domain"] == "light"), None)
+    assert light is not None
+    assert "turn_on" in light["services"]
+
+
+# ── Event Types ────────────────────────────────────
+
+
+@pytest.mark.asyncio
+async def test_events_list_includes_state_changed(rest):
+    """GET /api/events returns list including state_changed."""
+    resp = await rest.client.get(
+        f"{rest.base_url}/api/events",
+        headers=rest._headers(),
+    )
+    assert resp.status_code == 200
+    data = resp.json()
+    events = [e["event"] for e in data]
+    assert "state_changed" in events

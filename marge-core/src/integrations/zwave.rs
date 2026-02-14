@@ -97,7 +97,7 @@ impl ZwaveBridge {
         if subtopic.starts_with("_CLIENTS/ZWAVE_GATEWAY-") {
             if let Some(name_end) = subtopic.find("/api/") {
                 let name = &subtopic["_CLIENTS/ZWAVE_GATEWAY-".len()..name_end];
-                *self.gateway_name.write().unwrap() = Some(name.to_string());
+                *self.gateway_name.write().unwrap_or_else(|e| e.into_inner()) = Some(name.to_string());
             }
             return;
         }
@@ -128,7 +128,7 @@ impl ZwaveBridge {
 
     /// Build a command topic to set a value on a Z-Wave node.
     pub fn write_value_topic(&self, _node_name: &str, _cc: u32, _endpoint: u32, _property: &str) -> Option<String> {
-        let gw = self.gateway_name.read().unwrap();
+        let gw = self.gateway_name.read().unwrap_or_else(|e| e.into_inner());
         let gw_name = gw.as_ref()?;
         Some(format!(
             "zwave/_CLIENTS/ZWAVE_GATEWAY-{}/api/writeValue/set",
