@@ -47,6 +47,13 @@ const DOMAIN_ICONS: Record<string, string> = {
   input_number: '\u{1F522}',
   input_select: '\u{1F4CB}',
   input_text: '\u{1F4DD}',
+  media_player: '\u{1F3B5}',
+  vacuum: '\u{1F9F9}',
+  number: '\u{1F522}',
+  select: '\u{1F4CB}',
+  siren: '\u{1F4E2}',
+  valve: '\u{1F6B0}',
+  button: '\u{1F518}',
 };
 
 function domainIcon(domain: string): string {
@@ -471,6 +478,170 @@ function InputTextCard({ entity }: { entity: EntityState }) {
   );
 }
 
+// Media player card with play/pause, volume, source
+function MediaPlayerCard({ entity }: { entity: EntityState }) {
+  const state = entity.state;
+  const volume = entity.attributes.volume_level as number | undefined;
+  const source = entity.attributes.source as string | undefined;
+  const mediaTitle = entity.attributes.media_title as string | undefined;
+  const isPlaying = state === 'playing';
+  const isOff = state === 'off';
+
+  const setVolume = (val: number) => {
+    callService('media_player', 'volume_set', entity.entity_id, { volume_level: val });
+  };
+
+  return (
+    <div className={`card card-media-player ${isPlaying ? 'is-on' : ''}`}>
+      <div className="card-header">
+        <span className="card-icon">{domainIcon('media_player')}</span>
+        <CardNameBlock entity={entity} />
+        <span className={`card-state ${isPlaying ? 'state-on' : ''}`}>{state}</span>
+      </div>
+      {mediaTitle && <div className="card-meta">{mediaTitle}</div>}
+      {source && <div className="card-meta">Source: {source}</div>}
+      <div className="card-actions">
+        {isOff ? (
+          <button onClick={() => callService('media_player', 'turn_on', entity.entity_id)}>On</button>
+        ) : (
+          <>
+            <button onClick={() => callService('media_player', isPlaying ? 'media_pause' : 'media_play', entity.entity_id)}>
+              {isPlaying ? 'Pause' : 'Play'}
+            </button>
+            <button onClick={() => callService('media_player', 'turn_off', entity.entity_id)}>Off</button>
+          </>
+        )}
+      </div>
+      {volume !== undefined && !isOff && (
+        <div className="card-slider">
+          <input
+            type="range"
+            min={0}
+            max={1}
+            step={0.01}
+            value={volume}
+            onChange={(e) => setVolume(Number(e.target.value))}
+          />
+          <span className="slider-label">{Math.round(volume * 100)}%</span>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Vacuum card with start/stop/dock controls
+function VacuumCard({ entity }: { entity: EntityState }) {
+  const state = entity.state;
+  const isCleaning = state === 'cleaning';
+
+  return (
+    <div className={`card card-vacuum ${isCleaning ? 'is-on' : ''}`}>
+      <div className="card-header">
+        <span className="card-icon">{domainIcon('vacuum')}</span>
+        <CardNameBlock entity={entity} />
+        <span className={`card-state ${isCleaning ? 'state-on' : ''}`}>{state}</span>
+      </div>
+      <div className="card-actions">
+        <button onClick={() => callService('vacuum', 'start', entity.entity_id)}>Start</button>
+        <button onClick={() => callService('vacuum', 'stop', entity.entity_id)}>Stop</button>
+        <button onClick={() => callService('vacuum', 'return_to_base', entity.entity_id)}>Dock</button>
+      </div>
+      <div className="card-timestamp">{relativeTime(entity.last_changed)}</div>
+    </div>
+  );
+}
+
+// Number entity card with slider (domain = "number", not "input_number")
+function NumberCard({ entity }: { entity: EntityState }) {
+  const min = (entity.attributes.min as number) ?? 0;
+  const max = (entity.attributes.max as number) ?? 100;
+  const step = (entity.attributes.step as number) ?? 1;
+  const unit = (entity.attributes.unit_of_measurement as string) || '';
+  const val = parseFloat(entity.state) || 0;
+
+  const setValue = (v: number) => {
+    callService('number', 'set_value', entity.entity_id, { value: v });
+  };
+
+  return (
+    <div className="card card-number">
+      <div className="card-header">
+        <span className="card-icon">{domainIcon('number')}</span>
+        <CardNameBlock entity={entity} />
+      </div>
+      <div className="card-value">
+        <span className="value-number">{entity.state}</span>
+        {unit && <span className="value-unit">{unit}</span>}
+      </div>
+      <div className="card-slider">
+        <input
+          type="range"
+          min={min}
+          max={max}
+          step={step}
+          value={val}
+          onChange={(e) => setValue(Number(e.target.value))}
+        />
+        <span className="slider-label">{val}</span>
+      </div>
+    </div>
+  );
+}
+
+// Select entity card with dropdown (domain = "select", not "input_select")
+function SelectCard({ entity }: { entity: EntityState }) {
+  const options = (entity.attributes.options as string[]) || [];
+
+  const selectOption = (option: string) => {
+    callService('select', 'select_option', entity.entity_id, { option });
+  };
+
+  return (
+    <div className="card card-select">
+      <div className="card-header">
+        <span className="card-icon">{domainIcon('select')}</span>
+        <CardNameBlock entity={entity} />
+      </div>
+      <div className="card-select-wrap">
+        <select
+          value={entity.state}
+          onChange={(e) => selectOption(e.target.value)}
+        >
+          {options.map((opt) => (
+            <option key={opt} value={opt}>{opt}</option>
+          ))}
+          {!options.includes(entity.state) && (
+            <option value={entity.state}>{entity.state}</option>
+          )}
+        </select>
+      </div>
+    </div>
+  );
+}
+
+// Button entity card — press action
+function ButtonCard({ entity }: { entity: EntityState }) {
+  const [pressing, setPressing] = useState(false);
+
+  const press = () => {
+    setPressing(true);
+    callService('button', 'press', entity.entity_id);
+    setTimeout(() => setPressing(false), 600);
+  };
+
+  return (
+    <div className={`card card-button ${pressing ? 'is-firing' : ''}`}>
+      <div className="card-header">
+        <span className="card-icon">{domainIcon('button')}</span>
+        <CardNameBlock entity={entity} />
+      </div>
+      <div className="card-actions">
+        <button onClick={press}>Press</button>
+      </div>
+    </div>
+  );
+}
+
 // Generic fallback card
 function GenericCard({ entity }: { entity: EntityState }) {
   const domain = getDomain(entity.entity_id);
@@ -514,6 +685,16 @@ function CardInner({ entity }: { entity: EntityState }) {
       return <FanCard entity={entity} />;
     case 'alarm_control_panel':
       return <AlarmCard entity={entity} />;
+    case 'media_player':
+      return <MediaPlayerCard entity={entity} />;
+    case 'vacuum':
+      return <VacuumCard entity={entity} />;
+    case 'number':
+      return <NumberCard entity={entity} />;
+    case 'select':
+      return <SelectCard entity={entity} />;
+    case 'button':
+      return <ButtonCard entity={entity} />;
     case 'automation':
     case 'scene':
       return <AutomationCard entity={entity} />;
