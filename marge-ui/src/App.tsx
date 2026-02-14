@@ -470,11 +470,26 @@ function App() {
     }
     if (filter) {
       const q = filter.toLowerCase();
-      list = list.filter((e) =>
-        e.entity_id.toLowerCase().includes(q) ||
-        e.state.toLowerCase().includes(q) ||
-        ((e.attributes.friendly_name as string) || '').toLowerCase().includes(q)
-      );
+      // Support prefix operators: domain:light, state:on, attr:friendly_name=Kitchen
+      const domainMatch = q.match(/^domain:(\S+)$/);
+      const stateMatch = q.match(/^state:(\S+)$/);
+      const attrMatch = q.match(/^attr:(\S+)=(.+)$/);
+      if (domainMatch) {
+        list = list.filter((e) => getDomain(e.entity_id) === domainMatch[1]);
+      } else if (stateMatch) {
+        list = list.filter((e) => e.state.toLowerCase() === stateMatch[1]);
+      } else if (attrMatch) {
+        const [, key, val] = attrMatch;
+        list = list.filter((e) =>
+          String(e.attributes[key] ?? '').toLowerCase().includes(val)
+        );
+      } else {
+        list = list.filter((e) =>
+          e.entity_id.toLowerCase().includes(q) ||
+          e.state.toLowerCase().includes(q) ||
+          ((e.attributes.friendly_name as string) || '').toLowerCase().includes(q)
+        );
+      }
     }
     return list;
   }, [entities, filter, domainFilter]);
@@ -533,7 +548,7 @@ function App() {
           ref={filterRef}
           className="filter-input"
           type="text"
-          placeholder="Filter entities... (/ to focus)"
+          placeholder="Filter... (/ to focus, domain:light, state:on)"
           value={filter}
           onChange={(e) => setFilter(e.target.value)}
           onKeyDown={(e) => { if (e.key === 'Escape') { setFilter(''); filterRef.current?.blur(); }}}
