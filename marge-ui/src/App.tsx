@@ -10,6 +10,7 @@ import AutomationList from './AutomationList'
 import AreaManager from './AreaManager'
 import DeviceManager from './DeviceManager'
 import EventLog from './EventLog'
+import IntegrationManager from './IntegrationManager'
 import LabelManager from './LabelManager'
 import NotificationCenter from './NotificationCenter'
 import Settings from './Settings'
@@ -227,9 +228,9 @@ function groupByArea(entities: EntityState[], areas: AreaInfo[]): Map<string, En
   return sorted;
 }
 
-type TabName = 'entities' | 'automations' | 'areas' | 'devices' | 'labels' | 'logs' | 'settings';
+type TabName = 'entities' | 'automations' | 'areas' | 'devices' | 'labels' | 'integrations' | 'logs' | 'settings';
 
-const VALID_TABS: TabName[] = ['entities', 'automations', 'areas', 'devices', 'labels', 'logs', 'settings'];
+const VALID_TABS: TabName[] = ['entities', 'automations', 'areas', 'devices', 'labels', 'integrations', 'logs', 'settings'];
 
 function readUrlParams(): { tab: TabName; q: string; domain: string | null } {
   const params = new URLSearchParams(window.location.search);
@@ -455,14 +456,15 @@ function App() {
           filterRef.current?.blur();
         }
       }
-      // Tab switching: 1-7
+      // Tab switching: 1-8
       if (e.key === '1') setActiveTab('entities');
       if (e.key === '2') setActiveTab('automations');
       if (e.key === '3') setActiveTab('areas');
       if (e.key === '4') setActiveTab('devices');
       if (e.key === '5') setActiveTab('labels');
-      if (e.key === '6') setActiveTab('logs');
-      if (e.key === '7') setActiveTab('settings');
+      if (e.key === '6') setActiveTab('integrations');
+      if (e.key === '7') setActiveTab('logs');
+      if (e.key === '8') setActiveTab('settings');
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
@@ -618,6 +620,12 @@ function App() {
           onClick={() => setActiveTab('labels')}
         >
           Labels
+        </button>
+        <button
+          className={`tab-btn ${activeTab === 'integrations' ? 'active' : ''}`}
+          onClick={() => setActiveTab('integrations')}
+        >
+          Integrations
         </button>
         <button
           className={`tab-btn ${activeTab === 'logs' ? 'active' : ''}`}
@@ -849,6 +857,10 @@ function App() {
         <LabelManager allEntityIds={entities.map((e) => e.entity_id)} />
       )}
 
+      {activeTab === 'integrations' && (
+        <IntegrationManager />
+      )}
+
       {activeTab === 'logs' && (
         <EventLog entities={entities} />
       )}
@@ -885,8 +897,9 @@ function App() {
                 <div className="help-row"><kbd>3</kbd><span>Areas</span></div>
                 <div className="help-row"><kbd>4</kbd><span>Devices</span></div>
                 <div className="help-row"><kbd>5</kbd><span>Labels</span></div>
-                <div className="help-row"><kbd>6</kbd><span>Logs</span></div>
-                <div className="help-row"><kbd>7</kbd><span>Settings</span></div>
+                <div className="help-row"><kbd>6</kbd><span>Integrations</span></div>
+                <div className="help-row"><kbd>7</kbd><span>Logs</span></div>
+                <div className="help-row"><kbd>8</kbd><span>Settings</span></div>
               </div>
               <div className="help-section">
                 <h4>Actions</h4>

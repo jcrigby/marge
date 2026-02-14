@@ -61,6 +61,33 @@ async fn main() -> anyhow::Result<()> {
         }
     };
 
+    // ── Default Admin User (Phase 7) ────────────────────────
+    match recorder::count_users(&db_path) {
+        Ok(0) => {
+            match auth::hash_password("admin") {
+                Ok(hash) => {
+                    match recorder::create_user(&db_path, "admin", &hash, Some("Admin")) {
+                        Ok(()) => {
+                            tracing::warn!("No users found — created default admin/admin. Change the password!");
+                        }
+                        Err(e) => {
+                            tracing::error!("Failed to create default admin user: {}", e);
+                        }
+                    }
+                }
+                Err(e) => {
+                    tracing::error!("Failed to hash default admin password: {}", e);
+                }
+            }
+        }
+        Ok(n) => {
+            tracing::info!("Found {} user account(s)", n);
+        }
+        Err(e) => {
+            tracing::warn!("Failed to check user accounts: {}", e);
+        }
+    }
+
     // Load long-lived access tokens from DB
     match recorder::init_tokens(&db_path) {
         Ok(tokens) => {
