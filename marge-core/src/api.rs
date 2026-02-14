@@ -27,6 +27,7 @@ pub struct AppState {
     pub sim_chapter: std::sync::Mutex<String>,
     pub sim_speed: std::sync::atomic::AtomicU32,
     pub ws_connections: std::sync::atomic::AtomicU32,
+    pub plugin_count: std::sync::atomic::AtomicUsize,
 }
 
 /// Combined router state
@@ -38,7 +39,7 @@ struct RouterState {
     services: Arc<std::sync::RwLock<ServiceRegistry>>,
     auth: Arc<AuthConfig>,
     db_path: PathBuf,
-    _automations_path: PathBuf,
+    automations_path: PathBuf,
     scenes_path: PathBuf,
     z2m_bridge: Arc<zigbee2mqtt::Zigbee2MqttBridge>,
     zwave_bridge: Arc<zwave::ZwaveBridge>,
@@ -116,7 +117,7 @@ pub fn router(
         services,
         auth,
         db_path,
-        _automations_path: automations_path,
+        automations_path,
         scenes_path,
         z2m_bridge,
         zwave_bridge,
@@ -141,6 +142,7 @@ pub fn router(
         .route("/api/webhook/:webhook_id", post(webhook_receiver))
         // Backup (Phase 6 §6.2)
         .route("/api/backup", get(create_backup))
+        .route("/api/restore", post(restore_backup))
         // Logbook (HA-compatible)
         .route("/api/logbook", get(get_logbook_global))
         .route("/api/logbook/:entity_id", get(get_logbook))
@@ -578,6 +580,7 @@ async fn health(State(rs): State<RouterState>) -> Json<serde_json::Value> {
         "sim_chapter": sim_chapter,
         "sim_speed": sim_speed,
         "ws_connections": rs.app.ws_connections.load(Ordering::Relaxed),
+        "plugins_loaded": rs.app.plugin_count.load(Ordering::Relaxed),
     }))
 }
 
@@ -741,6 +744,105 @@ fn create_backup_archive(db_path: &std::path::Path) -> anyhow::Result<Vec<u8>> {
 
     tracing::info!("Backup created: {} bytes", archive.len());
     Ok(archive)
+}
+
+/// POST /api/restore — upload a tar.gz backup and restore it
+async fn restore_backup(
+    State(rs): State<RouterState>,
+    headers: HeaderMap,
+    body: axum::body::Bytes,
+) -> Result<Json<serde_json::Value>, StatusCode> {
+    check_auth(&rs, &headers)?;
+
+    let db_path = rs.db_path.clone();
+    let automations_path = rs.automations_path.clone();
+    let scenes_path = rs.scenes_path.clone();
+    let archive_data = body.to_vec();
+
+    let files_restored = tokio::task::spawn_blocking(move || {
+        restore_backup_archive(&archive_data, &db_path, &automations_path, &scenes_path)
+    })
+    .await
+    .map_err(|e| {
+        tracing::error!("Restore task join error: {}", e);
+        StatusCode::INTERNAL_SERVER_ERROR
+    })?
+    .map_err(|e| {
+        tracing::error!("Restore failed: {}", e);
+        StatusCode::INTERNAL_SERVER_ERROR
+    })?;
+
+    // Reload automations if the engine is available
+    if let Some(engine) = &rs.engine {
+        match engine.reload() {
+            Ok(count) => tracing::info!("Post-restore: reloaded {} automations", count),
+            Err(e) => tracing::warn!("Post-restore: automation reload failed: {}", e),
+        }
+    }
+
+    Ok(Json(serde_json::json!({
+        "result": "ok",
+        "files_restored": files_restored,
+    })))
+}
+
+/// Extract a tar.gz backup archive, restoring DB and config files.
+fn restore_backup_archive(
+    archive_data: &[u8],
+    db_path: &std::path::Path,
+    automations_path: &std::path::Path,
+    scenes_path: &std::path::Path,
+) -> anyhow::Result<usize> {
+    use flate2::read::GzDecoder;
+    use std::io::Read;
+
+    let decoder = GzDecoder::new(archive_data);
+    let mut archive = tar::Archive::new(decoder);
+    let mut count = 0;
+
+    for entry in archive.entries()? {
+        let mut entry = entry?;
+        let path = entry.path()?.to_path_buf();
+        let filename = path.to_string_lossy().to_string();
+
+        match filename.as_str() {
+            "marge.db" => {
+                let mut data = Vec::new();
+                entry.read_to_end(&mut data)?;
+                std::fs::write(db_path, &data)?;
+                tracing::info!("Restored {} ({} bytes)", filename, data.len());
+                count += 1;
+            }
+            "marge.db-wal" => {
+                let wal_path = db_path.with_extension("db-wal");
+                let mut data = Vec::new();
+                entry.read_to_end(&mut data)?;
+                std::fs::write(&wal_path, &data)?;
+                tracing::info!("Restored {} ({} bytes)", filename, data.len());
+                count += 1;
+            }
+            "automations.yaml" => {
+                let mut data = Vec::new();
+                entry.read_to_end(&mut data)?;
+                std::fs::write(automations_path, &data)?;
+                tracing::info!("Restored {} ({} bytes)", filename, data.len());
+                count += 1;
+            }
+            "scenes.yaml" => {
+                let mut data = Vec::new();
+                entry.read_to_end(&mut data)?;
+                std::fs::write(scenes_path, &data)?;
+                tracing::info!("Restored {} ({} bytes)", filename, data.len());
+                count += 1;
+            }
+            _ => {
+                tracing::warn!("Restore: skipping unknown file: {}", filename);
+            }
+        }
+    }
+
+    tracing::info!("Restore complete: {} files restored", count);
+    Ok(count)
 }
 
 /// GET /api/logbook — global logbook (recent state changes across all entities)

@@ -210,6 +210,7 @@ mod tests {
             sim_chapter: std::sync::Mutex::new(String::new()),
             sim_speed: std::sync::atomic::AtomicU32::new(0),
             ws_connections: std::sync::atomic::AtomicU32::new(0),
+            plugin_count: std::sync::atomic::AtomicUsize::new(0),
         });
         ESPHomeBridge::new(app)
     }
