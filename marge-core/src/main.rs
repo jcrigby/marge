@@ -256,6 +256,7 @@ async fn main() -> anyhow::Result<()> {
 
     // Build combined router: REST API + WebSocket
     let service_registry_for_ws = service_registry.clone();
+    let scene_engine_for_ws = scene_engine.clone();
     let mut app = api::router(
         app_state.clone(),
         engine_for_api,
@@ -266,7 +267,10 @@ async fn main() -> anyhow::Result<()> {
         automations_path,
         scenes_path,
     )
-    .merge(websocket::router(app_state.clone(), auth.clone(), service_registry_for_ws, db_path_for_ws));
+    .merge(websocket::router(
+        app_state.clone(), auth.clone(), service_registry_for_ws,
+        db_path_for_ws, engine.clone(), scene_engine_for_ws,
+    ));
 
     // ── Static File Serving (Phase 4 §4.1) ─────────────────
     let dashboard_path = std::env::var("MARGE_DASHBOARD_PATH")

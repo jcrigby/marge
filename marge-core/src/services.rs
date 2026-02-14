@@ -331,6 +331,24 @@ impl ServiceRegistry {
             Some(ServiceResult { state: "closed".to_string(), attributes: attrs })
         });
 
+        self.register("cover", "stop_cover", |call, sm| {
+            let attrs = sm.get(&call.entity_id).map(|s| s.attributes.clone()).unwrap_or_default();
+            let state = sm.get(&call.entity_id).map(|s| s.state.clone()).unwrap_or_else(|| "open".to_string());
+            Some(ServiceResult { state, attributes: attrs })
+        });
+
+        self.register("cover", "toggle", |call, sm| {
+            let current = sm.get(&call.entity_id);
+            let new_state = match current.as_ref().map(|s| s.state.as_str()) {
+                Some("open") => "closed",
+                _ => "open",
+            };
+            let mut attrs = current.map(|s| s.attributes.clone()).unwrap_or_default();
+            let pos = if new_state == "open" { 100 } else { 0 };
+            attrs.insert("current_position".to_string(), serde_json::json!(pos));
+            Some(ServiceResult { state: new_state.to_string(), attributes: attrs })
+        });
+
         self.register("cover", "set_cover_position", |call, sm| {
             let mut attrs = sm.get(&call.entity_id).map(|s| s.attributes.clone()).unwrap_or_default();
             if let Some(pos) = call.data.get("position") {
@@ -356,6 +374,16 @@ impl ServiceRegistry {
         self.register("fan", "turn_off", |call, sm| {
             let attrs = sm.get(&call.entity_id).map(|s| s.attributes.clone()).unwrap_or_default();
             Some(ServiceResult { state: "off".to_string(), attributes: attrs })
+        });
+
+        self.register("fan", "toggle", |call, sm| {
+            let current = sm.get(&call.entity_id);
+            let new_state = match current.as_ref().map(|s| s.state.as_str()) {
+                Some("on") => "off",
+                _ => "on",
+            };
+            let attrs = current.map(|s| s.attributes.clone()).unwrap_or_default();
+            Some(ServiceResult { state: new_state.to_string(), attributes: attrs })
         });
 
         self.register("fan", "set_percentage", |call, sm| {
@@ -390,6 +418,32 @@ impl ServiceRegistry {
         self.register("media_player", "media_pause", |call, sm| {
             let attrs = sm.get(&call.entity_id).map(|s| s.attributes.clone()).unwrap_or_default();
             Some(ServiceResult { state: "paused".to_string(), attributes: attrs })
+        });
+
+        self.register("media_player", "media_stop", |call, sm| {
+            let attrs = sm.get(&call.entity_id).map(|s| s.attributes.clone()).unwrap_or_default();
+            Some(ServiceResult { state: "idle".to_string(), attributes: attrs })
+        });
+
+        self.register("media_player", "media_next_track", |call, sm| {
+            let attrs = sm.get(&call.entity_id).map(|s| s.attributes.clone()).unwrap_or_default();
+            let state = sm.get(&call.entity_id).map(|s| s.state.clone()).unwrap_or_else(|| "playing".to_string());
+            Some(ServiceResult { state, attributes: attrs })
+        });
+
+        self.register("media_player", "media_previous_track", |call, sm| {
+            let attrs = sm.get(&call.entity_id).map(|s| s.attributes.clone()).unwrap_or_default();
+            let state = sm.get(&call.entity_id).map(|s| s.state.clone()).unwrap_or_else(|| "playing".to_string());
+            Some(ServiceResult { state, attributes: attrs })
+        });
+
+        self.register("media_player", "select_source", |call, sm| {
+            let mut attrs = sm.get(&call.entity_id).map(|s| s.attributes.clone()).unwrap_or_default();
+            if let Some(source) = call.data.get("source") {
+                attrs.insert("source".to_string(), source.clone());
+            }
+            let state = sm.get(&call.entity_id).map(|s| s.state.clone()).unwrap_or_else(|| "on".to_string());
+            Some(ServiceResult { state, attributes: attrs })
         });
 
         self.register("media_player", "volume_set", |call, sm| {
@@ -434,6 +488,27 @@ impl ServiceRegistry {
             Some(ServiceResult { state: option, attributes: attrs })
         });
 
+        // ── Input Boolean ──────────────────────────────────
+        self.register("input_boolean", "turn_on", |call, sm| {
+            let attrs = sm.get(&call.entity_id).map(|s| s.attributes.clone()).unwrap_or_default();
+            Some(ServiceResult { state: "on".to_string(), attributes: attrs })
+        });
+
+        self.register("input_boolean", "turn_off", |call, sm| {
+            let attrs = sm.get(&call.entity_id).map(|s| s.attributes.clone()).unwrap_or_default();
+            Some(ServiceResult { state: "off".to_string(), attributes: attrs })
+        });
+
+        self.register("input_boolean", "toggle", |call, sm| {
+            let current = sm.get(&call.entity_id);
+            let new_state = match current.as_ref().map(|s| s.state.as_str()) {
+                Some("on") => "off",
+                _ => "on",
+            };
+            let attrs = current.map(|s| s.attributes.clone()).unwrap_or_default();
+            Some(ServiceResult { state: new_state.to_string(), attributes: attrs })
+        });
+
         // ── Automation ────────────────────────────────────
         // These are handled specially in api.rs, but registered here for /api/services listing
         self.register("automation", "trigger", |_call, _sm| None);
@@ -461,6 +536,16 @@ impl ServiceRegistry {
             Some(ServiceResult { state: "off".to_string(), attributes: attrs })
         });
 
+        self.register("siren", "toggle", |call, sm| {
+            let current = sm.get(&call.entity_id);
+            let new_state = match current.as_ref().map(|s| s.state.as_str()) {
+                Some("on") => "off",
+                _ => "on",
+            };
+            let attrs = current.map(|s| s.attributes.clone()).unwrap_or_default();
+            Some(ServiceResult { state: new_state.to_string(), attributes: attrs })
+        });
+
         // ── Vacuum ───────────────────────────────────────
         self.register("vacuum", "start", |call, sm| {
             let attrs = sm.get(&call.entity_id).map(|s| s.attributes.clone()).unwrap_or_default();
@@ -470,6 +555,11 @@ impl ServiceRegistry {
         self.register("vacuum", "stop", |call, sm| {
             let attrs = sm.get(&call.entity_id).map(|s| s.attributes.clone()).unwrap_or_default();
             Some(ServiceResult { state: "idle".to_string(), attributes: attrs })
+        });
+
+        self.register("vacuum", "pause", |call, sm| {
+            let attrs = sm.get(&call.entity_id).map(|s| s.attributes.clone()).unwrap_or_default();
+            Some(ServiceResult { state: "paused".to_string(), attributes: attrs })
         });
 
         self.register("vacuum", "return_to_base", |call, sm| {
@@ -486,6 +576,16 @@ impl ServiceRegistry {
         self.register("valve", "close_valve", |call, sm| {
             let attrs = sm.get(&call.entity_id).map(|s| s.attributes.clone()).unwrap_or_default();
             Some(ServiceResult { state: "closed".to_string(), attributes: attrs })
+        });
+
+        self.register("valve", "toggle", |call, sm| {
+            let current = sm.get(&call.entity_id);
+            let new_state = match current.as_ref().map(|s| s.state.as_str()) {
+                Some("open") => "closed",
+                _ => "open",
+            };
+            let attrs = current.map(|s| s.attributes.clone()).unwrap_or_default();
+            Some(ServiceResult { state: new_state.to_string(), attributes: attrs })
         });
 
         // ── Persistent Notification ──────────────────────
