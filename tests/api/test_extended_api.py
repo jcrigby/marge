@@ -3622,3 +3622,90 @@ async def test_health_endpoint(rest):
     assert resp.status_code == 200
     data = resp.json()
     assert data["status"] == "ok"
+
+
+@pytest.mark.asyncio
+async def test_ws_call_service_target_entity_id(ws):
+    """WebSocket call_service supports target.entity_id pattern (HA 2023+)."""
+    import json
+
+    # Create entity first
+    import httpx
+    async with httpx.AsyncClient() as client:
+        await client.post("http://localhost:8124/api/states/light.ws_target_test", json={
+            "state": "off",
+            "attributes": {},
+        })
+
+    msg_id = 460
+    await ws.ws.send(json.dumps({
+        "id": msg_id,
+        "type": "call_service",
+        "domain": "light",
+        "service": "turn_on",
+        "target": {"entity_id": "light.ws_target_test"},
+        "service_data": {},
+    }))
+    result = json.loads(await ws.ws.recv())
+    assert result["success"] is True
+    changed = result["result"]
+    assert len(changed) > 0
+    assert changed[0]["state"] == "on"
+
+
+@pytest.mark.asyncio
+async def test_rest_call_service_target_entity_id(rest):
+    """REST call_service supports target.entity_id pattern (HA 2023+)."""
+    await rest.set_state("light.rest_target_test", "off")
+    resp = await rest.client.post(
+        f"{rest.base_url}/api/services/light/turn_on",
+        headers=rest._headers(),
+        json={"target": {"entity_id": "light.rest_target_test"}},
+    )
+    assert resp.status_code == 200
+    state = await rest.get_state("light.rest_target_test")
+    assert state["state"] == "on"
+
+
+@pytest.mark.asyncio
+async def test_rest_call_service_entity_id_array(rest):
+    """REST call_service supports entity_id as array."""
+    ids = ["light.array_a", "light.array_b"]
+    for eid in ids:
+        await rest.set_state(eid, "off")
+    resp = await rest.client.post(
+        f"{rest.base_url}/api/services/light/turn_on",
+        headers=rest._headers(),
+        json={"entity_id": ids},
+    )
+    assert resp.status_code == 200
+    for eid in ids:
+        state = await rest.get_state(eid)
+        assert state["state"] == "on"
+
+
+@pytest.mark.asyncio
+async def test_api_status_has_message(rest):
+    """GET /api/ returns status object with message."""
+    resp = await rest.client.get(
+        f"{rest.base_url}/api/",
+        headers=rest._headers(),
+    )
+    assert resp.status_code == 200
+    data = resp.json()
+    assert "message" in data
+
+
+@pytest.mark.asyncio
+async def test_config_has_components(rest):
+    """GET /api/config returns configuration with expected fields."""
+    resp = await rest.client.get(
+        f"{rest.base_url}/api/config",
+        headers=rest._headers(),
+    )
+    assert resp.status_code == 200
+    data = resp.json()
+    assert "latitude" in data
+    assert "longitude" in data
+    assert "unit_system" in data
+    assert "version" in data
