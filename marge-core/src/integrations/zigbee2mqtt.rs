@@ -165,7 +165,7 @@ impl Zigbee2MqttBridge {
 
     /// Get bridge state.
     pub fn bridge_state(&self) -> String {
-        self.bridge_state.read().unwrap().clone()
+        self.bridge_state.read().unwrap_or_else(|e| e.into_inner()).clone()
     }
 
     // ── Private handlers ─────────────────────────────────
@@ -183,7 +183,7 @@ impl Zigbee2MqttBridge {
         };
 
         tracing::info!("zigbee2mqtt bridge state: {}", state);
-        *self.bridge_state.write().unwrap() = state.clone();
+        *self.bridge_state.write().unwrap_or_else(|e| e.into_inner()) = state.clone();
 
         // Update bridge entity
         self.app.state_machine.set(

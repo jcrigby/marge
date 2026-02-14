@@ -68,6 +68,14 @@ async fn ws_handler(
     ws.on_upgrade(move |socket| handle_ws(socket, ws_state.app, ws_state.auth, ws_state.services, ws_state.db_path))
 }
 
+/// RAII guard to decrement ws_connections on drop.
+struct WsConnectionGuard(Arc<AppState>);
+impl Drop for WsConnectionGuard {
+    fn drop(&mut self) {
+        self.0.ws_connections.fetch_sub(1, std::sync::atomic::Ordering::Relaxed);
+    }
+}
+
 async fn handle_ws(
     mut socket: WebSocket,
     app: Arc<AppState>,
@@ -75,10 +83,13 @@ async fn handle_ws(
     services: Arc<std::sync::RwLock<ServiceRegistry>>,
     db_path: std::path::PathBuf,
 ) {
+    app.ws_connections.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+    let _guard = WsConnectionGuard(app.clone());
+
     // Send auth_required
     let auth_req = serde_json::to_string(&WsOutgoing::AuthRequired {
         ha_version: env!("CARGO_PKG_VERSION").to_string(),
-    }).unwrap();
+    }).unwrap_or_default();
     if socket.send(Message::Text(auth_req)).await.is_err() {
         return;
     }
@@ -97,14 +108,14 @@ async fn handle_ws(
             if auth.validate(token) {
                 let auth_ok = serde_json::to_string(&WsOutgoing::AuthOk {
                     ha_version: env!("CARGO_PKG_VERSION").to_string(),
-                }).unwrap();
+                }).unwrap_or_default();
                 if socket.send(Message::Text(auth_ok)).await.is_err() {
                     return;
                 }
             } else {
                 let auth_invalid = serde_json::to_string(&WsOutgoing::AuthInvalid {
                     message: "Invalid access token".to_string(),
-                }).unwrap();
+                }).unwrap_or_default();
                 let _ = socket.send(Message::Text(auth_invalid)).await;
                 return;
             }
@@ -143,7 +154,7 @@ async fn handle_ws(
                                 }
                                 "get_states" => {
                                     let states = app.state_machine.get_all();
-                                    ws_result(id, true, Some(serde_json::to_value(&states).unwrap()))
+                                    ws_result(id, true, Some(serde_json::to_value(&states).unwrap_or_default()))
                                 }
                                 "call_service" => {
                                     // HA-compatible: { domain, service, service_data: { entity_id, ... } }
@@ -159,10 +170,10 @@ async fn handle_ws(
                                         _ => vec![],
                                     };
                                     let changed = {
-                                        let registry = services.read().unwrap();
+                                        let registry = services.read().unwrap_or_else(|e| e.into_inner());
                                         registry.call(domain, service, &entity_ids, &svc_data, &app.state_machine)
                                     };
-                                    ws_result(id, true, Some(serde_json::to_value(&changed).unwrap()))
+                                    ws_result(id, true, Some(serde_json::to_value(&changed).unwrap_or_default()))
                                 }
                                 "fire_event" => {
                                     let event_type = incoming.data.get("event_type")
@@ -172,7 +183,7 @@ async fn handle_ws(
                                     ws_result(id, true, None)
                                 }
                                 "get_services" => {
-                                    let registry = services.read().unwrap();
+                                    let registry = services.read().unwrap_or_else(|e| e.into_inner());
                                     let svc_list = registry.list_domains_json();
                                     ws_result(id, true, Some(svc_list))
                                 }
@@ -199,7 +210,7 @@ async fn handle_ws(
                                     let notifs = tokio::task::spawn_blocking(move || {
                                         crate::recorder::list_notifications(&db)
                                     }).await.ok().and_then(|r| r.ok()).unwrap_or_default();
-                                    ws_result(id, true, Some(serde_json::to_value(&notifs).unwrap()))
+                                    ws_result(id, true, Some(serde_json::to_value(&notifs).unwrap_or_default()))
                                 }
                                 "persistent_notification/dismiss" => {
                                     let notif_id = incoming.data.get("notification_id")
@@ -221,14 +232,14 @@ async fn handle_ws(
                                             "disabled_by": null,
                                         })
                                     }).collect();
-                                    ws_result(id, true, Some(serde_json::to_value(&entries).unwrap()))
+                                    ws_result(id, true, Some(serde_json::to_value(&entries).unwrap_or_default()))
                                 }
                                 "config/area_registry/list" => {
                                     let db = db_path.clone();
                                     let areas = tokio::task::spawn_blocking(move || {
                                         crate::recorder::init_areas(&db)
                                     }).await.ok().and_then(|r| r.ok()).unwrap_or_default();
-                                    ws_result(id, true, Some(serde_json::to_value(&areas).unwrap()))
+                                    ws_result(id, true, Some(serde_json::to_value(&areas).unwrap_or_default()))
                                 }
                                 "config/device_registry/list" => {
                                     let db = db_path.clone();
@@ -256,7 +267,7 @@ async fn handle_ws(
                                         }
                                         None => vec![],
                                     };
-                                    ws_result(id, true, Some(serde_json::to_value(&entries).unwrap()))
+                                    ws_result(id, true, Some(serde_json::to_value(&entries).unwrap_or_default()))
                                 }
                                 "config/label_registry/list" => {
                                     let db = db_path.clone();
@@ -282,7 +293,7 @@ async fn handle_ws(
                                         }
                                         None => vec![],
                                     };
-                                    ws_result(id, true, Some(serde_json::to_value(&entries).unwrap()))
+                                    ws_result(id, true, Some(serde_json::to_value(&entries).unwrap_or_default()))
                                 }
                                 "ping" => {
                                     // HA-compatible pong response
@@ -312,7 +323,7 @@ async fn handle_ws(
                     let ws_event = serde_json::to_string(&WsOutgoing::Event {
                         id: sub_id,
                         event: make_state_changed_event(&event),
-                    }).unwrap();
+                    }).unwrap_or_default();
                     if socket.send(Message::Text(ws_event)).await.is_err() {
                         return;
                     }
@@ -323,7 +334,7 @@ async fn handle_ws(
 }
 
 fn ws_result(id: u64, success: bool, result: Option<serde_json::Value>) -> String {
-    serde_json::to_string(&WsOutgoing::Result { id, success, result }).unwrap()
+    serde_json::to_string(&WsOutgoing::Result { id, success, result }).unwrap_or_default()
 }
 
 fn make_state_changed_event(event: &StateChangedEvent) -> serde_json::Value {

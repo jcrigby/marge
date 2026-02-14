@@ -397,16 +397,16 @@ impl AutomationEngine {
 
     /// Set the path for reloading automations from disk.
     pub fn set_automations_path(&self, path: std::path::PathBuf) {
-        *self.automations_path.write().unwrap() = Some(path);
+        *self.automations_path.write().unwrap_or_else(|e| e.into_inner()) = Some(path);
     }
 
     /// Get the path to the automations YAML file on disk.
     pub fn get_automations_path(&self) -> Option<std::path::PathBuf> {
-        self.automations_path.read().unwrap().clone()
+        self.automations_path.read().unwrap_or_else(|e| e.into_inner()).clone()
     }
 
     pub fn set_scenes(&self, scenes: Arc<SceneEngine>) {
-        *self.scenes.write().unwrap() = Some(scenes);
+        *self.scenes.write().unwrap_or_else(|e| e.into_inner()) = Some(scenes);
     }
 
     // ── Reload ────────────────────────────────────────────
@@ -414,7 +414,7 @@ impl AutomationEngine {
     /// Reload automations from the YAML file on disk.
     /// Returns the number of automations loaded, or an error.
     pub fn reload(&self) -> anyhow::Result<usize> {
-        let path = self.automations_path.read().unwrap().clone();
+        let path = self.automations_path.read().unwrap_or_else(|e| e.into_inner()).clone();
         let path = path.ok_or_else(|| anyhow::anyhow!("No automations path configured"))?;
 
         let new_automations = load_automations(&path)?;
@@ -450,7 +450,7 @@ impl AutomationEngine {
             );
         }
 
-        *self.automations.write().unwrap() = new_automations;
+        *self.automations.write().unwrap_or_else(|e| e.into_inner()) = new_automations;
         self.last_time_triggers.clear();
 
         Ok(count)
@@ -458,7 +458,7 @@ impl AutomationEngine {
 
     /// Get summary info for all automations (for API responses).
     pub fn get_automations_info(&self) -> Vec<AutomationInfo> {
-        let automations = self.automations.read().unwrap();
+        let automations = self.automations.read().unwrap_or_else(|e| e.into_inner());
         automations.iter().map(|auto| {
             let meta = self.meta.get(&auto.id);
             AutomationInfo {
@@ -519,7 +519,7 @@ impl AutomationEngine {
     pub async fn on_state_changed(&self, event: &StateChangedEvent) -> Vec<String> {
         let mut fired = Vec::new();
 
-        let automations = self.automations.read().unwrap().clone();
+        let automations = self.automations.read().unwrap_or_else(|e| e.into_inner()).clone();
         for auto in &automations {
             if !self.is_enabled(&auto.id) {
                 continue;
@@ -541,7 +541,7 @@ impl AutomationEngine {
         // Strip "automation." prefix if present
         let id = automation_id.strip_prefix("automation.").unwrap_or(automation_id);
 
-        let automations = self.automations.read().unwrap().clone();
+        let automations = self.automations.read().unwrap_or_else(|e| e.into_inner()).clone();
         for auto in &automations {
             if auto.id == id {
                 tracing::info!("Automation [{}] force-triggered", auto.id);
@@ -558,7 +558,7 @@ impl AutomationEngine {
     pub async fn on_event(&self, event_type: &str) -> Vec<String> {
         let mut fired = Vec::new();
 
-        let automations = self.automations.read().unwrap().clone();
+        let automations = self.automations.read().unwrap_or_else(|e| e.into_inner()).clone();
         for auto in &automations {
             if !self.is_enabled(&auto.id) {
                 continue;
@@ -603,7 +603,7 @@ impl AutomationEngine {
                 let tz_offset = now.offset().local_minus_utc() as f64 / 3600.0;
                 let (sunrise, sunset) =
                     calculate_sun_times(40.3916, -111.8508, tz_offset, day);
-                *self.sun_times.write().unwrap() = (sunrise, sunset);
+                *self.sun_times.write().unwrap_or_else(|e| e.into_inner()) = (sunrise, sunset);
             }
 
             // Extract HH:MM for matching
@@ -613,7 +613,7 @@ impl AutomationEngine {
                 continue;
             };
 
-            let automations = self.automations.read().unwrap().clone();
+            let automations = self.automations.read().unwrap_or_else(|e| e.into_inner()).clone();
             for auto in &automations {
                 if !self.is_enabled(&auto.id) {
                     continue;
@@ -628,7 +628,7 @@ impl AutomationEngine {
                             }
                         }
                         Trigger::Sun { event, offset } => {
-                            let (sunrise, sunset) = self.sun_times.read().unwrap().clone();
+                            let (sunrise, sunset) = self.sun_times.read().unwrap_or_else(|e| e.into_inner()).clone();
                             let base = match event.as_str() {
                                 "sunrise" => sunrise,
                                 "sunset" => sunset,
@@ -670,7 +670,7 @@ impl AutomationEngine {
 
     /// Get current time: sim-time if set, otherwise wall clock HH:MM:SS.
     fn get_current_time(&self) -> String {
-        let sim_time = self.app.sim_time.lock().unwrap().clone();
+        let sim_time = self.app.sim_time.lock().unwrap_or_else(|e| e.into_inner()).clone();
         if !sim_time.is_empty() {
             sim_time
         } else {
@@ -789,9 +789,23 @@ impl AutomationEngine {
 
     // ── Action Execution ──────────────────────────────────
 
+    /// Maximum execution time for a single automation run (5 minutes).
+    const EXECUTION_TIMEOUT: Duration = Duration::from_secs(300);
+
     async fn execute_actions(&self, auto: &Automation) {
-        for action in &auto.actions {
-            self.execute_action(action).await;
+        let result = tokio::time::timeout(Self::EXECUTION_TIMEOUT, async {
+            for action in &auto.actions {
+                self.execute_action(action).await;
+            }
+        })
+        .await;
+
+        if result.is_err() {
+            tracing::error!(
+                "Automation [{}] timed out after {:?}",
+                auto.id,
+                Self::EXECUTION_TIMEOUT,
+            );
         }
     }
 
@@ -883,7 +897,7 @@ impl AutomationEngine {
 
         // Special case: scene.turn_on goes through scene engine
         if domain == "scene" && service == "turn_on" {
-            if let Some(scenes) = self.scenes.read().unwrap().as_ref() {
+            if let Some(scenes) = self.scenes.read().unwrap_or_else(|e| e.into_inner()).as_ref() {
                 for eid in &entity_ids {
                     scenes.turn_on(eid);
                 }
@@ -893,13 +907,13 @@ impl AutomationEngine {
 
         // Dispatch through service registry
         if !entity_ids.is_empty() {
-            let registry = self.services.read().unwrap();
+            let registry = self.services.read().unwrap_or_else(|e| e.into_inner());
             registry.call(domain, service, &entity_ids, &data, &self.app.state_machine);
         }
 
         // Handle actions with no entity targets (e.g., persistent_notification)
         if entity_ids.is_empty() {
-            let registry = self.services.read().unwrap();
+            let registry = self.services.read().unwrap_or_else(|e| e.into_inner());
             registry.call(
                 domain,
                 service,
@@ -1012,7 +1026,7 @@ impl AutomationEngine {
 
     /// Get automation IDs and aliases (for registering automation entities)
     pub fn automation_ids(&self) -> Vec<(String, String)> {
-        self.automations.read().unwrap().iter()
+        self.automations.read().unwrap_or_else(|e| e.into_inner()).iter()
             .map(|a| (a.id.clone(), a.alias.clone()))
             .collect()
     }

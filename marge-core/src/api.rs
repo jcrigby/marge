@@ -25,6 +25,7 @@ pub struct AppState {
     pub sim_time: std::sync::Mutex<String>,
     pub sim_chapter: std::sync::Mutex<String>,
     pub sim_speed: std::sync::atomic::AtomicU32,
+    pub ws_connections: std::sync::atomic::AtomicU32,
 }
 
 /// Combined router state
@@ -478,7 +479,7 @@ async fn call_service(
 
     // Dispatch through service registry
     let changed = {
-        let registry = rs.services.read().unwrap();
+        let registry = rs.services.read().unwrap_or_else(|e| e.into_inner());
         registry.call(&domain, &service, &entity_ids, &body, &rs.app.state_machine)
     };
 
@@ -495,10 +496,10 @@ async fn set_sim_time(
 ) -> Result<Json<serde_json::Value>, StatusCode> {
     check_auth(&rs, &headers)?;
     if let Some(time) = body.get("time").and_then(|v| v.as_str()) {
-        *rs.app.sim_time.lock().unwrap() = time.to_string();
+        *rs.app.sim_time.lock().unwrap_or_else(|e| e.into_inner()) = time.to_string();
     }
     if let Some(chapter) = body.get("chapter").and_then(|v| v.as_str()) {
-        *rs.app.sim_chapter.lock().unwrap() = chapter.to_string();
+        *rs.app.sim_chapter.lock().unwrap_or_else(|e| e.into_inner()) = chapter.to_string();
     }
     if let Some(speed) = body.get("speed").and_then(|v| v.as_f64()) {
         rs.app.sim_speed.store(speed as u32, std::sync::atomic::Ordering::Relaxed);
@@ -527,8 +528,8 @@ async fn health(State(rs): State<RouterState>) -> Json<serde_json::Value> {
     };
     let max_us = max_ns as f64 / 1000.0;
 
-    let sim_time = rs.app.sim_time.lock().unwrap().clone();
-    let sim_chapter = rs.app.sim_chapter.lock().unwrap().clone();
+    let sim_time = rs.app.sim_time.lock().unwrap_or_else(|e| e.into_inner()).clone();
+    let sim_chapter = rs.app.sim_chapter.lock().unwrap_or_else(|e| e.into_inner()).clone();
     let sim_speed = rs.app.sim_speed.load(Ordering::Relaxed);
     let startup_us = rs.app.startup_us.load(Ordering::Relaxed);
 
@@ -548,6 +549,7 @@ async fn health(State(rs): State<RouterState>) -> Json<serde_json::Value> {
         "sim_time": sim_time,
         "sim_chapter": sim_chapter,
         "sim_speed": sim_speed,
+        "ws_connections": rs.app.ws_connections.load(Ordering::Relaxed),
     }))
 }
 
@@ -793,7 +795,7 @@ async fn list_services(
     headers: HeaderMap,
 ) -> Result<Json<Vec<serde_json::Value>>, StatusCode> {
     check_auth(&rs, &headers)?;
-    let registry = rs.services.read().unwrap();
+    let registry = rs.services.read().unwrap_or_else(|e| e.into_inner());
     let services = registry.list_services();
 
     // HA format: array of {domain, services: {service_name: {description, fields}}}
@@ -1672,6 +1674,10 @@ async fn prometheus_metrics(State(rs): State<RouterState>) -> impl IntoResponse 
     let _ = writeln!(out, "# HELP marge_memory_rss_bytes Resident set size in bytes");
     let _ = writeln!(out, "# TYPE marge_memory_rss_bytes gauge");
     let _ = writeln!(out, "marge_memory_rss_bytes {}", rss_kb * 1024);
+
+    let _ = writeln!(out, "# HELP marge_ws_connections Active WebSocket connections");
+    let _ = writeln!(out, "# TYPE marge_ws_connections gauge");
+    let _ = writeln!(out, "marge_ws_connections {}", rs.app.ws_connections.load(Ordering::Relaxed));
 
     // Automation trigger counts
     if let Some(engine) = &rs.engine {

@@ -97,13 +97,14 @@ async fn main() -> anyhow::Result<()> {
         sim_time: std::sync::Mutex::new(String::new()),
         sim_chapter: std::sync::Mutex::new(String::new()),
         sim_speed: std::sync::atomic::AtomicU32::new(0),
+        ws_connections: std::sync::atomic::AtomicU32::new(0),
     });
 
     // ── Service Registry (Phase 2 §1.4) ──────────────────
     let service_registry = Arc::new(std::sync::RwLock::new(ServiceRegistry::new()));
 
     // ── Discovery Engine (Phase 2 §1.2) ──────────────────
-    let mqtt_targets = service_registry.read().unwrap().mqtt_targets();
+    let mqtt_targets = service_registry.read().unwrap_or_else(|e| e.into_inner()).mqtt_targets();
     let discovery_engine = Arc::new(discovery::DiscoveryEngine::new(
         app_state.clone(),
         mqtt_targets,

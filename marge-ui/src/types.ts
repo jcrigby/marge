@@ -26,6 +26,7 @@ export interface HealthData {
   state_changes: number;
   latency_avg_us: number;
   latency_max_us: number;
+  ws_connections: number;
   sim_time: string;
   sim_chapter: string;
 }
