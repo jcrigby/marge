@@ -4,6 +4,7 @@ mod automation;
 mod discovery;
 mod integrations;
 mod mqtt;
+mod plugins;
 mod recorder;
 mod scene;
 mod services;
@@ -125,6 +126,7 @@ async fn main() -> anyhow::Result<()> {
         sim_chapter: std::sync::Mutex::new(String::new()),
         sim_speed: std::sync::atomic::AtomicU32::new(0),
         ws_connections: std::sync::atomic::AtomicU32::new(0),
+        plugin_count: std::sync::atomic::AtomicUsize::new(0),
     });
 
     // ── Service Registry (Phase 2 §1.4) ──────────────────
@@ -285,6 +287,20 @@ async fn main() -> anyhow::Result<()> {
             tracing::warn!("Failed to start MQTT broker: {} — running without MQTT", e);
         }
     }
+
+    // ── Weather Integration ────────────────────────────────
+    let weather_config = integrations::weather::WeatherConfig::default();
+    integrations::weather::start_weather_poller(app_state.clone(), weather_config);
+
+    // ── Plugin System (Phase 5 §5.1) ─────────────────────
+    let mut plugin_mgr = plugins::PluginManager::new(app_state.clone());
+    let plugin_dir = std::path::Path::new("/config/plugins");
+    if plugin_dir.exists() {
+        plugin_mgr.scan_and_load(plugin_dir);
+    }
+    let plugin_count = plugin_mgr.plugin_count();
+    app_state.plugin_count.store(plugin_count, std::sync::atomic::Ordering::Relaxed);
+    tracing::info!("Plugin system ready ({} plugins loaded)", plugin_count);
 
     // Build combined router: REST API + WebSocket
     let service_registry_for_ws = service_registry.clone();

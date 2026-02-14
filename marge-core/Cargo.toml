@@ -51,6 +51,12 @@ flate2 = "1"
 # Password hashing (Phase 7 — local user accounts)
 argon2 = "0.5"
 
+# HTTP client for weather integration
+reqwest = { version = "0.12", features = ["json"] }
+
+# WASM plugin runtime (Phase 5 §5.1)
+wasmtime = "29"
+
 [profile.release]
 opt-level = 3
 lto = true
