@@ -231,12 +231,19 @@ async fn handle_ws(
                                         ws_result(id, true, Some(serde_json::json!([])))
                                     } else {
                                         // Standard service dispatch through registry
+                                        // Support both service_data.entity_id and target.entity_id patterns
                                         let entity_ids: Vec<String> = match svc_data.get("entity_id") {
                                             Some(serde_json::Value::String(s)) => vec![s.clone()],
                                             Some(serde_json::Value::Array(arr)) => {
                                                 arr.iter().filter_map(|v| v.as_str().map(String::from)).collect()
                                             }
-                                            _ => vec![],
+                                            _ => match data.get("target").and_then(|t| t.get("entity_id")) {
+                                                Some(serde_json::Value::String(s)) => vec![s.clone()],
+                                                Some(serde_json::Value::Array(arr)) => {
+                                                    arr.iter().filter_map(|v| v.as_str().map(String::from)).collect()
+                                                }
+                                                _ => vec![],
+                                            },
                                         };
                                         let changed = {
                                             let registry = services.read().unwrap_or_else(|e| e.into_inner());
