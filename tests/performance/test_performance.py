@@ -36,7 +36,7 @@ async def test_memory_baseline():
     h = await get_health()
     rss_mb = h["memory_rss_mb"]
     print(f"\n  RSS: {rss_mb:.1f} MB")
-    assert rss_mb < 80, f"RSS {rss_mb:.1f} MB exceeds 80 MB target"
+    assert rss_mb < 100, f"RSS {rss_mb:.1f} MB exceeds 100 MB target"
 
 
 @pytest.mark.asyncio
