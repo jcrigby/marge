@@ -4,6 +4,7 @@ import { getDomain } from './types'
 import { connect, subscribe, subscribeStatus } from './ws'
 import type { ConnectionStatus } from './ws'
 import EntityCard from './EntityCard'
+import Sparkline from './Sparkline'
 import EntityDetail from './EntityDetail'
 import AutomationList from './AutomationList'
 import AreaManager from './AreaManager'
@@ -631,6 +632,7 @@ function App() {
                     {Number(s.state).toFixed(1)}
                     {s.attributes.unit_of_measurement ? ` ${s.attributes.unit_of_measurement}` : ''}
                   </span>
+                  <Sparkline entityId={s.entity_id} width={80} height={20} />
                   <span className="summary-label">
                     {(s.attributes.friendly_name as string) || s.entity_id.split('.')[1]?.replace(/_/g, ' ')}
                   </span>
