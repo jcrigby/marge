@@ -163,6 +163,20 @@ async fn handle_ws(
                                     subscribed_ids.push(id);
                                     ws_result(id, true, None)
                                 }
+                                "unsubscribe_events" => {
+                                    let unsub_id = incoming.data.get("subscription")
+                                        .and_then(|v| v.as_u64()).unwrap_or(0);
+                                    subscribed_ids.retain(|&sid| sid != unsub_id);
+                                    ws_result(id, true, None)
+                                }
+                                "render_template" => {
+                                    let template = incoming.data.get("template")
+                                        .and_then(|v| v.as_str()).unwrap_or("");
+                                    match crate::template::render_with_state_machine(template, &app.state_machine) {
+                                        Ok(rendered) => ws_result(id, true, Some(serde_json::json!({"result": rendered}))),
+                                        Err(e) => ws_result(id, false, Some(serde_json::json!({"message": e}))),
+                                    }
+                                }
                                 "get_states" => {
                                     let states = app.state_machine.get_all();
                                     ws_result(id, true, Some(serde_json::to_value(&states).unwrap_or_default()))
