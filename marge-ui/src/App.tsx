@@ -257,6 +257,12 @@ function App() {
     localStorage.setItem('marge_theme', theme);
   }, [theme]);
 
+  // Dynamic page title
+  useEffect(() => {
+    const count = entities.length;
+    document.title = count > 0 ? `Marge (${count})` : 'Marge';
+  }, [entities.length]);
+
   useEffect(() => {
     connect();
     const unsubEntities = subscribe((entityMap) => {
