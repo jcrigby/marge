@@ -303,6 +303,24 @@ impl ServiceRegistry {
             Some(ServiceResult { state: state_str, attributes: attrs })
         });
 
+        self.register("climate", "set_preset_mode", |call, sm| {
+            let mut attrs = sm.get(&call.entity_id).map(|s| s.attributes.clone()).unwrap_or_default();
+            if let Some(preset) = call.data.get("preset_mode") {
+                attrs.insert("preset_mode".to_string(), preset.clone());
+            }
+            let state_str = sm.get(&call.entity_id).map(|s| s.state.clone()).unwrap_or_else(|| "auto".to_string());
+            Some(ServiceResult { state: state_str, attributes: attrs })
+        });
+
+        self.register("climate", "set_swing_mode", |call, sm| {
+            let mut attrs = sm.get(&call.entity_id).map(|s| s.attributes.clone()).unwrap_or_default();
+            if let Some(swing) = call.data.get("swing_mode") {
+                attrs.insert("swing_mode".to_string(), swing.clone());
+            }
+            let state_str = sm.get(&call.entity_id).map(|s| s.state.clone()).unwrap_or_else(|| "auto".to_string());
+            Some(ServiceResult { state: state_str, attributes: attrs })
+        });
+
         // ── Alarm Control Panel ──────────────────────────
         for (svc, state_val) in [
             ("arm_home", "armed_home"),
@@ -386,6 +404,24 @@ impl ServiceRegistry {
             Some(ServiceResult { state: new_state.to_string(), attributes: attrs })
         });
 
+        self.register("fan", "set_direction", |call, sm| {
+            let mut attrs = sm.get(&call.entity_id).map(|s| s.attributes.clone()).unwrap_or_default();
+            if let Some(dir) = call.data.get("direction") {
+                attrs.insert("direction".to_string(), dir.clone());
+            }
+            let state = sm.get(&call.entity_id).map(|s| s.state.clone()).unwrap_or_else(|| "on".to_string());
+            Some(ServiceResult { state, attributes: attrs })
+        });
+
+        self.register("fan", "set_preset_mode", |call, sm| {
+            let mut attrs = sm.get(&call.entity_id).map(|s| s.attributes.clone()).unwrap_or_default();
+            if let Some(preset) = call.data.get("preset_mode") {
+                attrs.insert("preset_mode".to_string(), preset.clone());
+            }
+            let state = sm.get(&call.entity_id).map(|s| s.state.clone()).unwrap_or_else(|| "on".to_string());
+            Some(ServiceResult { state, attributes: attrs })
+        });
+
         self.register("fan", "set_percentage", |call, sm| {
             let mut attrs = sm.get(&call.entity_id).map(|s| s.attributes.clone()).unwrap_or_default();
             if let Some(pct) = call.data.get("percentage") {
@@ -450,6 +486,33 @@ impl ServiceRegistry {
             let mut attrs = sm.get(&call.entity_id).map(|s| s.attributes.clone()).unwrap_or_default();
             if let Some(vol) = call.data.get("volume_level") {
                 attrs.insert("volume_level".to_string(), vol.clone());
+            }
+            let state = sm.get(&call.entity_id).map(|s| s.state.clone()).unwrap_or_else(|| "on".to_string());
+            Some(ServiceResult { state, attributes: attrs })
+        });
+
+        self.register("media_player", "volume_mute", |call, sm| {
+            let mut attrs = sm.get(&call.entity_id).map(|s| s.attributes.clone()).unwrap_or_default();
+            if let Some(mute) = call.data.get("is_volume_muted") {
+                attrs.insert("is_volume_muted".to_string(), mute.clone());
+            }
+            let state = sm.get(&call.entity_id).map(|s| s.state.clone()).unwrap_or_else(|| "on".to_string());
+            Some(ServiceResult { state, attributes: attrs })
+        });
+
+        self.register("media_player", "shuffle_set", |call, sm| {
+            let mut attrs = sm.get(&call.entity_id).map(|s| s.attributes.clone()).unwrap_or_default();
+            if let Some(shuffle) = call.data.get("shuffle") {
+                attrs.insert("shuffle".to_string(), shuffle.clone());
+            }
+            let state = sm.get(&call.entity_id).map(|s| s.state.clone()).unwrap_or_else(|| "on".to_string());
+            Some(ServiceResult { state, attributes: attrs })
+        });
+
+        self.register("media_player", "repeat_set", |call, sm| {
+            let mut attrs = sm.get(&call.entity_id).map(|s| s.attributes.clone()).unwrap_or_default();
+            if let Some(repeat) = call.data.get("repeat") {
+                attrs.insert("repeat".to_string(), repeat.clone());
             }
             let state = sm.get(&call.entity_id).map(|s| s.state.clone()).unwrap_or_else(|| "on".to_string());
             Some(ServiceResult { state, attributes: attrs })
@@ -595,6 +658,9 @@ impl ServiceRegistry {
             tracing::info!("NOTIFICATION: {} — {}", title, message);
             None
         });
+        // dismiss and dismiss_all are handled in api.rs/websocket.rs but registered here for /api/services listing
+        self.register("persistent_notification", "dismiss", |_call, _sm| None);
+        self.register("persistent_notification", "dismiss_all", |_call, _sm| None);
 
         // ── Homeassistant ───────────────────────────────
         // System service stubs (registered for /api/services listing)
@@ -689,6 +755,54 @@ impl ServiceRegistry {
             let attrs = sm.get(&call.entity_id).map(|s| s.attributes.clone()).unwrap_or_default();
             Some(ServiceResult { state: "skipped".to_string(), attributes: attrs })
         });
+
+        // ── Camera ─────────────────────────────────────
+        self.register("camera", "turn_on", |call, sm| {
+            let attrs = sm.get(&call.entity_id).map(|s| s.attributes.clone()).unwrap_or_default();
+            Some(ServiceResult { state: "streaming".to_string(), attributes: attrs })
+        });
+        self.register("camera", "turn_off", |call, sm| {
+            let attrs = sm.get(&call.entity_id).map(|s| s.attributes.clone()).unwrap_or_default();
+            Some(ServiceResult { state: "idle".to_string(), attributes: attrs })
+        });
+        self.register("camera", "enable_motion_detection", |call, sm| {
+            let mut attrs = sm.get(&call.entity_id).map(|s| s.attributes.clone()).unwrap_or_default();
+            attrs.insert("motion_detection".to_string(), serde_json::json!(true));
+            let state = sm.get(&call.entity_id).map(|s| s.state.clone()).unwrap_or_else(|| "idle".to_string());
+            Some(ServiceResult { state, attributes: attrs })
+        });
+        self.register("camera", "disable_motion_detection", |call, sm| {
+            let mut attrs = sm.get(&call.entity_id).map(|s| s.attributes.clone()).unwrap_or_default();
+            attrs.insert("motion_detection".to_string(), serde_json::json!(false));
+            let state = sm.get(&call.entity_id).map(|s| s.state.clone()).unwrap_or_else(|| "idle".to_string());
+            Some(ServiceResult { state, attributes: attrs })
+        });
+
+        // ── Weather ─────────────────────────────────────
+        // Weather entities are read-only; stub for /api/services listing
+        self.register("weather", "get_forecasts", |_call, _sm| None);
+
+        // ── Device Tracker ──────────────────────────────
+        self.register("device_tracker", "see", |call, sm| {
+            let mut attrs = sm.get(&call.entity_id).map(|s| s.attributes.clone()).unwrap_or_default();
+            if let Some(loc) = call.data.get("location_name") {
+                attrs.insert("location_name".to_string(), loc.clone());
+            }
+            if let Some(gps) = call.data.get("gps") {
+                attrs.insert("gps".to_string(), gps.clone());
+            }
+            let state = call.data.get("location_name")
+                .and_then(|v| v.as_str())
+                .unwrap_or("home").to_string();
+            Some(ServiceResult { state, attributes: attrs })
+        });
+
+        // ── Person ──────────────────────────────────────
+        // Person entities are read-only, but stub for listing
+        self.register("person", "reload", |_call, _sm| None);
+
+        // ── Zone ────────────────────────────────────────
+        self.register("zone", "reload", |_call, _sm| None);
     }
 
     /// Register a service handler for (domain, service).
