@@ -1905,6 +1905,23 @@
 .log-icon[data-domain="lock"] { background: rgba(255, 87, 34, 0.15); color: #ff5722; }
 .log-icon[data-domain="climate"] { background: rgba(233, 30, 99, 0.15); color: #e91e63; }
 .log-icon[data-domain="automation"] { background: rgba(156, 39, 176, 0.15); color: #9c27b0; }
+.log-icon[data-domain="sensor"] { background: rgba(33, 150, 243, 0.15); color: #2196f3; }
+.log-icon[data-domain="binary_sensor"] { background: rgba(244, 67, 54, 0.15); color: #f44336; }
+.log-icon[data-domain="cover"] { background: rgba(103, 58, 183, 0.15); color: #673ab7; }
+.log-icon[data-domain="fan"] { background: rgba(0, 150, 136, 0.15); color: #009688; }
+.log-icon[data-domain="media_player"] { background: rgba(233, 30, 99, 0.15); color: #e91e63; }
+.log-icon[data-domain="vacuum"] { background: rgba(0, 188, 212, 0.15); color: #00bcd4; }
+.log-icon[data-domain="alarm_control_panel"] { background: rgba(244, 67, 54, 0.15); color: #f44336; }
+.log-icon[data-domain="scene"] { background: rgba(63, 81, 181, 0.15); color: #3f51b5; }
+.log-icon[data-domain="input_boolean"] { background: rgba(76, 175, 80, 0.15); color: #4caf50; }
+.log-icon[data-domain="input_number"] { background: rgba(33, 150, 243, 0.15); color: #2196f3; }
+.log-icon[data-domain="input_select"] { background: rgba(121, 85, 72, 0.15); color: #795548; }
+.log-icon[data-domain="input_text"] { background: rgba(96, 125, 139, 0.15); color: #607d8b; }
+.log-icon[data-domain="number"] { background: rgba(33, 150, 243, 0.15); color: #2196f3; }
+.log-icon[data-domain="select"] { background: rgba(121, 85, 72, 0.15); color: #795548; }
+.log-icon[data-domain="button"] { background: rgba(255, 152, 0, 0.15); color: #ff9800; }
+.log-icon[data-domain="siren"] { background: rgba(244, 67, 54, 0.15); color: #f44336; }
+.log-icon[data-domain="valve"] { background: rgba(0, 150, 136, 0.15); color: #009688; }
 
 .log-time {
   font-family: monospace;
