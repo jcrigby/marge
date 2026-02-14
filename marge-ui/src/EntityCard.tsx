@@ -642,6 +642,44 @@ function ButtonCard({ entity }: { entity: EntityState }) {
   );
 }
 
+// Siren card with on/off controls
+function SirenCard({ entity }: { entity: EntityState }) {
+  const isOn = entity.state === 'on';
+  const toggle = () => {
+    callService('siren', isOn ? 'turn_off' : 'turn_on', entity.entity_id);
+  };
+
+  return (
+    <div className={`card card-siren ${isOn ? 'is-on' : 'is-off'}`}>
+      <div className="card-header" onClick={toggle}>
+        <span className="card-icon">{domainIcon('siren')}</span>
+        <CardNameBlock entity={entity} />
+        <span className={`card-state ${isOn ? 'state-on' : 'state-off'}`}>{entity.state}</span>
+      </div>
+      <div className="card-timestamp">{relativeTime(entity.last_changed)}</div>
+    </div>
+  );
+}
+
+// Valve card with open/close controls
+function ValveCard({ entity }: { entity: EntityState }) {
+  const isOpen = entity.state === 'open';
+  return (
+    <div className={`card card-valve ${isOpen ? 'is-open' : 'is-closed'}`}>
+      <div className="card-header">
+        <span className="card-icon">{domainIcon('valve')}</span>
+        <CardNameBlock entity={entity} />
+        <span className="card-state">{entity.state}</span>
+      </div>
+      <div className="card-actions">
+        <button onClick={() => callService('valve', 'open_valve', entity.entity_id)}>Open</button>
+        <button onClick={() => callService('valve', 'close_valve', entity.entity_id)}>Close</button>
+      </div>
+      <div className="card-timestamp">{relativeTime(entity.last_changed)}</div>
+    </div>
+  );
+}
+
 // Generic fallback card
 function GenericCard({ entity }: { entity: EntityState }) {
   const domain = getDomain(entity.entity_id);
@@ -695,6 +733,10 @@ function CardInner({ entity }: { entity: EntityState }) {
       return <SelectCard entity={entity} />;
     case 'button':
       return <ButtonCard entity={entity} />;
+    case 'siren':
+      return <SirenCard entity={entity} />;
+    case 'valve':
+      return <ValveCard entity={entity} />;
     case 'automation':
     case 'scene':
       return <AutomationCard entity={entity} />;

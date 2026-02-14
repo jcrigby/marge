@@ -177,12 +177,8 @@ fn writer_loop(
     let purge_interval = Duration::from_secs(3600); // purge check every hour
     let mut last_purge = std::time::Instant::now();
 
-    loop {
-        // Block on first event (or exit if channel closed)
-        match rx.blocking_recv() {
-            Some(event) => batch.push(to_pending(&event)),
-            None => break,
-        }
+    while let Some(event) = rx.blocking_recv() {
+        batch.push(to_pending(&event));
 
         // Coalesce: drain anything that arrives within 100ms
         let deadline = std::time::Instant::now() + coalesce;
@@ -310,6 +306,7 @@ pub fn query_history(
 }
 
 /// Query state history for multiple entities.
+#[allow(dead_code)]
 pub fn query_history_multi(
     db_path: &Path,
     entity_ids: &[String],
@@ -458,7 +455,7 @@ pub struct StatsBucket {
     pub count: usize,
 }
 
-/// ── Area Registry (persisted in SQLite) ──────────────────
+// ── Area Registry (persisted in SQLite) ──────────────────
 
 /// Load all areas from the database.
 pub fn init_areas(db_path: &Path) -> anyhow::Result<Vec<Area>> {
@@ -527,7 +524,7 @@ pub struct Area {
     pub name: String,
 }
 
-/// ── Long-Lived Access Tokens (Phase 4 §4.3) ────────────
+// ── Long-Lived Access Tokens (Phase 4 §4.3) ────────────
 
 /// Token record stored in SQLite.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]

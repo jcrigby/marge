@@ -2,7 +2,7 @@ use axum::{
     extract::{Path, State},
     http::{HeaderMap, StatusCode},
     response::IntoResponse,
-    routing::{get, post, put},
+    routing::{get, post},
     Json, Router,
 };
 use axum::body::Body;
@@ -37,7 +37,7 @@ struct RouterState {
     services: Arc<std::sync::RwLock<ServiceRegistry>>,
     auth: Arc<AuthConfig>,
     db_path: PathBuf,
-    automations_path: PathBuf,
+    _automations_path: PathBuf,
     scenes_path: PathBuf,
 }
 
@@ -89,6 +89,7 @@ struct ServiceResponse {
     changed_states: Vec<EntityState>,
 }
 
+#[allow(clippy::too_many_arguments)]
 pub fn router(
     state: Arc<AppState>,
     engine: Option<Arc<AutomationEngine>>,
@@ -106,7 +107,7 @@ pub fn router(
         services,
         auth,
         db_path,
-        automations_path,
+        _automations_path: automations_path,
         scenes_path,
     };
 
@@ -413,10 +414,8 @@ async fn call_service(
             "create" => {
                 let notif_id = body.get("notification_id")
                     .and_then(|v| v.as_str())
-                    .unwrap_or_else(|| {
-                        // Use a generated ID if none provided
-                        "auto"
-                    }).to_string();
+                    .unwrap_or("auto")
+                    .to_string();
                 let notif_id = if notif_id == "auto" {
                     uuid::Uuid::new_v4().to_string()
                 } else {
@@ -1173,7 +1172,6 @@ async fn list_area_entities(
     check_auth(&rs, &headers)?;
 
     let db_path = rs.db_path.clone();
-    let aid = area_id.clone();
     let mappings = tokio::task::spawn_blocking(move || {
         crate::recorder::load_area_entities(&db_path)
     })
@@ -1187,7 +1185,7 @@ async fn list_area_entities(
         .collect();
 
     let result: Vec<serde_json::Value> = entity_ids.iter().map(|eid| {
-        if let Some(state) = rs.app.state_machine.get(*eid) {
+        if let Some(state) = rs.app.state_machine.get(eid) {
             serde_json::to_value(&state).unwrap_or(serde_json::json!({"entity_id": eid}))
         } else {
             serde_json::json!({"entity_id": eid})
@@ -1348,7 +1346,7 @@ async fn assign_entity_device_handler(
     Ok(Json(serde_json::json!({"result": "ok"})))
 }
 
-/// ── Persistent Notifications ────────────────────────────
+// ── Persistent Notifications ────────────────────────────
 
 /// GET /api/notifications — list active notifications
 async fn list_notifications_handler(
@@ -1409,7 +1407,7 @@ async fn dismiss_all_notifications_handler(
     Ok(Json(serde_json::json!({"result": "ok"})))
 }
 
-/// ── Label Registry ──────────────────────────────────────
+// ── Label Registry ──────────────────────────────────────
 
 /// GET /api/labels — list all labels with entity counts
 async fn list_labels_handler(

@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 //! Z-Wave integration via zwave-js-ui (Phase 2 §2.2)
 //!
 //! Subscribes to `zwave/#` and provides bridge management:
@@ -200,7 +201,7 @@ impl ZwaveBridge {
                 if node.name.is_empty() {
                     format!("{}", node.id)
                 } else {
-                    node.name.replace(' ', "_").replace('-', "_").to_lowercase()
+                    node.name.replace([' ', '-'], "_").to_lowercase()
                 }
             );
 

@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 //! HA MQTT Discovery protocol (Phase 2 §1.2)
 //!
 //! Subscribes to `homeassistant/+/+/config` and `homeassistant/+/+/+/config`
@@ -412,10 +413,8 @@ impl DiscoveryEngine {
                     .unwrap_or_default();
 
                 // For JSON payloads, merge extra attributes
-                if let Ok(json) = serde_json::from_str::<Value>(&payload_str) {
-                    if let Value::Object(map) = &json {
-                        self.merge_json_attributes(&entity, map, &mut attrs);
-                    }
+                if let Ok(Value::Object(map)) = serde_json::from_str::<Value>(&payload_str) {
+                    self.merge_json_attributes(&entity, &map, &mut attrs);
                 }
 
                 self.app.state_machine
@@ -457,7 +456,7 @@ impl DiscoveryEngine {
     fn add_topic_subscription(&self, topic: &str, entity_id: &str) {
         self.topic_subscriptions
             .entry(topic.to_string())
-            .or_insert_with(Vec::new)
+            .or_default()
             .push(entity_id.to_string());
     }
 
