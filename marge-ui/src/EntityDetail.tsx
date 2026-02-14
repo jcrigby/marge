@@ -484,6 +484,41 @@ function EntityControls({ entity }: { entity: EntityState }) {
         </div>
       );
     }
+    case 'timer': {
+      const isActive = entity.state === 'active';
+      const isPaused = entity.state === 'paused';
+      return (
+        <div className="detail-controls">
+          <div className="detail-btn-row">
+            <button className={`detail-btn ${isActive ? 'active' : ''}`}
+              onClick={() => callService('timer', 'start', id)}>Start</button>
+            <button className={`detail-btn ${isPaused ? 'active' : ''}`}
+              onClick={() => callService('timer', 'pause', id)}>Pause</button>
+            <button className="detail-btn"
+              onClick={() => callService('timer', 'cancel', id)}>Cancel</button>
+            <button className="detail-btn"
+              onClick={() => callService('timer', 'finish', id)}>Finish</button>
+          </div>
+        </div>
+      );
+    }
+    case 'counter': {
+      return (
+        <div className="detail-controls">
+          <div className="detail-btn-row">
+            <button className="detail-btn"
+              onClick={() => callService('counter', 'decrement', id)}>-</button>
+            <span style={{ minWidth: '3rem', textAlign: 'center', fontSize: '1.2rem', fontWeight: 600 }}>
+              {entity.state}
+            </span>
+            <button className="detail-btn"
+              onClick={() => callService('counter', 'increment', id)}>+</button>
+            <button className="detail-btn"
+              onClick={() => callService('counter', 'reset', id)}>Reset</button>
+          </div>
+        </div>
+      );
+    }
     default:
       return null;
   }

@@ -38,6 +38,15 @@ const DOMAIN_ICONS: Record<string, string> = {
   input_text: 'X',
   weather: 'Q',
   image: 'G',
+  timer: 'Z',
+  counter: 'N',
+  camera: 'O',
+  person: 'U',
+  device_tracker: 'J',
+  script: 'Y',
+  group: 'G',
+  input_datetime: 'D',
+  update: 'U',
 };
 
 let entryId = 0;
