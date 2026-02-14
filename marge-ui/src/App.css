@@ -444,6 +444,32 @@
   color: var(--text-dim);
 }
 
+/* ── Card badges (area/label) ────────────── */
+.card-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  padding: 0.25rem 0.5rem 0;
+}
+.card-badge {
+  font-size: 0.6rem;
+  padding: 0.1rem 0.35rem;
+  border-radius: 3px;
+  line-height: 1.3;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 8rem;
+}
+.card-badge-area {
+  background: rgba(79, 172, 254, 0.12);
+  color: #4facfe;
+}
+.card-badge-label {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid;
+}
+
 /* ── Recent change indicator ─────────────── */
 .recent-change > .card {
   border-color: var(--accent);

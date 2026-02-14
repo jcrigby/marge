@@ -522,7 +522,12 @@ function CardInner({ entity }: { entity: EntityState }) {
   }
 }
 
-export default function EntityCard({ entity, onDetail }: { entity: EntityState; onDetail?: () => void }) {
+interface BadgeInfo {
+  area?: string;
+  labels: Array<{ name: string; color: string }>;
+}
+
+export default function EntityCard({ entity, onDetail, badges }: { entity: EntityState; onDetail?: () => void; badges?: BadgeInfo }) {
   const updated = entity.last_updated
     ? `Updated ${relativeTime(entity.last_updated)}`
     : '';
@@ -531,6 +536,14 @@ export default function EntityCard({ entity, onDetail }: { entity: EntityState; 
   return (
     <div title={updated} className={isRecent ? 'recent-change' : ''} onDoubleClick={onDetail}>
       <CardInner entity={entity} />
+      {badges && (badges.area || badges.labels.length > 0) && (
+        <div className="card-badges">
+          {badges.area && <span className="card-badge card-badge-area">{badges.area}</span>}
+          {badges.labels.map((l) => (
+            <span key={l.name} className="card-badge card-badge-label" style={{ borderColor: l.color, color: l.color }}>{l.name}</span>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
