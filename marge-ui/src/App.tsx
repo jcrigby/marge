@@ -19,9 +19,11 @@ import './App.css'
 // Domain display order — most interactive first
 const DOMAIN_ORDER = [
   'light', 'switch', 'lock', 'cover', 'climate', 'fan',
+  'media_player', 'vacuum', 'siren', 'valve',
   'sensor', 'binary_sensor',
   'alarm_control_panel',
   'automation', 'scene',
+  'number', 'select', 'button',
   'input_boolean', 'input_number', 'input_select', 'input_text',
 ];
 

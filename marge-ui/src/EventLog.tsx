@@ -27,6 +27,13 @@ const DOMAIN_ICONS: Record<string, string> = {
   scene: 'E',
   input_boolean: 'I',
   input_number: '#',
+  media_player: 'M',
+  vacuum: 'V',
+  number: '#',
+  select: 'D',
+  siren: '!',
+  valve: 'W',
+  button: 'P',
 };
 
 let entryId = 0;
