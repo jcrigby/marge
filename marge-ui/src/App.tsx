@@ -21,10 +21,12 @@ const DOMAIN_ORDER = [
   'light', 'switch', 'lock', 'cover', 'climate', 'fan',
   'media_player', 'vacuum', 'siren', 'valve',
   'sensor', 'binary_sensor',
-  'alarm_control_panel',
-  'automation', 'scene',
+  'alarm_control_panel', 'camera', 'weather',
+  'automation', 'scene', 'script',
+  'timer', 'counter',
   'number', 'select', 'button',
-  'input_boolean', 'input_number', 'input_select', 'input_text',
+  'input_boolean', 'input_number', 'input_select', 'input_text', 'input_datetime',
+  'person', 'zone', 'device_tracker', 'group', 'update',
 ];
 
 function domainSortKey(domain: string): number {

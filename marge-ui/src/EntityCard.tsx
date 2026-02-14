@@ -56,6 +56,17 @@ const DOMAIN_ICONS: Record<string, string> = {
   button: '\u{1F518}',
   weather: '\u{26C5}',
   image: '\u{1F5BC}',
+  timer: '\u{23F1}',
+  counter: '\u{1F522}',
+  camera: '\u{1F4F7}',
+  person: '\u{1F464}',
+  zone: '\u{1F4CD}',
+  device_tracker: '\u{1F4F1}',
+  script: '\u{1F4DC}',
+  group: '\u{1F465}',
+  input_datetime: '\u{1F4C5}',
+  update: '\u{2B06}',
+  notify: '\u{1F514}',
 };
 
 function domainIcon(domain: string): string {
@@ -287,6 +298,52 @@ function FanCard({ entity }: { entity: EntityState }) {
           <span className="slider-label">{percentage ?? 0}%</span>
         </div>
       )}
+      <div className="card-timestamp">{relativeTime(entity.last_changed)}</div>
+    </div>
+  );
+}
+
+// Timer card with start/pause/cancel controls
+function TimerCard({ entity }: { entity: EntityState }) {
+  const isActive = entity.state === 'active';
+  const isPaused = entity.state === 'paused';
+
+  return (
+    <div className={`card card-timer ${isActive ? 'is-on' : ''}`}>
+      <div className="card-header">
+        <span className="card-icon">{domainIcon('timer')}</span>
+        <CardNameBlock entity={entity} />
+        <span className={`card-state ${isActive ? 'state-on' : ''}`}>{entity.state}</span>
+      </div>
+      <div className="card-actions">
+        <button onClick={() => callService('timer', isActive ? 'pause' : 'start', entity.entity_id)}>
+          {isActive ? 'Pause' : 'Start'}
+        </button>
+        {(isActive || isPaused) && (
+          <button onClick={() => callService('timer', 'cancel', entity.entity_id)}>Cancel</button>
+        )}
+      </div>
+      <div className="card-timestamp">{relativeTime(entity.last_changed)}</div>
+    </div>
+  );
+}
+
+// Counter card with increment/decrement/reset controls
+function CounterCard({ entity }: { entity: EntityState }) {
+  const val = parseInt(entity.state) || 0;
+
+  return (
+    <div className="card card-counter">
+      <div className="card-header">
+        <span className="card-icon">{domainIcon('counter')}</span>
+        <CardNameBlock entity={entity} />
+      </div>
+      <div className="card-actions" style={{ justifyContent: 'center', gap: '0.5rem' }}>
+        <button onClick={() => callService('counter', 'decrement', entity.entity_id)}>-</button>
+        <span className="card-state" style={{ minWidth: '2rem', textAlign: 'center' }}>{val}</span>
+        <button onClick={() => callService('counter', 'increment', entity.entity_id)}>+</button>
+        <button onClick={() => callService('counter', 'reset', entity.entity_id)}>Reset</button>
+      </div>
       <div className="card-timestamp">{relativeTime(entity.last_changed)}</div>
     </div>
   );
@@ -740,6 +797,10 @@ function CardInner({ entity }: { entity: EntityState }) {
       return <SirenCard entity={entity} />;
     case 'valve':
       return <ValveCard entity={entity} />;
+    case 'timer':
+      return <TimerCard entity={entity} />;
+    case 'counter':
+      return <CounterCard entity={entity} />;
     case 'automation':
     case 'scene':
       return <AutomationCard entity={entity} />;
