@@ -596,9 +596,15 @@ function App() {
 
       {selectedEntity && (() => {
         const entity = entities.find((e) => e.entity_id === selectedEntity);
-        return entity ? (
-          <EntityDetail entity={entity} onClose={() => setSelectedEntity(null)} />
-        ) : null;
+        if (!entity) return null;
+        // Build flat entity ID list for prev/next navigation
+        const flatIds = filteredList.map((e) => e.entity_id);
+        const idx = flatIds.indexOf(selectedEntity);
+        const onPrev = idx > 0 ? () => setSelectedEntity(flatIds[idx - 1]) : undefined;
+        const onNext = idx >= 0 && idx < flatIds.length - 1 ? () => setSelectedEntity(flatIds[idx + 1]) : undefined;
+        return (
+          <EntityDetail entity={entity} onClose={() => setSelectedEntity(null)} onPrev={onPrev} onNext={onNext} />
+        );
       })()}
 
       {showHelp && (
@@ -630,6 +636,13 @@ function App() {
                 <h4>Entity Cards</h4>
                 <div className="help-row"><span className="help-hint">Click</span><span>Toggle lights, switches, locks</span></div>
                 <div className="help-row"><span className="help-hint">Double-click</span><span>Open detail panel</span></div>
+              </div>
+              <div className="help-section">
+                <h4>Detail Panel</h4>
+                <div className="help-row"><kbd>&larr;</kbd><span>Previous entity</span></div>
+                <div className="help-row"><kbd>&rarr;</kbd><span>Next entity</span></div>
+                <div className="help-row"><kbd>e</kbd><span>Edit state</span></div>
+                <div className="help-row"><kbd>Esc</kbd><span>Close panel</span></div>
               </div>
             </div>
           </div>

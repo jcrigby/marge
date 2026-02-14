@@ -642,6 +642,29 @@
   justify-content: space-between;
   align-items: flex-start;
   margin-bottom: 1rem;
+  gap: 0.5rem;
+}
+.detail-nav {
+  display: flex;
+  gap: 0.25rem;
+  align-items: center;
+}
+.detail-nav-btn {
+  background: var(--bg);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-dim);
+  width: 28px;
+  height: 28px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.detail-nav-btn:hover {
+  color: var(--text);
+  border-color: var(--accent);
 }
 .detail-title {
   display: flex;

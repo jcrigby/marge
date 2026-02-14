@@ -11,6 +11,8 @@ function getFriendlyName(entity: EntityState): string {
 interface Props {
   entity: EntityState;
   onClose: () => void;
+  onPrev?: () => void;
+  onNext?: () => void;
 }
 
 interface HistoryEntry {
@@ -442,7 +444,7 @@ function ServiceCallDialog({ entityId, onClose }: { entityId: string; onClose: (
   );
 }
 
-export default function EntityDetail({ entity, onClose }: Props) {
+export default function EntityDetail({ entity, onClose, onPrev, onNext }: Props) {
   const [history, setHistory] = useState<HistoryEntry[]>([]);
   const [editState, setEditState] = useState('');
   const [editing, setEditing] = useState(false);
@@ -465,11 +467,15 @@ export default function EntityDetail({ entity, onClose }: Props) {
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
       if (e.key === 'Escape') onClose();
+      if (e.key === 'ArrowLeft' && onPrev) { e.preventDefault(); onPrev(); }
+      if (e.key === 'ArrowRight' && onNext) { e.preventDefault(); onNext(); }
+      if (e.key === 'e') { setEditState(entity.state); setEditing(true); }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [onClose]);
+  }, [onClose, onPrev, onNext, entity.state]);
 
   const hasNumericHistory = history.some((h) => isNumeric(h.state));
 
@@ -477,11 +483,17 @@ export default function EntityDetail({ entity, onClose }: Props) {
     <div className="detail-overlay" onClick={onClose}>
       <div className="detail-panel" onClick={(e) => e.stopPropagation()}>
         <div className="detail-header">
+          <div className="detail-nav">
+            {onPrev && <button className="detail-nav-btn" onClick={onPrev} title="Previous (Left arrow)">&larr;</button>}
+          </div>
           <div className="detail-title">
             <h3>{getFriendlyName(entity)}</h3>
             <span className="detail-entity-id">{entity.entity_id}</span>
           </div>
-          <button className="detail-close" onClick={onClose}>X</button>
+          <div className="detail-nav">
+            {onNext && <button className="detail-nav-btn" onClick={onNext} title="Next (Right arrow)">&rarr;</button>}
+            <button className="detail-close" onClick={onClose}>X</button>
+          </div>
         </div>
 
         <div className="detail-state">
