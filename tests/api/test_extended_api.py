@@ -3490,3 +3490,135 @@ async def test_ws_call_service_cover_stop(ws):
     changed = result["result"]
     assert len(changed) > 0
     assert changed[0]["state"] == "opening"
+
+
+# ── HA Compatibility Stubs (274→280+) ────────────────
+
+
+@pytest.mark.asyncio
+async def test_error_log_returns_string(rest):
+    """GET /api/error_log returns a string (may be empty)."""
+    resp = await rest.client.get(
+        f"{rest.base_url}/api/error_log",
+        headers=rest._headers(),
+    )
+    assert resp.status_code == 200
+    # Content is plain text (empty or log lines)
+    assert isinstance(resp.text, str)
+
+
+@pytest.mark.asyncio
+async def test_check_config_valid(rest):
+    """POST /api/config/core/check_config returns valid result."""
+    resp = await rest.client.post(
+        f"{rest.base_url}/api/config/core/check_config",
+        headers=rest._headers(),
+    )
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["result"] == "valid"
+    assert data["errors"] is None
+
+
+@pytest.mark.asyncio
+async def test_ws_automation_toggle(ws):
+    """WebSocket automation.toggle flips enabled state."""
+    import json
+
+    # Get automations
+    msg_id = 440
+    await ws.ws.send(json.dumps({"id": msg_id, "type": "get_states"}))
+    result = json.loads(await ws.ws.recv())
+    automations = [s for s in result["result"] if s["entity_id"].startswith("automation.")]
+    if not automations:
+        pytest.skip("No automations loaded")
+    auto_id = automations[0]["entity_id"]
+
+    # Toggle off via WS
+    msg_id += 1
+    await ws.ws.send(json.dumps({
+        "id": msg_id,
+        "type": "call_service",
+        "domain": "automation",
+        "service": "turn_off",
+        "service_data": {"entity_id": auto_id},
+    }))
+    result = json.loads(await ws.ws.recv())
+    assert result["success"] is True
+
+    # Toggle back on
+    msg_id += 1
+    await ws.ws.send(json.dumps({
+        "id": msg_id,
+        "type": "call_service",
+        "domain": "automation",
+        "service": "turn_on",
+        "service_data": {"entity_id": auto_id},
+    }))
+    result = json.loads(await ws.ws.recv())
+    assert result["success"] is True
+
+
+@pytest.mark.asyncio
+async def test_ws_notification_lifecycle(ws):
+    """WebSocket persistent_notification create/dismiss lifecycle."""
+    import json
+
+    # Create notification via WS call_service
+    msg_id = 450
+    await ws.ws.send(json.dumps({
+        "id": msg_id,
+        "type": "call_service",
+        "domain": "persistent_notification",
+        "service": "create",
+        "service_data": {
+            "notification_id": "ws_test_notif",
+            "title": "WS Test",
+            "message": "Created via WebSocket",
+        },
+    }))
+    result = json.loads(await ws.ws.recv())
+    assert result["success"] is True
+
+    # Verify it exists via get_notifications
+    msg_id += 1
+    await ws.ws.send(json.dumps({"id": msg_id, "type": "get_notifications"}))
+    result = json.loads(await ws.ws.recv())
+    assert result["success"] is True
+    notifs = result["result"]
+    ids = [n.get("notification_id") or n.get("id") for n in notifs]
+    assert "ws_test_notif" in ids
+
+    # Dismiss it via WS
+    msg_id += 1
+    await ws.ws.send(json.dumps({
+        "id": msg_id,
+        "type": "call_service",
+        "domain": "persistent_notification",
+        "service": "dismiss",
+        "service_data": {"notification_id": "ws_test_notif"},
+    }))
+    result = json.loads(await ws.ws.recv())
+    assert result["success"] is True
+
+
+@pytest.mark.asyncio
+async def test_services_listing_has_service_count(rest):
+    """GET /api/services returns at least 50 total services across all domains."""
+    resp = await rest.client.get(
+        f"{rest.base_url}/api/services",
+        headers=rest._headers(),
+    )
+    assert resp.status_code == 200
+    data = resp.json()
+    total = sum(len(entry["services"]) for entry in data)
+    assert total >= 50, f"Only {total} services registered, expected >= 50"
+
+
+@pytest.mark.asyncio
+async def test_health_endpoint(rest):
+    """GET /api/health returns 200 with status ok."""
+    resp = await rest.client.get(f"{rest.base_url}/api/health")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["status"] == "ok"

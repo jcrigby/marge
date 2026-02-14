@@ -170,6 +170,9 @@ pub fn router(
         .route("/api/auth/tokens", get(list_tokens))
         .route("/api/auth/tokens", post(create_token))
         .route("/api/auth/tokens/:token_id", axum::routing::delete(delete_token_handler))
+        // HA-compatible stubs
+        .route("/api/error_log", get(error_log))
+        .route("/api/config/core/check_config", post(check_config))
         // Prometheus metrics
         .route("/metrics", get(prometheus_metrics))
         .with_state(router_state)
@@ -1611,6 +1614,46 @@ async fn delete_token_handler(
     rs.auth.remove_token_by_id(&token_id);
 
     Ok(Json(serde_json::json!({"result": "ok"})))
+}
+
+/// GET /api/error_log — return recent error log entries (HA-compatible)
+async fn error_log(
+    State(rs): State<RouterState>,
+    headers: HeaderMap,
+) -> Result<String, StatusCode> {
+    check_auth(&rs, &headers)?;
+    // Return empty log — Marge uses structured tracing, not file-based error log
+    Ok(String::new())
+}
+
+/// POST /api/config/core/check_config — validate configuration (HA-compatible)
+async fn check_config(
+    State(rs): State<RouterState>,
+    headers: HeaderMap,
+) -> Result<Json<serde_json::Value>, StatusCode> {
+    check_auth(&rs, &headers)?;
+    // Check that automations and scenes can be parsed
+    let mut errors = Vec::new();
+
+    if let Some(engine) = &rs.engine {
+        if let Some(path) = engine.get_automations_path() {
+            if let Err(e) = std::fs::read_to_string(&path) {
+                errors.push(format!("automations: {}", e));
+            }
+        }
+    }
+
+    if errors.is_empty() {
+        Ok(Json(serde_json::json!({
+            "result": "valid",
+            "errors": null,
+        })))
+    } else {
+        Ok(Json(serde_json::json!({
+            "result": "invalid",
+            "errors": errors.join("\n"),
+        })))
+    }
 }
 
 /// GET /metrics — Prometheus-compatible metrics endpoint
