@@ -34,6 +34,10 @@ const DOMAIN_ICONS: Record<string, string> = {
   siren: '!',
   valve: 'W',
   button: 'P',
+  input_select: 'D',
+  input_text: 'X',
+  weather: 'Q',
+  image: 'G',
 };
 
 let entryId = 0;

@@ -54,6 +54,8 @@ const DOMAIN_ICONS: Record<string, string> = {
   siren: '\u{1F4E2}',
   valve: '\u{1F6B0}',
   button: '\u{1F518}',
+  weather: '\u{26C5}',
+  image: '\u{1F5BC}',
 };
 
 function domainIcon(domain: string): string {
@@ -285,6 +287,7 @@ function FanCard({ entity }: { entity: EntityState }) {
           <span className="slider-label">{percentage ?? 0}%</span>
         </div>
       )}
+      <div className="card-timestamp">{relativeTime(entity.last_changed)}</div>
     </div>
   );
 }
