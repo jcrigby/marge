@@ -30,5 +30,7 @@ mosquitto (1883) — ha-legacy (8123) — marge (8124/1884) — dashboard (3000)
 
 ## Working Preferences
 - Autonomous execution preferred — don't ask, just go
+- For multi-step implementation work, delegate each discrete task to a subagent (Task tool) rather than doing it inline. Keep the main session as the orchestrator.
+- After each subagent completes, verify the work (build, tests), update memory breadcrumbs, then move to the next task.
 - MIL-STD-498 style documentation in docs/
 - No emojis unless asked
