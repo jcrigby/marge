@@ -2090,3 +2090,422 @@
   margin-top: auto;
   padding-top: 0.5rem;
 }
+
+/* ── Responsive: Tablet (600px - 1023px) ─────── */
+@media (min-width: 600px) and (max-width: 1023px) {
+  .app {
+    padding: 0.75rem;
+  }
+
+  /* Tab bar: horizontal scroll, no wrap */
+  .tab-nav {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    flex-wrap: nowrap;
+  }
+  .tab-btn {
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+
+  /* Entity grid: 2 columns */
+  .entity-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  /* Health bar: allow wrapping, smaller gap */
+  .health-bar {
+    gap: 0.75rem;
+    font-size: 0.75rem;
+  }
+
+  /* Detail panel: wider on tablet */
+  .detail-panel {
+    width: 95%;
+    max-width: 500px;
+    max-height: 85vh;
+  }
+
+  /* Automation table: horizontal scroll */
+  .automation-table-wrap {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  .automation-table {
+    min-width: 600px;
+  }
+
+  /* Device/area/label cards: 2 columns */
+  .device-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .area-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .label-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .scene-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  /* Settings grid: 2 columns */
+  .settings-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  /* Stats summary: 2 columns on tablet */
+  .stats-summary {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  /* Domain chips: horizontal scroll */
+  .domain-chips {
+    overflow-x: auto;
+    flex-wrap: nowrap;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: 0.25rem;
+  }
+  .chip {
+    flex-shrink: 0;
+  }
+
+  /* Summary strip: allow wrapping */
+  .summary-strip {
+    flex-wrap: wrap;
+  }
+
+  /* Entity toolbar: stack vertically */
+  .entity-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  /* Notification dropdown: constrain width */
+  .notif-dropdown {
+    width: 300px;
+  }
+
+  /* Device form grid: single column */
+  .device-form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  /* Log entry: wrap on narrower tablets */
+  .log-entity {
+    min-width: 6rem;
+    max-width: 12rem;
+  }
+
+  /* Bulk bar: allow wrapping */
+  .bulk-bar {
+    flex-wrap: wrap;
+  }
+}
+
+/* ── Responsive: Mobile (max-width 599px) ──────── */
+@media (max-width: 599px) {
+  .app {
+    padding: 0.5rem;
+  }
+
+  /* Header: stack vertically */
+  .app-header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.5rem;
+  }
+  .app-header h1 {
+    font-size: 1.2rem;
+  }
+  .filter-input {
+    max-width: none;
+    width: 100%;
+  }
+
+  /* Health bar: collapse layout on small screens */
+  .health-bar {
+    gap: 0.4rem 0.75rem;
+    font-size: 0.7rem;
+    padding: 0.4rem 0.5rem;
+  }
+  .health-item {
+    font-size: 0.65rem;
+  }
+
+  /* Tab bar: horizontal scroll, no wrap */
+  .tab-nav {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    flex-wrap: nowrap;
+    gap: 0;
+    margin-bottom: 0.75rem;
+  }
+  .tab-btn {
+    white-space: nowrap;
+    flex-shrink: 0;
+    padding: 0.4rem 0.75rem;
+    font-size: 0.8rem;
+  }
+  .tab-badge {
+    font-size: 0.6rem;
+  }
+
+  /* Entity grid: single column */
+  .entity-grid {
+    grid-template-columns: 1fr;
+  }
+
+  /* Domain groups: already stack vertically via flex-direction column */
+
+  /* Domain chips: horizontal scroll, no wrap */
+  .domain-chips {
+    overflow-x: auto;
+    flex-wrap: nowrap;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: 0.25rem;
+  }
+  .chip {
+    flex-shrink: 0;
+  }
+
+  /* Entity toolbar: stack vertically */
+  .entity-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.5rem;
+  }
+  .group-toggle {
+    flex-wrap: wrap;
+    justify-content: flex-start;
+  }
+
+  /* Summary strip: wrap cards, smaller sizing */
+  .summary-strip {
+    flex-wrap: wrap;
+    gap: 0.35rem;
+  }
+  .summary-card {
+    min-width: 70px;
+    padding: 0.4rem 0.5rem;
+  }
+  .summary-value {
+    font-size: 0.95rem;
+  }
+  .summary-label {
+    font-size: 0.6rem;
+  }
+
+  /* Detail panel: full-screen overlay on mobile */
+  .detail-overlay {
+    align-items: flex-end;
+  }
+  .detail-panel {
+    width: 100%;
+    max-width: 100%;
+    max-height: 95vh;
+    border-radius: var(--radius) var(--radius) 0 0;
+    padding: 1rem;
+  }
+  .detail-header h3 {
+    font-size: 0.85rem;
+  }
+  .detail-entity-id {
+    font-size: 0.65rem;
+  }
+  .detail-state-value {
+    font-size: 1.2rem;
+  }
+  .detail-btn {
+    padding: 0.35rem 0.5rem;
+    font-size: 0.75rem;
+  }
+  .detail-btn-row {
+    flex-wrap: wrap;
+  }
+  .detail-slider-row label {
+    min-width: 3rem;
+    font-size: 0.7rem;
+  }
+  .detail-nav-btn {
+    width: 32px;
+    height: 32px;
+  }
+
+  /* Automation table: horizontal scroll */
+  .automation-table-wrap {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  .automation-table {
+    min-width: 550px;
+  }
+  .automation-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.5rem;
+  }
+
+  /* Device/area/label cards: single column */
+  .device-grid {
+    grid-template-columns: 1fr;
+  }
+  .area-grid {
+    grid-template-columns: 1fr;
+  }
+  .label-grid {
+    grid-template-columns: 1fr;
+  }
+  .scene-grid {
+    grid-template-columns: 1fr;
+  }
+
+  /* Device form grid: single column */
+  .device-form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  /* YAML editor: full width, shorter default height */
+  .yaml-textarea {
+    min-height: 250px;
+    font-size: 0.75rem;
+  }
+  .yaml-editor-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.35rem;
+  }
+
+  /* Settings page: stack sections vertically, single column grid */
+  .settings-grid {
+    grid-template-columns: 1fr;
+  }
+  .settings-kv {
+    font-size: 0.75rem;
+    padding: 0.35rem 0.5rem;
+  }
+  .settings-form-row {
+    flex-direction: column;
+  }
+
+  /* Stats summary: 2 columns on mobile */
+  .stats-summary {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  /* Entity list view: smaller text */
+  .entity-list-row {
+    font-size: 0.75rem;
+    padding: 0.35rem 0.5rem;
+  }
+  .entity-list-id {
+    display: none;
+  }
+  .entity-list-name {
+    font-size: 0.8rem;
+  }
+
+  /* Notification dropdown: full width */
+  .notif-dropdown {
+    position: fixed;
+    top: auto;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    width: 100%;
+    max-height: 70vh;
+    border-radius: var(--radius) var(--radius) 0 0;
+  }
+
+  /* Toast: full width */
+  .toast-container {
+    left: 0.5rem;
+    right: 0.5rem;
+    bottom: 0.5rem;
+    max-width: none;
+  }
+
+  /* Bulk bar: wrap on mobile */
+  .bulk-bar {
+    flex-wrap: wrap;
+    font-size: 0.8rem;
+    gap: 0.35rem;
+  }
+  .bulk-btn, .bulk-select {
+    font-size: 0.75rem;
+    padding: 0.25rem 0.5rem;
+  }
+
+  /* Area/label create forms: full width inputs */
+  .area-create {
+    flex-direction: column;
+  }
+  .area-input {
+    min-width: 0;
+    width: 100%;
+  }
+  .label-create {
+    flex-wrap: wrap;
+  }
+
+  /* Log entry: stack layout on mobile */
+  .log-entry {
+    flex-wrap: wrap;
+    gap: 0.25rem 0.5rem;
+    padding: 0.5rem 0.5rem;
+    font-size: 0.75rem;
+  }
+  .log-entity {
+    min-width: 0;
+    max-width: none;
+    flex-basis: calc(100% - 2.5rem);
+    order: -1;
+  }
+  .log-time {
+    font-size: 0.65rem;
+  }
+  .log-search {
+    width: 100%;
+  }
+
+  /* Card expand button: always visible on mobile (no hover) */
+  .card-expand-btn {
+    opacity: 0.5;
+  }
+
+  /* Help panel: nearly full width */
+  .help-panel {
+    width: 95%;
+    padding: 1rem;
+    max-height: 85vh;
+    overflow-y: auto;
+  }
+
+  /* Token reveal: stack */
+  .token-reveal {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .token-value {
+    font-size: 0.65rem;
+  }
+  .token-row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.35rem;
+  }
+
+  /* Confirm dialog: wider */
+  .confirm-panel {
+    max-width: calc(100vw - 2rem);
+  }
+
+  /* Metrics table: scrollable */
+  .metrics-table-wrap {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  .metrics-table {
+    min-width: 400px;
+  }
+}

@@ -239,6 +239,11 @@ async fn main() -> anyhow::Result<()> {
         .and_then(|p| p.parse().ok())
         .unwrap_or(1884);
 
+    let z2m_bridge_api = z2m_bridge.clone();
+    let zwave_bridge_api = zwave_bridge.clone();
+    let tasmota_bridge_api = tasmota_bridge.clone();
+    let esphome_bridge_api = esphome_bridge.clone();
+
     let bridges = mqtt::DeviceBridges {
         z2m: z2m_bridge,
         zwave: zwave_bridge,
@@ -266,6 +271,10 @@ async fn main() -> anyhow::Result<()> {
         db_path_for_api,
         automations_path,
         scenes_path,
+        z2m_bridge_api,
+        zwave_bridge_api,
+        tasmota_bridge_api,
+        esphome_bridge_api,
     )
     .merge(websocket::router(
         app_state.clone(), auth.clone(), service_registry_for_ws,

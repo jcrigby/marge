@@ -14,12 +14,13 @@
 use std::sync::Arc;
 
 use dashmap::DashMap;
+use serde::Serialize;
 use serde_json::Value;
 
 use crate::api::AppState;
 
 /// An ESPHome device tracked by the bridge.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub struct ESPHomeDevice {
     pub prefix: String,
     pub name: Option<String>,

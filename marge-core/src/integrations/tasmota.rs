@@ -16,12 +16,13 @@
 use std::sync::Arc;
 
 use dashmap::DashMap;
+use serde::Serialize;
 use serde_json::Value;
 
 use crate::api::AppState;
 
 /// A Tasmota device tracked by the bridge.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub struct TasmotaDevice {
     pub topic_name: String,
     pub friendly_name: Option<String>,

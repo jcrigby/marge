@@ -13,13 +13,13 @@
 use std::sync::Arc;
 
 use dashmap::DashMap;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 use crate::api::AppState;
 
 /// A Z-Wave node as reported by zwave-js-ui.
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct ZwaveNode {
     pub id: u32,
     #[serde(default)]
