@@ -23,7 +23,7 @@ RUN touch src/main.rs && cargo build --release
 
 ## ── Stage 3: Runtime image ──────────────────────
 FROM debian:bookworm-slim
-RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates curl && rm -rf /var/lib/apt/lists/*
 COPY --from=builder /build/target/release/marge /usr/local/bin/marge
 COPY --from=ui-builder /ui/dist /usr/share/marge/ui
 
@@ -35,4 +35,6 @@ ENV MARGE_HTTP_PORT=8124 \
     RUST_LOG=info,marge=debug
 
 EXPOSE 8124 1884
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+  CMD curl -f http://localhost:8124/api/health || exit 1
 CMD ["marge"]

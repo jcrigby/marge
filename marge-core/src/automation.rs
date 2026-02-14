@@ -944,7 +944,7 @@ impl AutomationEngine {
 
     async fn execute_wait_template(&self, template: &str, timeout: Option<&str>) {
         let timeout_dur = timeout
-            .map(|t| parse_duration(t))
+            .map(parse_duration)
             .unwrap_or(Duration::from_secs(300));
         let start = std::time::Instant::now();
 

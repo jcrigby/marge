@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 //! Tasmota direct integration (Phase 2 §2.3)
 //!
 //! Parses Tasmota's MQTT topic structure:
@@ -177,31 +178,29 @@ impl TasmotaBridge {
     }
 
     fn handle_tele_sensor(&self, device: &str, payload: &[u8]) {
-        if let Ok(json) = serde_json::from_slice::<Value>(payload) {
+        if let Ok(Value::Object(map)) = serde_json::from_slice::<Value>(payload) {
             // Sensor data can contain nested objects like:
             // {"AM2301":{"Temperature":22.5,"Humidity":65},"TempUnit":"C"}
-            if let Value::Object(map) = &json {
-                for (key, value) in map {
-                    if let Value::Object(sensor_data) = value {
-                        for (metric, val) in sensor_data {
-                            let entity_id = format!(
-                                "sensor.tasmota_{}_{}_{}",
-                                device.to_lowercase(),
-                                key.to_lowercase(),
-                                metric.to_lowercase()
-                            );
-                            let val_str = match val {
-                                Value::Number(n) => n.to_string(),
-                                Value::String(s) => s.clone(),
-                                _ => val.to_string(),
-                            };
-                            let mut attrs = serde_json::Map::new();
-                            attrs.insert(
-                                "friendly_name".to_string(),
-                                Value::String(format!("{} {} {}", device, key, metric)),
-                            );
-                            self.app.state_machine.set(entity_id, val_str, attrs);
-                        }
+            for (key, value) in &map {
+                if let Value::Object(sensor_data) = value {
+                    for (metric, val) in sensor_data {
+                        let entity_id = format!(
+                            "sensor.tasmota_{}_{}_{}",
+                            device.to_lowercase(),
+                            key.to_lowercase(),
+                            metric.to_lowercase()
+                        );
+                        let val_str = match val {
+                            Value::Number(n) => n.to_string(),
+                            Value::String(s) => s.clone(),
+                            _ => val.to_string(),
+                        };
+                        let mut attrs = serde_json::Map::new();
+                        attrs.insert(
+                            "friendly_name".to_string(),
+                            Value::String(format!("{} {} {}", device, key, metric)),
+                        );
+                        self.app.state_machine.set(entity_id, val_str, attrs);
                     }
                 }
             }

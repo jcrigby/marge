@@ -113,6 +113,7 @@ impl AuthConfig {
     }
 
     /// Number of long-lived tokens.
+    #[allow(dead_code)]
     pub fn token_count(&self) -> usize {
         self.long_lived.len()
     }

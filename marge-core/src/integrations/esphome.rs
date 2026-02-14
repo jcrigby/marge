@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 //! ESPHome direct integration (Phase 2 §2.3)
 //!
 //! Parses ESPHome's MQTT topic structure:

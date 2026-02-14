@@ -10,6 +10,7 @@ use crate::discovery::DiscoveryEngine;
 use crate::integrations::{zigbee2mqtt, zwave, tasmota, esphome};
 
 /// Device bridge managers passed to the MQTT subscriber.
+#[allow(dead_code)]
 pub struct DeviceBridges {
     pub z2m: Arc<zigbee2mqtt::Zigbee2MqttBridge>,
     pub zwave: Arc<zwave::ZwaveBridge>,

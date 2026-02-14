@@ -17,6 +17,7 @@ use crate::state::StateMachine;
 
 /// The data passed to a service handler when a service is called.
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub struct ServiceCall {
     pub domain: String,
     pub service: String,
@@ -61,6 +62,7 @@ pub struct ServiceRegistry {
 
 /// An MQTT publish request from the service registry to the MQTT bridge.
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub struct MqttPublish {
     pub topic: String,
     pub payload: String,
@@ -79,6 +81,7 @@ impl ServiceRegistry {
     }
 
     /// Set the MQTT publish channel (called after MQTT broker starts).
+    #[allow(dead_code)]
     pub fn set_mqtt_tx(&mut self, tx: mpsc::UnboundedSender<MqttPublish>) {
         self.mqtt_tx = Some(tx);
     }
@@ -504,6 +507,7 @@ impl ServiceRegistry {
     }
 
     /// Check if a handler exists for a (domain, service) pair.
+    #[allow(dead_code)]
     pub fn has_handler(&self, domain: &str, service: &str) -> bool {
         self.handlers.contains_key(&(domain.to_string(), service.to_string()))
     }

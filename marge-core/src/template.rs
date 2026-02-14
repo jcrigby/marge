@@ -29,7 +29,7 @@ static ENV: OnceLock<Environment<'static>> = OnceLock::new();
 // Thread-local for providing state machine access during template rendering.
 // Set by render_with_state_machine(), read by states()/is_state()/state_attr().
 thread_local! {
-    static RENDER_SM: Cell<usize> = Cell::new(0);
+    static RENDER_SM: Cell<usize> = const { Cell::new(0) };
 }
 
 fn env() -> &'static Environment<'static> {

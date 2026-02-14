@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 //! zigbee2mqtt bridge integration (Phase 2 §2.1)
 //!
 //! Subscribes to `zigbee2mqtt/#` and provides deeper bridge management
@@ -125,8 +126,7 @@ impl Zigbee2MqttBridge {
             _ => {
                 // Device state update: zigbee2mqtt/<friendly_name>
                 // or availability: zigbee2mqtt/<friendly_name>/availability
-                if subtopic.ends_with("/availability") {
-                    let device_name = &subtopic[..subtopic.len() - "/availability".len()];
+                if let Some(device_name) = subtopic.strip_suffix("/availability") {
                     self.handle_device_availability(device_name, payload);
                 } else if !subtopic.contains('/') || subtopic.ends_with("/get") || subtopic.ends_with("/set") {
                     // Device state or command — handled by discovery.rs via HA MQTT Discovery
@@ -216,7 +216,7 @@ impl Zigbee2MqttBridge {
             // Register a sensor entity with device metadata
             let _entity_id = format!(
                 "sensor.z2m_{}",
-                device.friendly_name.replace(' ', "_").replace('-', "_").to_lowercase()
+                device.friendly_name.replace([' ', '-'], "_").to_lowercase()
             );
 
             let mut attrs = serde_json::Map::new();
