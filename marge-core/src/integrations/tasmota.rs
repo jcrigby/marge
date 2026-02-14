@@ -290,6 +290,7 @@ mod tests {
             sim_time: std::sync::Mutex::new(String::new()),
             sim_chapter: std::sync::Mutex::new(String::new()),
             sim_speed: std::sync::atomic::AtomicU32::new(0),
+            ws_connections: std::sync::atomic::AtomicU32::new(0),
         });
         TasmotaBridge::new(app)
     }
