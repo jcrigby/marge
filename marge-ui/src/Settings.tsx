@@ -331,6 +331,35 @@ export default function Settings({ health }: { health: HealthData | null }) {
         )}
       </div>
 
+      {/* Config Validation */}
+      <div className="settings-section">
+        <h2 className="domain-title">Configuration</h2>
+        <div className="settings-form-row">
+          <button className="reload-btn" onClick={() => {
+            fetch('/api/config/core/check_config', { method: 'POST' })
+              .then((r) => r.json())
+              .then((data: { result: string; errors: string | null }) => {
+                if (data.result === 'valid') {
+                  toastSuccess('Configuration valid');
+                } else {
+                  toastError(`Config errors: ${data.errors}`);
+                }
+              })
+              .catch(() => toastError('Config check failed'));
+          }}>Check Configuration</button>
+          <button className="reload-btn" onClick={() => {
+            fetch('/api/config/automation/reload', { method: 'POST' })
+              .then((r) => {
+                if (r.ok) toastSuccess('Automations reloaded');
+                else toastError('Reload failed');
+              });
+          }}>Reload Automations</button>
+        </div>
+        <p className="settings-hint">
+          Validate configuration files or hot-reload automations from YAML.
+        </p>
+      </div>
+
       {/* Danger Zone */}
       <div className="settings-section settings-danger">
         <h2 className="domain-title">Danger Zone</h2>
@@ -341,21 +370,9 @@ export default function Settings({ health }: { health: HealthData | null }) {
           >
             Purge All Entities
           </button>
-          <button
-            className="reload-btn danger-btn"
-            onClick={() => {
-              fetch('/api/config/automation/reload', { method: 'POST' })
-                .then((r) => {
-                  if (r.ok) toastSuccess('Automations reloaded');
-                  else toastError('Reload failed');
-                });
-            }}
-          >
-            Reload Automations
-          </button>
         </div>
         <p className="settings-hint">
-          Purge removes all entity states from memory. Reload re-reads automation YAML.
+          Purge removes all entity states from memory. This cannot be undone.
         </p>
         {showPurgeConfirm && (
           <div className="purge-confirm">
