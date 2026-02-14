@@ -1031,6 +1031,24 @@
   font-variant-numeric: tabular-nums;
 }
 
+.detail-meta {
+  font-size: 0.8rem;
+  color: var(--text-dim);
+  margin-bottom: 0.5rem;
+}
+.detail-select-row {
+  margin-top: 0.5rem;
+}
+.detail-select-row select {
+  width: 100%;
+  padding: 0.4rem 0.6rem;
+  border-radius: 6px;
+  border: 1px solid var(--border-subtle);
+  background: var(--bg);
+  color: var(--text);
+  font-size: 0.85rem;
+}
+
 /* ── History chart (SVG) ──────────────────── */
 .history-chart {
   width: 100%;

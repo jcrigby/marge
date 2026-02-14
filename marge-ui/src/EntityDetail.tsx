@@ -326,6 +326,164 @@ function EntityControls({ entity }: { entity: EntityState }) {
         </div>
       );
     }
+    case 'input_select': {
+      const options = (entity.attributes.options as string[]) || [];
+      return (
+        <div className="detail-controls">
+          <div className="detail-select-row">
+            <select
+              value={entity.state}
+              onChange={(e) => callService('input_select', 'select_option', id, { option: e.target.value })}
+            >
+              {options.map((opt) => (
+                <option key={opt} value={opt}>{opt}</option>
+              ))}
+              {!options.includes(entity.state) && (
+                <option value={entity.state}>{entity.state}</option>
+              )}
+            </select>
+          </div>
+        </div>
+      );
+    }
+    case 'input_text':
+      return (
+        <div className="detail-controls">
+          <div className="detail-btn-row">
+            <button className="detail-btn"
+              onClick={() => {
+                const val = prompt('Enter value:');
+                if (val !== null) callService('input_text', 'set_value', id, { value: val });
+              }}>Set Value</button>
+          </div>
+        </div>
+      );
+    case 'media_player': {
+      const volume = entity.attributes.volume_level as number | undefined;
+      const source = entity.attributes.source as string | undefined;
+      const mediaTitle = entity.attributes.media_title as string | undefined;
+      const isPlaying = entity.state === 'playing';
+      const isOff = entity.state === 'off';
+      return (
+        <div className="detail-controls">
+          {mediaTitle && <div className="detail-meta">Now playing: {mediaTitle}</div>}
+          {source && <div className="detail-meta">Source: {source}</div>}
+          <div className="detail-btn-row">
+            {isOff ? (
+              <button className="detail-btn"
+                onClick={() => callService('media_player', 'turn_on', id)}>On</button>
+            ) : (
+              <>
+                <button className={`detail-btn ${isPlaying ? 'active' : ''}`}
+                  onClick={() => callService('media_player', 'media_play', id)}>Play</button>
+                <button className={`detail-btn ${entity.state === 'paused' ? 'active' : ''}`}
+                  onClick={() => callService('media_player', 'media_pause', id)}>Pause</button>
+                <button className="detail-btn"
+                  onClick={() => callService('media_player', 'media_stop', id)}>Stop</button>
+                <button className="detail-btn"
+                  onClick={() => callService('media_player', 'turn_off', id)}>Off</button>
+              </>
+            )}
+          </div>
+          {volume !== undefined && !isOff && (
+            <div className="detail-slider-row">
+              <label>Volume</label>
+              <input type="range" min={0} max={1} step={0.01}
+                value={volume}
+                onChange={(e) => callService('media_player', 'volume_set', id, { volume_level: Number(e.target.value) })} />
+              <span>{Math.round(volume * 100)}%</span>
+            </div>
+          )}
+        </div>
+      );
+    }
+    case 'vacuum': {
+      const isCleaning = entity.state === 'cleaning';
+      return (
+        <div className="detail-controls">
+          <div className="detail-btn-row">
+            <button className={`detail-btn ${isCleaning ? 'active' : ''}`}
+              onClick={() => callService('vacuum', 'start', id)}>Start</button>
+            <button className="detail-btn"
+              onClick={() => callService('vacuum', 'stop', id)}>Stop</button>
+            <button className={`detail-btn ${entity.state === 'docked' ? 'active' : ''}`}
+              onClick={() => callService('vacuum', 'return_to_base', id)}>Dock</button>
+          </div>
+        </div>
+      );
+    }
+    case 'number': {
+      const min = (entity.attributes.min as number) ?? 0;
+      const max = (entity.attributes.max as number) ?? 100;
+      const step = (entity.attributes.step as number) ?? 1;
+      const val = parseFloat(entity.state) || 0;
+      return (
+        <div className="detail-controls">
+          <div className="detail-slider-row">
+            <label>Value</label>
+            <input type="range" min={min} max={max} step={step}
+              value={val}
+              onChange={(e) => callService('number', 'set_value', id, { value: Number(e.target.value) })} />
+            <span>{val}</span>
+          </div>
+        </div>
+      );
+    }
+    case 'select': {
+      const options = (entity.attributes.options as string[]) || [];
+      return (
+        <div className="detail-controls">
+          <div className="detail-select-row">
+            <select
+              value={entity.state}
+              onChange={(e) => callService('select', 'select_option', id, { option: e.target.value })}
+            >
+              {options.map((opt) => (
+                <option key={opt} value={opt}>{opt}</option>
+              ))}
+              {!options.includes(entity.state) && (
+                <option value={entity.state}>{entity.state}</option>
+              )}
+            </select>
+          </div>
+        </div>
+      );
+    }
+    case 'button':
+      return (
+        <div className="detail-controls">
+          <div className="detail-btn-row">
+            <button className="detail-btn"
+              onClick={() => callService('button', 'press', id)}>Press</button>
+          </div>
+        </div>
+      );
+    case 'siren': {
+      const isOn = entity.state === 'on';
+      return (
+        <div className="detail-controls">
+          <div className="detail-btn-row">
+            <button className={`detail-btn ${isOn ? 'active' : ''}`}
+              onClick={() => callService('siren', 'turn_on', id)}>On</button>
+            <button className={`detail-btn ${!isOn ? 'active' : ''}`}
+              onClick={() => callService('siren', 'turn_off', id)}>Off</button>
+          </div>
+        </div>
+      );
+    }
+    case 'valve': {
+      const isOpen = entity.state === 'open';
+      return (
+        <div className="detail-controls">
+          <div className="detail-btn-row">
+            <button className={`detail-btn ${isOpen ? 'active' : ''}`}
+              onClick={() => callService('valve', 'open_valve', id)}>Open</button>
+            <button className={`detail-btn ${!isOpen ? 'active' : ''}`}
+              onClick={() => callService('valve', 'close_valve', id)}>Close</button>
+          </div>
+        </div>
+      );
+    }
     default:
       return null;
   }

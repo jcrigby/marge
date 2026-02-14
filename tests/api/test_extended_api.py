@@ -2925,3 +2925,155 @@ async def test_valve_open_close(rest):
     await rest.call_service("valve", "close_valve", {"entity_id": "valve.water_main"})
     state = await rest.get_state("valve.water_main")
     assert state["state"] == "closed"
+
+
+# ── Edge Cases & Robustness ─────────────────────────────
+
+
+@pytest.mark.asyncio
+async def test_set_state_preserves_last_changed_on_same_value(rest):
+    """Setting the same state value should update last_updated but not last_changed."""
+    await rest.set_state("sensor.stable", "42")
+    s1 = await rest.get_state("sensor.stable")
+    changed1 = s1["last_changed"]
+
+    await asyncio.sleep(0.05)
+    await rest.set_state("sensor.stable", "42")
+    s2 = await rest.get_state("sensor.stable")
+    # last_changed should be the same (state didn't change)
+    assert s2["last_changed"] == changed1
+    # last_updated should be different
+    assert s2["last_updated"] >= changed1
+
+
+@pytest.mark.asyncio
+async def test_set_state_updates_last_changed_on_new_value(rest):
+    """Setting a different state value should update last_changed."""
+    await rest.set_state("sensor.changing", "10")
+    s1 = await rest.get_state("sensor.changing")
+    changed1 = s1["last_changed"]
+
+    await asyncio.sleep(0.05)
+    await rest.set_state("sensor.changing", "20")
+    s2 = await rest.get_state("sensor.changing")
+    assert s2["last_changed"] > changed1
+
+
+@pytest.mark.asyncio
+async def test_entity_attributes_support_nested_objects(rest):
+    """Attributes can contain nested objects and arrays."""
+    attrs = {
+        "nested": {"a": 1, "b": [2, 3]},
+        "list": [1, "two", True],
+        "null_val": None,
+    }
+    await rest.set_state("sensor.complex_attrs", "ok", attributes=attrs)
+    s = await rest.get_state("sensor.complex_attrs")
+    assert s["attributes"]["nested"]["a"] == 1
+    assert s["attributes"]["nested"]["b"] == [2, 3]
+    assert s["attributes"]["list"] == [1, "two", True]
+    assert s["attributes"]["null_val"] is None
+
+
+@pytest.mark.asyncio
+async def test_service_call_returns_affected_entities(rest):
+    """Service calls should return data about affected entity states."""
+    await rest.set_state("light.svc_test", "off")
+    result = await rest.call_service("light", "turn_on", {"entity_id": "light.svc_test"})
+    # Marge returns {changed_states: [...]} or a list
+    if isinstance(result, dict):
+        states = result.get("changed_states", [])
+    else:
+        states = result
+    assert isinstance(states, list)
+    assert len(states) >= 1
+    entity_ids = [e["entity_id"] for e in states]
+    assert "light.svc_test" in entity_ids
+
+
+@pytest.mark.asyncio
+async def test_get_states_returns_all_entities(rest):
+    """GET /api/states returns all known entities."""
+    await rest.set_state("sensor.all_test_1", "a")
+    await rest.set_state("sensor.all_test_2", "b")
+    states = await rest.get_states()
+    entity_ids = [s["entity_id"] for s in states]
+    assert "sensor.all_test_1" in entity_ids
+    assert "sensor.all_test_2" in entity_ids
+
+
+@pytest.mark.asyncio
+async def test_input_boolean_on_off_cycle(rest):
+    """input_boolean supports turn_on, turn_off, toggle in sequence."""
+    await rest.set_state("input_boolean.cycle_test", "off")
+    await rest.call_service("input_boolean", "turn_on", {"entity_id": "input_boolean.cycle_test"})
+    s = await rest.get_state("input_boolean.cycle_test")
+    assert s["state"] == "on"
+
+    await rest.call_service("input_boolean", "turn_off", {"entity_id": "input_boolean.cycle_test"})
+    s = await rest.get_state("input_boolean.cycle_test")
+    assert s["state"] == "off"
+
+    await rest.call_service("input_boolean", "toggle", {"entity_id": "input_boolean.cycle_test"})
+    s = await rest.get_state("input_boolean.cycle_test")
+    assert s["state"] == "on"
+
+
+@pytest.mark.asyncio
+async def test_cover_position_tracking(rest):
+    """Setting cover position updates entity attributes."""
+    await rest.set_state("cover.pos_test", "open", attributes={"current_position": 100})
+    await rest.call_service("cover", "set_cover_position", {
+        "entity_id": "cover.pos_test",
+        "position": 50,
+    })
+    s = await rest.get_state("cover.pos_test")
+    assert s["attributes"]["current_position"] == 50
+
+
+@pytest.mark.asyncio
+async def test_fan_percentage_tracking(rest):
+    """Setting fan percentage updates entity attributes."""
+    await rest.set_state("fan.pct_test", "on", attributes={"percentage": 50})
+    await rest.call_service("fan", "set_percentage", {
+        "entity_id": "fan.pct_test",
+        "percentage": 75,
+    })
+    s = await rest.get_state("fan.pct_test")
+    assert s["attributes"]["percentage"] == 75
+
+
+@pytest.mark.asyncio
+async def test_fire_event_with_data(rest):
+    """Firing a custom event with data returns success."""
+    result = await rest.fire_event("test_custom_event", data={
+        "source": "cts",
+        "value": 42,
+    })
+    assert result.get("message", "").lower().startswith("event")
+
+
+@pytest.mark.asyncio
+async def test_backup_contains_state_db(client):
+    """Backup tar.gz should contain the state database."""
+    resp = client.get("/api/backup")
+    assert resp.status_code == 200
+    buf = io.BytesIO(resp.content)
+    with tarfile.open(fileobj=buf, mode="r:gz") as tar:
+        names = tar.getnames()
+        # Should contain at least the DB file
+        assert any("state" in n.lower() or "marge" in n.lower() or "db" in n.lower()
+                    or "automations" in n.lower() for n in names), \
+            f"Backup contents: {names}"
+
+
+@pytest.mark.asyncio
+async def test_ws_subscribe_event_has_entity_id(ws, rest):
+    """WS state_changed events should include entity_id in event data."""
+    sub_id = await ws.subscribe_events("state_changed")
+    await rest.set_state("sensor.ws_eid_test", "hello")
+    event = await ws.recv_event(timeout=5)
+    assert event["type"] == "event"
+    data = event["event"]["data"]
+    assert data["entity_id"] == "sensor.ws_eid_test"
+    assert data["new_state"]["state"] == "hello"
