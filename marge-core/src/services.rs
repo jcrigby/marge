@@ -803,6 +803,143 @@ impl ServiceRegistry {
 
         // ── Zone ────────────────────────────────────────
         self.register("zone", "reload", |_call, _sm| None);
+
+        // ── Water Heater ───────────────────────────────
+        self.register("water_heater", "set_temperature", |call, sm| {
+            let mut attrs = sm.get(&call.entity_id).map(|s| s.attributes.clone()).unwrap_or_default();
+            if let Some(temp) = call.data.get("temperature") {
+                attrs.insert("temperature".to_string(), temp.clone());
+            }
+            let state = sm.get(&call.entity_id).map(|s| s.state.clone()).unwrap_or_else(|| "eco".to_string());
+            Some(ServiceResult { state, attributes: attrs })
+        });
+        self.register("water_heater", "set_operation_mode", |call, sm| {
+            let attrs = sm.get(&call.entity_id).map(|s| s.attributes.clone()).unwrap_or_default();
+            let mode = call.data.get("operation_mode").and_then(|v| v.as_str()).unwrap_or("eco").to_string();
+            Some(ServiceResult { state: mode, attributes: attrs })
+        });
+        self.register("water_heater", "turn_on", |call, sm| {
+            let attrs = sm.get(&call.entity_id).map(|s| s.attributes.clone()).unwrap_or_default();
+            Some(ServiceResult { state: "eco".to_string(), attributes: attrs })
+        });
+        self.register("water_heater", "turn_off", |call, sm| {
+            let attrs = sm.get(&call.entity_id).map(|s| s.attributes.clone()).unwrap_or_default();
+            Some(ServiceResult { state: "off".to_string(), attributes: attrs })
+        });
+
+        // ── Humidifier ─────────────────────────────────
+        self.register("humidifier", "turn_on", |call, sm| {
+            let attrs = sm.get(&call.entity_id).map(|s| s.attributes.clone()).unwrap_or_default();
+            Some(ServiceResult { state: "on".to_string(), attributes: attrs })
+        });
+        self.register("humidifier", "turn_off", |call, sm| {
+            let attrs = sm.get(&call.entity_id).map(|s| s.attributes.clone()).unwrap_or_default();
+            Some(ServiceResult { state: "off".to_string(), attributes: attrs })
+        });
+        self.register("humidifier", "toggle", |call, sm| {
+            let current = sm.get(&call.entity_id);
+            let new_state = match current.as_ref().map(|s| s.state.as_str()) {
+                Some("on") => "off",
+                _ => "on",
+            };
+            let attrs = current.map(|s| s.attributes.clone()).unwrap_or_default();
+            Some(ServiceResult { state: new_state.to_string(), attributes: attrs })
+        });
+        self.register("humidifier", "set_humidity", |call, sm| {
+            let mut attrs = sm.get(&call.entity_id).map(|s| s.attributes.clone()).unwrap_or_default();
+            if let Some(h) = call.data.get("humidity") {
+                attrs.insert("humidity".to_string(), h.clone());
+            }
+            let state = sm.get(&call.entity_id).map(|s| s.state.clone()).unwrap_or_else(|| "on".to_string());
+            Some(ServiceResult { state, attributes: attrs })
+        });
+        self.register("humidifier", "set_mode", |call, sm| {
+            let mut attrs = sm.get(&call.entity_id).map(|s| s.attributes.clone()).unwrap_or_default();
+            if let Some(mode) = call.data.get("mode") {
+                attrs.insert("mode".to_string(), mode.clone());
+            }
+            let state = sm.get(&call.entity_id).map(|s| s.state.clone()).unwrap_or_else(|| "on".to_string());
+            Some(ServiceResult { state, attributes: attrs })
+        });
+
+        // ── Text ────────────────────────────────────────
+        self.register("text", "set_value", |call, sm| {
+            let attrs = sm.get(&call.entity_id).map(|s| s.attributes.clone()).unwrap_or_default();
+            let val = call.data.get("value").and_then(|v| v.as_str()).unwrap_or("").to_string();
+            Some(ServiceResult { state: val, attributes: attrs })
+        });
+
+        // ── Image ───────────────────────────────────────
+        self.register("image", "reload", |_call, _sm| None);
+
+        // ── Climate turn_on/turn_off ────────────────────
+        // Generic on/off — preserves compatibility with the domain fallback behavior
+        self.register("climate", "turn_on", |call, sm| {
+            let attrs = sm.get(&call.entity_id).map(|s| s.attributes.clone()).unwrap_or_default();
+            Some(ServiceResult { state: "on".to_string(), attributes: attrs })
+        });
+        self.register("climate", "turn_off", |call, sm| {
+            let attrs = sm.get(&call.entity_id).map(|s| s.attributes.clone()).unwrap_or_default();
+            Some(ServiceResult { state: "off".to_string(), attributes: attrs })
+        });
+
+        // ── Media Player extras ─────────────────────────
+        self.register("media_player", "play_media", |call, sm| {
+            let mut attrs = sm.get(&call.entity_id).map(|s| s.attributes.clone()).unwrap_or_default();
+            if let Some(content_id) = call.data.get("media_content_id") {
+                attrs.insert("media_content_id".to_string(), content_id.clone());
+            }
+            if let Some(content_type) = call.data.get("media_content_type") {
+                attrs.insert("media_content_type".to_string(), content_type.clone());
+            }
+            Some(ServiceResult { state: "playing".to_string(), attributes: attrs })
+        });
+        self.register("media_player", "select_sound_mode", |call, sm| {
+            let mut attrs = sm.get(&call.entity_id).map(|s| s.attributes.clone()).unwrap_or_default();
+            if let Some(mode) = call.data.get("sound_mode") {
+                attrs.insert("sound_mode".to_string(), mode.clone());
+            }
+            let state = sm.get(&call.entity_id).map(|s| s.state.clone()).unwrap_or_else(|| "playing".to_string());
+            Some(ServiceResult { state, attributes: attrs })
+        });
+
+        // ── Lock open ──────────────────────────────────
+        self.register("lock", "open", |call, sm| {
+            let attrs = sm.get(&call.entity_id).map(|s| s.attributes.clone()).unwrap_or_default();
+            Some(ServiceResult { state: "open".to_string(), attributes: attrs })
+        });
+
+        // ── Lawn Mower ──────────────────────────────────
+        self.register("lawn_mower", "start_mowing", |call, sm| {
+            let attrs = sm.get(&call.entity_id).map(|s| s.attributes.clone()).unwrap_or_default();
+            Some(ServiceResult { state: "mowing".to_string(), attributes: attrs })
+        });
+        self.register("lawn_mower", "pause", |call, sm| {
+            let attrs = sm.get(&call.entity_id).map(|s| s.attributes.clone()).unwrap_or_default();
+            Some(ServiceResult { state: "paused".to_string(), attributes: attrs })
+        });
+        self.register("lawn_mower", "dock", |call, sm| {
+            let attrs = sm.get(&call.entity_id).map(|s| s.attributes.clone()).unwrap_or_default();
+            Some(ServiceResult { state: "docked".to_string(), attributes: attrs })
+        });
+
+        // ── Remote ──────────────────────────────────────
+        self.register("remote", "turn_on", |call, sm| {
+            let attrs = sm.get(&call.entity_id).map(|s| s.attributes.clone()).unwrap_or_default();
+            Some(ServiceResult { state: "on".to_string(), attributes: attrs })
+        });
+        self.register("remote", "turn_off", |call, sm| {
+            let attrs = sm.get(&call.entity_id).map(|s| s.attributes.clone()).unwrap_or_default();
+            Some(ServiceResult { state: "off".to_string(), attributes: attrs })
+        });
+        self.register("remote", "send_command", |call, sm| {
+            let mut attrs = sm.get(&call.entity_id).map(|s| s.attributes.clone()).unwrap_or_default();
+            if let Some(cmd) = call.data.get("command") {
+                attrs.insert("last_command".to_string(), cmd.clone());
+            }
+            let state = sm.get(&call.entity_id).map(|s| s.state.clone()).unwrap_or_else(|| "on".to_string());
+            Some(ServiceResult { state, attributes: attrs })
+        });
     }
 
     /// Register a service handler for (domain, service).
