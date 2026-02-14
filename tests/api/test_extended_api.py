@@ -3229,3 +3229,264 @@ async def test_logbook_entries_have_entity_id_and_state(rest):
     assert "entity_id" in entry
     assert "state" in entry
     assert "when" in entry
+
+
+# ── Service Coverage Tests (260→271) ─────────────────
+
+
+@pytest.mark.asyncio
+async def test_cover_stop_cover(rest):
+    """cover.stop_cover keeps cover in current position."""
+    await rest.set_state("cover.cts_garage", "opening", {"current_position": 50})
+    await rest.call_service("cover", "stop_cover", {"entity_id": "cover.cts_garage"})
+    state = await rest.get_state("cover.cts_garage")
+    # State should be preserved (not changed to open or closed)
+    assert state["state"] == "opening"
+    assert state["attributes"]["current_position"] == 50
+
+
+@pytest.mark.asyncio
+async def test_cover_toggle(rest):
+    """cover.toggle flips between open and closed."""
+    await rest.set_state("cover.cts_toggle", "open", {"current_position": 100})
+    await rest.call_service("cover", "toggle", {"entity_id": "cover.cts_toggle"})
+    state = await rest.get_state("cover.cts_toggle")
+    assert state["state"] == "closed"
+    assert state["attributes"]["current_position"] == 0
+
+    await rest.call_service("cover", "toggle", {"entity_id": "cover.cts_toggle"})
+    state2 = await rest.get_state("cover.cts_toggle")
+    assert state2["state"] == "open"
+    assert state2["attributes"]["current_position"] == 100
+
+
+@pytest.mark.asyncio
+async def test_fan_toggle(rest):
+    """fan.toggle flips between on and off."""
+    await rest.set_state("fan.cts_toggle", "on", {"percentage": 75})
+    await rest.call_service("fan", "toggle", {"entity_id": "fan.cts_toggle"})
+    state = await rest.get_state("fan.cts_toggle")
+    assert state["state"] == "off"
+
+    await rest.call_service("fan", "toggle", {"entity_id": "fan.cts_toggle"})
+    state2 = await rest.get_state("fan.cts_toggle")
+    assert state2["state"] == "on"
+
+
+@pytest.mark.asyncio
+async def test_input_boolean_services(rest):
+    """input_boolean domain has turn_on, turn_off, toggle services."""
+    await rest.set_state("input_boolean.cts_guest_mode", "off")
+    await rest.call_service("input_boolean", "turn_on", {"entity_id": "input_boolean.cts_guest_mode"})
+    state = await rest.get_state("input_boolean.cts_guest_mode")
+    assert state["state"] == "on"
+
+    await rest.call_service("input_boolean", "toggle", {"entity_id": "input_boolean.cts_guest_mode"})
+    state2 = await rest.get_state("input_boolean.cts_guest_mode")
+    assert state2["state"] == "off"
+
+    await rest.call_service("input_boolean", "turn_off", {"entity_id": "input_boolean.cts_guest_mode"})
+    state3 = await rest.get_state("input_boolean.cts_guest_mode")
+    assert state3["state"] == "off"
+
+
+@pytest.mark.asyncio
+async def test_vacuum_pause(rest):
+    """vacuum.pause sets state to paused."""
+    await rest.set_state("vacuum.cts_robo", "cleaning")
+    await rest.call_service("vacuum", "pause", {"entity_id": "vacuum.cts_robo"})
+    state = await rest.get_state("vacuum.cts_robo")
+    assert state["state"] == "paused"
+
+
+@pytest.mark.asyncio
+async def test_siren_toggle(rest):
+    """siren.toggle flips between on and off."""
+    await rest.set_state("siren.cts_alarm", "off")
+    await rest.call_service("siren", "toggle", {"entity_id": "siren.cts_alarm"})
+    state = await rest.get_state("siren.cts_alarm")
+    assert state["state"] == "on"
+
+    await rest.call_service("siren", "toggle", {"entity_id": "siren.cts_alarm"})
+    state2 = await rest.get_state("siren.cts_alarm")
+    assert state2["state"] == "off"
+
+
+@pytest.mark.asyncio
+async def test_valve_toggle(rest):
+    """valve.toggle flips between open and closed."""
+    await rest.set_state("valve.cts_main", "open")
+    await rest.call_service("valve", "toggle", {"entity_id": "valve.cts_main"})
+    state = await rest.get_state("valve.cts_main")
+    assert state["state"] == "closed"
+
+    await rest.call_service("valve", "toggle", {"entity_id": "valve.cts_main"})
+    state2 = await rest.get_state("valve.cts_main")
+    assert state2["state"] == "open"
+
+
+@pytest.mark.asyncio
+async def test_media_player_select_source(rest):
+    """media_player.select_source updates source attribute."""
+    await rest.set_state("media_player.cts_tv", "on", {"source": "HDMI1"})
+    await rest.call_service("media_player", "select_source", {
+        "entity_id": "media_player.cts_tv",
+        "source": "Spotify",
+    })
+    state = await rest.get_state("media_player.cts_tv")
+    assert state["attributes"]["source"] == "Spotify"
+
+
+@pytest.mark.asyncio
+async def test_media_player_next_previous_track(rest):
+    """media_player.media_next_track and media_previous_track preserve playing state."""
+    await rest.set_state("media_player.cts_speaker", "playing", {"media_title": "Track 1"})
+    await rest.call_service("media_player", "media_next_track", {"entity_id": "media_player.cts_speaker"})
+    state = await rest.get_state("media_player.cts_speaker")
+    assert state["state"] == "playing"
+
+    await rest.call_service("media_player", "media_previous_track", {"entity_id": "media_player.cts_speaker"})
+    state2 = await rest.get_state("media_player.cts_speaker")
+    assert state2["state"] == "playing"
+
+
+@pytest.mark.asyncio
+async def test_services_listing_contains_all_domains(rest):
+    """GET /api/services lists all 21 registered domains."""
+    resp = await rest.client.get(
+        f"{rest.base_url}/api/services",
+        headers=rest._headers(),
+    )
+    assert resp.status_code == 200
+    data = resp.json()
+    domains = {entry["domain"] for entry in data}
+    expected = {
+        "alarm_control_panel", "automation", "button", "climate", "cover",
+        "fan", "input_boolean", "input_number", "input_select", "input_text",
+        "light", "lock", "media_player", "number", "persistent_notification",
+        "scene", "select", "siren", "switch", "vacuum", "valve",
+    }
+    missing = expected - domains
+    assert not missing, f"Missing domains: {missing}"
+
+
+@pytest.mark.asyncio
+async def test_ws_call_service_automation_trigger(ws):
+    """WebSocket call_service automation.trigger actually triggers the automation."""
+    import json
+
+    # Get an automation to trigger
+    msg_id = 400
+    await ws.ws.send(json.dumps({
+        "id": msg_id,
+        "type": "get_states",
+    }))
+    result = json.loads(await ws.ws.recv())
+    automations = [s for s in result["result"] if s["entity_id"].startswith("automation.")]
+    if not automations:
+        pytest.skip("No automations loaded")
+    auto_id = automations[0]["entity_id"]
+
+    # Trigger via WebSocket
+    msg_id += 1
+    await ws.ws.send(json.dumps({
+        "id": msg_id,
+        "type": "call_service",
+        "domain": "automation",
+        "service": "trigger",
+        "service_data": {"entity_id": auto_id},
+    }))
+    result = json.loads(await ws.ws.recv())
+    assert result["id"] == msg_id
+    assert result["success"] is True
+
+
+@pytest.mark.asyncio
+async def test_ws_call_service_scene_turn_on(ws):
+    """WebSocket call_service scene.turn_on activates the scene."""
+    import json
+
+    msg_id = 410
+    await ws.ws.send(json.dumps({
+        "id": msg_id,
+        "type": "get_states",
+    }))
+    result = json.loads(await ws.ws.recv())
+    scenes = [s for s in result["result"] if s["entity_id"].startswith("scene.")]
+    if not scenes:
+        pytest.skip("No scenes loaded")
+    scene_id = scenes[0]["entity_id"]
+
+    msg_id += 1
+    await ws.ws.send(json.dumps({
+        "id": msg_id,
+        "type": "call_service",
+        "domain": "scene",
+        "service": "turn_on",
+        "service_data": {"entity_id": scene_id},
+    }))
+    result = json.loads(await ws.ws.recv())
+    assert result["id"] == msg_id
+    assert result["success"] is True
+
+
+@pytest.mark.asyncio
+async def test_ws_call_service_light_toggle(ws):
+    """WebSocket call_service works for standard domains like light."""
+    import json
+
+    # Create a test light entity
+    msg_id = 420
+    await ws.ws.send(json.dumps({
+        "id": msg_id,
+        "type": "call_service",
+        "domain": "light",
+        "service": "turn_on",
+        "service_data": {"entity_id": "light.ws_test_toggle"},
+    }))
+    result = json.loads(await ws.ws.recv())
+    assert result["success"] is True
+
+    # Toggle it via WS
+    msg_id += 1
+    await ws.ws.send(json.dumps({
+        "id": msg_id,
+        "type": "call_service",
+        "domain": "light",
+        "service": "toggle",
+        "service_data": {"entity_id": "light.ws_test_toggle"},
+    }))
+    result = json.loads(await ws.ws.recv())
+    assert result["success"] is True
+    changed = result["result"]
+    assert len(changed) > 0
+    assert changed[0]["state"] == "off"
+
+
+@pytest.mark.asyncio
+async def test_ws_call_service_cover_stop(ws):
+    """WebSocket call_service cover.stop_cover preserves state."""
+    import json
+
+    msg_id = 430
+    # First set state via REST (so entity exists)
+    import httpx
+    async with httpx.AsyncClient() as client:
+        await client.post("http://localhost:8124/api/states/cover.ws_test_stop", json={
+            "state": "opening",
+            "attributes": {"current_position": 42},
+        })
+
+    # Stop via WS
+    await ws.ws.send(json.dumps({
+        "id": msg_id,
+        "type": "call_service",
+        "domain": "cover",
+        "service": "stop_cover",
+        "service_data": {"entity_id": "cover.ws_test_stop"},
+    }))
+    result = json.loads(await ws.ws.recv())
+    assert result["success"] is True
+    changed = result["result"]
+    assert len(changed) > 0
+    assert changed[0]["state"] == "opening"

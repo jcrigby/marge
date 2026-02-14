@@ -11,6 +11,8 @@ use tokio::sync::mpsc;
 
 use crate::api::AppState;
 use crate::auth::AuthConfig;
+use crate::automation::AutomationEngine;
+use crate::scene::SceneEngine;
 use crate::services::ServiceRegistry;
 use crate::state::StateChangedEvent;
 
@@ -47,6 +49,8 @@ struct WsState {
     auth: Arc<AuthConfig>,
     services: Arc<std::sync::RwLock<ServiceRegistry>>,
     db_path: std::path::PathBuf,
+    engine: Option<Arc<AutomationEngine>>,
+    scenes: Option<Arc<SceneEngine>>,
 }
 
 pub fn router(
@@ -54,8 +58,10 @@ pub fn router(
     auth: Arc<AuthConfig>,
     services: Arc<std::sync::RwLock<ServiceRegistry>>,
     db_path: std::path::PathBuf,
+    engine: Option<Arc<AutomationEngine>>,
+    scenes: Option<Arc<SceneEngine>>,
 ) -> Router {
-    let ws_state = WsState { app: state, auth, services, db_path };
+    let ws_state = WsState { app: state, auth, services, db_path, engine, scenes };
     Router::new()
         .route("/api/websocket", get(ws_handler))
         .with_state(ws_state)
@@ -65,7 +71,10 @@ async fn ws_handler(
     ws: WebSocketUpgrade,
     State(ws_state): State<WsState>,
 ) -> impl IntoResponse {
-    ws.on_upgrade(move |socket| handle_ws(socket, ws_state.app, ws_state.auth, ws_state.services, ws_state.db_path))
+    ws.on_upgrade(move |socket| {
+        handle_ws(socket, ws_state.app, ws_state.auth, ws_state.services,
+                  ws_state.db_path, ws_state.engine, ws_state.scenes)
+    })
 }
 
 /// RAII guard to decrement ws_connections on drop.
@@ -82,6 +91,8 @@ async fn handle_ws(
     auth: Arc<AuthConfig>,
     services: Arc<std::sync::RwLock<ServiceRegistry>>,
     db_path: std::path::PathBuf,
+    engine: Option<Arc<AutomationEngine>>,
+    scenes: Option<Arc<SceneEngine>>,
 ) {
     app.ws_connections.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
     let _guard = WsConnectionGuard(app.clone());
@@ -162,18 +173,77 @@ async fn handle_ws(
                                     let domain = data.get("domain").and_then(|v| v.as_str()).unwrap_or("");
                                     let service = data.get("service").and_then(|v| v.as_str()).unwrap_or("");
                                     let svc_data = data.get("service_data").cloned().unwrap_or(serde_json::Value::Object(Default::default()));
-                                    let entity_ids: Vec<String> = match svc_data.get("entity_id") {
-                                        Some(serde_json::Value::String(s)) => vec![s.clone()],
-                                        Some(serde_json::Value::Array(arr)) => {
-                                            arr.iter().filter_map(|v| v.as_str().map(String::from)).collect()
+                                    let entity_id_str = svc_data.get("entity_id").and_then(|v| v.as_str()).unwrap_or("");
+
+                                    // Handle automation services specially (need engine access)
+                                    if domain == "automation" {
+                                        if let Some(eng) = &engine {
+                                            match service {
+                                                "trigger" => { eng.trigger_by_id(entity_id_str).await; }
+                                                "turn_on" => { eng.set_enabled(entity_id_str, true); }
+                                                "turn_off" => { eng.set_enabled(entity_id_str, false); }
+                                                "toggle" => {
+                                                    let aid = entity_id_str.strip_prefix("automation.").unwrap_or(entity_id_str);
+                                                    let enabled = eng.get_automations_info()
+                                                        .iter().find(|a| a.id == aid).map(|a| a.enabled).unwrap_or(true);
+                                                    eng.set_enabled(entity_id_str, !enabled);
+                                                }
+                                                _ => {}
+                                            }
                                         }
-                                        _ => vec![],
-                                    };
-                                    let changed = {
-                                        let registry = services.read().unwrap_or_else(|e| e.into_inner());
-                                        registry.call(domain, service, &entity_ids, &svc_data, &app.state_machine)
-                                    };
-                                    ws_result(id, true, Some(serde_json::to_value(&changed).unwrap_or_default()))
+                                        ws_result(id, true, Some(serde_json::json!([])))
+                                    } else if domain == "scene" && service == "turn_on" {
+                                        if let Some(se) = &scenes {
+                                            se.turn_on(entity_id_str);
+                                        }
+                                        ws_result(id, true, Some(serde_json::json!([])))
+                                    } else if domain == "persistent_notification" {
+                                        match service {
+                                            "create" => {
+                                                let notif_id = svc_data.get("notification_id")
+                                                    .and_then(|v| v.as_str()).unwrap_or("auto").to_string();
+                                                let notif_id = if notif_id == "auto" {
+                                                    uuid::Uuid::new_v4().to_string()
+                                                } else { notif_id };
+                                                let title = svc_data.get("title").and_then(|v| v.as_str()).unwrap_or("").to_string();
+                                                let message = svc_data.get("message").and_then(|v| v.as_str()).unwrap_or("").to_string();
+                                                let db = db_path.clone();
+                                                let _ = tokio::task::spawn_blocking(move || {
+                                                    crate::recorder::create_notification(&db, &notif_id, &title, &message)
+                                                }).await;
+                                            }
+                                            "dismiss" => {
+                                                let notif_id = svc_data.get("notification_id")
+                                                    .and_then(|v| v.as_str()).unwrap_or("").to_string();
+                                                let db = db_path.clone();
+                                                let _ = tokio::task::spawn_blocking(move || {
+                                                    crate::recorder::dismiss_notification(&db, &notif_id)
+                                                }).await;
+                                            }
+                                            "dismiss_all" => {
+                                                let db = db_path.clone();
+                                                let _ = tokio::task::spawn_blocking(move || {
+                                                    crate::recorder::dismiss_all_notifications(&db)
+                                                }).await;
+                                            }
+                                            _ => {}
+                                        }
+                                        ws_result(id, true, Some(serde_json::json!([])))
+                                    } else {
+                                        // Standard service dispatch through registry
+                                        let entity_ids: Vec<String> = match svc_data.get("entity_id") {
+                                            Some(serde_json::Value::String(s)) => vec![s.clone()],
+                                            Some(serde_json::Value::Array(arr)) => {
+                                                arr.iter().filter_map(|v| v.as_str().map(String::from)).collect()
+                                            }
+                                            _ => vec![],
+                                        };
+                                        let changed = {
+                                            let registry = services.read().unwrap_or_else(|e| e.into_inner());
+                                            registry.call(domain, service, &entity_ids, &svc_data, &app.state_machine)
+                                        };
+                                        ws_result(id, true, Some(serde_json::to_value(&changed).unwrap_or_default()))
+                                    }
                                 }
                                 "fire_event" => {
                                     let event_type = incoming.data.get("event_type")
