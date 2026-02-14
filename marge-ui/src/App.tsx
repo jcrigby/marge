@@ -134,6 +134,22 @@ interface LabelInfo {
 }
 
 type GroupMode = 'domain' | 'area' | 'label';
+type SortMode = 'name' | 'state' | 'last_changed';
+
+function sortEntities(list: EntityState[], sort: SortMode): EntityState[] {
+  const sorted = [...list];
+  switch (sort) {
+    case 'state':
+      sorted.sort((a, b) => a.state.localeCompare(b.state) || a.entity_id.localeCompare(b.entity_id));
+      break;
+    case 'last_changed':
+      sorted.sort((a, b) => (b.last_changed || '').localeCompare(a.last_changed || '') || a.entity_id.localeCompare(b.entity_id));
+      break;
+    default: // name
+      sorted.sort((a, b) => a.entity_id.localeCompare(b.entity_id));
+  }
+  return sorted;
+}
 
 function groupByLabel(entities: EntityState[], labels: LabelInfo[]): Map<string, EntityState[]> {
   const labelMap = new Map<string, Set<string>>();
@@ -330,6 +346,7 @@ function App() {
   const [activeTab, setActiveTab] = useState<TabName>(initial.tab);
   const [groupMode, setGroupMode] = useState<GroupMode>('domain');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+  const [sortMode, setSortMode] = useState<SortMode>('name');
   const [areas, setAreas] = useState<AreaInfo[]>([]);
   const [labels, setLabels] = useState<LabelInfo[]>([]);
   const [showHelp, setShowHelp] = useState(false);
@@ -534,11 +551,12 @@ function App() {
   }, [areas, labels]);
 
   const filteredList = filtered();
+  const sortedFilteredList = sortEntities(filteredList, sortMode);
   const groups = groupMode === 'area'
-    ? groupByArea(filteredList, areas)
+    ? groupByArea(sortedFilteredList, areas)
     : groupMode === 'label'
-    ? groupByLabel(filteredList, labels)
-    : groupByDomain(filteredList);
+    ? groupByLabel(sortedFilteredList, labels)
+    : groupByDomain(sortedFilteredList);
 
   return (
     <div className="app">
@@ -571,7 +589,7 @@ function App() {
           className={`tab-btn ${activeTab === 'entities' ? 'active' : ''}`}
           onClick={() => setActiveTab('entities')}
         >
-          Entities<span className="tab-badge">{entities.length}</span>
+          Entities<span className="tab-badge">{filteredList.length !== entities.length ? `${filteredList.length}/` : ''}{entities.length}</span>
         </button>
         <button
           className={`tab-btn ${activeTab === 'automations' ? 'active' : ''}`}
@@ -685,6 +703,16 @@ function App() {
               >
                 By Label
               </button>
+              <select
+                className="sort-select"
+                value={sortMode}
+                onChange={(e) => setSortMode(e.target.value as SortMode)}
+                title="Sort entities"
+              >
+                <option value="name">Sort: Name</option>
+                <option value="state">Sort: State</option>
+                <option value="last_changed">Sort: Recent</option>
+              </select>
               <button
                 className={`chip ${viewMode === 'list' ? 'active' : ''}`}
                 onClick={() => setViewMode(viewMode === 'grid' ? 'list' : 'grid')}
