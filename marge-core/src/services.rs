@@ -595,6 +595,100 @@ impl ServiceRegistry {
             tracing::info!("NOTIFICATION: {} — {}", title, message);
             None
         });
+
+        // ── Homeassistant ───────────────────────────────
+        // System service stubs (registered for /api/services listing)
+        self.register("homeassistant", "restart", |_call, _sm| None);
+        self.register("homeassistant", "stop", |_call, _sm| None);
+        self.register("homeassistant", "reload_core_config", |_call, _sm| None);
+        self.register("homeassistant", "turn_on", |call, sm| {
+            let attrs = sm.get(&call.entity_id).map(|s| s.attributes.clone()).unwrap_or_default();
+            Some(ServiceResult { state: "on".to_string(), attributes: attrs })
+        });
+        self.register("homeassistant", "turn_off", |call, sm| {
+            let attrs = sm.get(&call.entity_id).map(|s| s.attributes.clone()).unwrap_or_default();
+            Some(ServiceResult { state: "off".to_string(), attributes: attrs })
+        });
+        self.register("homeassistant", "toggle", |call, sm| {
+            let current = sm.get(&call.entity_id);
+            let new_state = match current.as_ref().map(|s| s.state.as_str()) {
+                Some("on") => "off",
+                _ => "on",
+            };
+            let attrs = current.map(|s| s.attributes.clone()).unwrap_or_default();
+            Some(ServiceResult { state: new_state.to_string(), attributes: attrs })
+        });
+
+        // ── Script ──────────────────────────────────────
+        // Scripts are fire-and-forget; registered for listing
+        self.register("script", "turn_on", |_call, _sm| None);
+        self.register("script", "turn_off", |_call, _sm| None);
+        self.register("script", "reload", |_call, _sm| None);
+
+        // ── Timer ───────────────────────────────────────
+        self.register("timer", "start", |call, sm| {
+            let attrs = sm.get(&call.entity_id).map(|s| s.attributes.clone()).unwrap_or_default();
+            Some(ServiceResult { state: "active".to_string(), attributes: attrs })
+        });
+        self.register("timer", "pause", |call, sm| {
+            let attrs = sm.get(&call.entity_id).map(|s| s.attributes.clone()).unwrap_or_default();
+            Some(ServiceResult { state: "paused".to_string(), attributes: attrs })
+        });
+        self.register("timer", "cancel", |call, sm| {
+            let attrs = sm.get(&call.entity_id).map(|s| s.attributes.clone()).unwrap_or_default();
+            Some(ServiceResult { state: "idle".to_string(), attributes: attrs })
+        });
+        self.register("timer", "finish", |call, sm| {
+            let attrs = sm.get(&call.entity_id).map(|s| s.attributes.clone()).unwrap_or_default();
+            Some(ServiceResult { state: "idle".to_string(), attributes: attrs })
+        });
+
+        // ── Counter ─────────────────────────────────────
+        self.register("counter", "increment", |call, sm| {
+            let current = sm.get(&call.entity_id);
+            let val: i64 = current.as_ref().map(|s| s.state.parse().unwrap_or(0)).unwrap_or(0);
+            let attrs = current.map(|s| s.attributes.clone()).unwrap_or_default();
+            Some(ServiceResult { state: (val + 1).to_string(), attributes: attrs })
+        });
+        self.register("counter", "decrement", |call, sm| {
+            let current = sm.get(&call.entity_id);
+            let val: i64 = current.as_ref().map(|s| s.state.parse().unwrap_or(0)).unwrap_or(0);
+            let attrs = current.map(|s| s.attributes.clone()).unwrap_or_default();
+            Some(ServiceResult { state: (val - 1).to_string(), attributes: attrs })
+        });
+        self.register("counter", "reset", |call, sm| {
+            let attrs = sm.get(&call.entity_id).map(|s| s.attributes.clone()).unwrap_or_default();
+            let initial = attrs.get("initial").and_then(|v| v.as_i64()).unwrap_or(0);
+            Some(ServiceResult { state: initial.to_string(), attributes: attrs })
+        });
+
+        // ── Input Datetime ──────────────────────────────
+        self.register("input_datetime", "set_datetime", |call, sm| {
+            let attrs = sm.get(&call.entity_id).map(|s| s.attributes.clone()).unwrap_or_default();
+            let dt = call.data.get("datetime").or_else(|| call.data.get("date")).or_else(|| call.data.get("time"))
+                .and_then(|v| v.as_str()).unwrap_or("").to_string();
+            Some(ServiceResult { state: dt, attributes: attrs })
+        });
+
+        // ── Notify ──────────────────────────────────────
+        self.register("notify", "send_message", |_call, _sm| None);
+
+        // ── Group ───────────────────────────────────────
+        self.register("group", "set", |call, sm| {
+            let attrs = sm.get(&call.entity_id).map(|s| s.attributes.clone()).unwrap_or_default();
+            let state = call.data.get("state").and_then(|v| v.as_str()).unwrap_or("on").to_string();
+            Some(ServiceResult { state, attributes: attrs })
+        });
+
+        // ── Update ──────────────────────────────────────
+        self.register("update", "install", |call, sm| {
+            let attrs = sm.get(&call.entity_id).map(|s| s.attributes.clone()).unwrap_or_default();
+            Some(ServiceResult { state: "installing".to_string(), attributes: attrs })
+        });
+        self.register("update", "skip", |call, sm| {
+            let attrs = sm.get(&call.entity_id).map(|s| s.attributes.clone()).unwrap_or_default();
+            Some(ServiceResult { state: "skipped".to_string(), attributes: attrs })
+        });
     }
 
     /// Register a service handler for (domain, service).

@@ -170,6 +170,8 @@ pub fn router(
         .route("/api/auth/tokens", get(list_tokens))
         .route("/api/auth/tokens", post(create_token))
         .route("/api/auth/tokens/:token_id", axum::routing::delete(delete_token_handler))
+        // Automation reload (HA frontend uses this path)
+        .route("/api/config/automation/reload", post(reload_automations))
         // HA-compatible stubs
         .route("/api/error_log", get(error_log))
         .route("/api/config/core/check_config", post(check_config))

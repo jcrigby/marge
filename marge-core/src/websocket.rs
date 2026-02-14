@@ -386,6 +386,119 @@ async fn handle_ws(
                                     };
                                     ws_result(id, true, Some(serde_json::to_value(&entries).unwrap_or_default()))
                                 }
+                                "config/area_registry/create" => {
+                                    let area_id = incoming.data.get("area_id")
+                                        .and_then(|v| v.as_str()).unwrap_or("").to_string();
+                                    let name = incoming.data.get("name")
+                                        .and_then(|v| v.as_str()).unwrap_or("").to_string();
+                                    if area_id.is_empty() || name.is_empty() {
+                                        ws_result(id, false, Some(serde_json::json!({"message": "area_id and name required"})))
+                                    } else {
+                                        let db = db_path.clone();
+                                        let ok = tokio::task::spawn_blocking(move || {
+                                            crate::recorder::upsert_area(&db, &area_id, &name)
+                                        }).await.ok().and_then(|r| r.ok()).is_some();
+                                        ws_result(id, ok, None)
+                                    }
+                                }
+                                "config/area_registry/update" => {
+                                    let area_id = incoming.data.get("area_id")
+                                        .and_then(|v| v.as_str()).unwrap_or("").to_string();
+                                    let name = incoming.data.get("name")
+                                        .and_then(|v| v.as_str()).unwrap_or("").to_string();
+                                    if area_id.is_empty() {
+                                        ws_result(id, false, Some(serde_json::json!({"message": "area_id required"})))
+                                    } else {
+                                        let db = db_path.clone();
+                                        let ok = tokio::task::spawn_blocking(move || {
+                                            crate::recorder::upsert_area(&db, &area_id, &name)
+                                        }).await.ok().and_then(|r| r.ok()).is_some();
+                                        ws_result(id, ok, None)
+                                    }
+                                }
+                                "config/area_registry/delete" => {
+                                    let area_id = incoming.data.get("area_id")
+                                        .and_then(|v| v.as_str()).unwrap_or("").to_string();
+                                    let db = db_path.clone();
+                                    let ok = tokio::task::spawn_blocking(move || {
+                                        crate::recorder::delete_area(&db, &area_id)
+                                    }).await.ok().and_then(|r| r.ok()).is_some();
+                                    ws_result(id, ok, None)
+                                }
+                                "config/entity_registry/update" => {
+                                    // Update entity attributes (friendly_name, icon, etc.)
+                                    let entity_id = incoming.data.get("entity_id")
+                                        .and_then(|v| v.as_str()).unwrap_or("");
+                                    if let Some(mut state) = app.state_machine.get(entity_id) {
+                                        if let Some(name) = incoming.data.get("name").and_then(|v| v.as_str()) {
+                                            state.attributes.insert("friendly_name".to_string(), serde_json::json!(name));
+                                        }
+                                        if let Some(icon) = incoming.data.get("icon").and_then(|v| v.as_str()) {
+                                            state.attributes.insert("icon".to_string(), serde_json::json!(icon));
+                                        }
+                                        if let Some(area_id) = incoming.data.get("area_id").and_then(|v| v.as_str()) {
+                                            let db = db_path.clone();
+                                            let eid = entity_id.to_string();
+                                            let aid = area_id.to_string();
+                                            let _ = tokio::task::spawn_blocking(move || {
+                                                if aid.is_empty() {
+                                                    crate::recorder::unassign_entity_area(&db, &eid)
+                                                } else {
+                                                    crate::recorder::assign_entity_area(&db, &eid, &aid)
+                                                }
+                                            }).await;
+                                        }
+                                        app.state_machine.set(
+                                            entity_id.to_string(),
+                                            state.state.clone(),
+                                            state.attributes.clone(),
+                                        );
+                                        ws_result(id, true, Some(serde_json::json!({
+                                            "entity_id": entity_id,
+                                            "name": state.attributes.get("friendly_name"),
+                                        })))
+                                    } else {
+                                        ws_result(id, false, Some(serde_json::json!({"message": "Entity not found"})))
+                                    }
+                                }
+                                "config/label_registry/create" => {
+                                    let label_id = incoming.data.get("label_id")
+                                        .and_then(|v| v.as_str()).unwrap_or("").to_string();
+                                    let name = incoming.data.get("name")
+                                        .and_then(|v| v.as_str()).unwrap_or("").to_string();
+                                    let color = incoming.data.get("color")
+                                        .and_then(|v| v.as_str()).unwrap_or("").to_string();
+                                    if label_id.is_empty() || name.is_empty() {
+                                        ws_result(id, false, Some(serde_json::json!({"message": "label_id and name required"})))
+                                    } else {
+                                        let db = db_path.clone();
+                                        let ok = tokio::task::spawn_blocking(move || {
+                                            crate::recorder::upsert_label(&db, &label_id, &name, &color)
+                                        }).await.ok().and_then(|r| r.ok()).is_some();
+                                        ws_result(id, ok, None)
+                                    }
+                                }
+                                "config/label_registry/delete" => {
+                                    let label_id = incoming.data.get("label_id")
+                                        .and_then(|v| v.as_str()).unwrap_or("").to_string();
+                                    let db = db_path.clone();
+                                    let ok = tokio::task::spawn_blocking(move || {
+                                        crate::recorder::delete_label(&db, &label_id)
+                                    }).await.ok().and_then(|r| r.ok()).is_some();
+                                    ws_result(id, ok, None)
+                                }
+                                "lovelace/config" => {
+                                    // Return minimal Lovelace config stub for HA frontend compat
+                                    ws_result(id, true, Some(serde_json::json!({
+                                        "views": [],
+                                        "title": "Marge",
+                                    })))
+                                }
+                                "subscribe_trigger" => {
+                                    // Stub: subscribe to trigger events (fires on automation trigger)
+                                    subscribed_ids.push(id);
+                                    ws_result(id, true, None)
+                                }
                                 "ping" => {
                                     // HA-compatible pong response
                                     serde_json::to_string(&serde_json::json!({
