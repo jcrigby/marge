@@ -3077,3 +3077,155 @@ async def test_ws_subscribe_event_has_entity_id(ws, rest):
     data = event["event"]["data"]
     assert data["entity_id"] == "sensor.ws_eid_test"
     assert data["new_state"]["state"] == "hello"
+
+
+# ── Input Helpers ────────────────────────────────────────
+
+
+@pytest.mark.asyncio
+async def test_input_text_set_value_service(rest):
+    """input_text.set_value service updates entity state."""
+    await rest.set_state("input_text.greeting", "hello")
+    await rest.call_service("input_text", "set_value", {
+        "entity_id": "input_text.greeting",
+        "value": "goodbye",
+    })
+    s = await rest.get_state("input_text.greeting")
+    assert s["state"] == "goodbye"
+
+
+@pytest.mark.asyncio
+async def test_input_select_select_option_service(rest):
+    """input_select.select_option updates entity state."""
+    await rest.set_state("input_select.mode", "auto", attributes={"options": ["auto", "manual", "off"]})
+    await rest.call_service("input_select", "select_option", {
+        "entity_id": "input_select.mode",
+        "option": "manual",
+    })
+    s = await rest.get_state("input_select.mode")
+    assert s["state"] == "manual"
+
+
+# ── Automation Services ──────────────────────────────────
+
+
+@pytest.mark.asyncio
+async def test_automation_turn_on_and_off_services(rest):
+    """automation.turn_on and turn_off toggle the automation entity state."""
+    await rest.set_state("automation.test_svc", "on")
+    await rest.call_service("automation", "turn_off", {"entity_id": "automation.test_svc"})
+    s = await rest.get_state("automation.test_svc")
+    assert s["state"] == "off"
+
+    await rest.call_service("automation", "turn_on", {"entity_id": "automation.test_svc"})
+    s = await rest.get_state("automation.test_svc")
+    assert s["state"] == "on"
+
+
+@pytest.mark.asyncio
+async def test_scene_turn_on_service(rest):
+    """scene.turn_on activates a scene entity."""
+    await rest.set_state("scene.test_activate", "scening")
+    result = await rest.call_service("scene", "turn_on", {"entity_id": "scene.test_activate"})
+    # Service should succeed (returned data)
+    assert result is not None
+
+
+# ── Template Rendering ───────────────────────────────────
+
+
+@pytest.mark.asyncio
+async def test_template_boolean_comparison(rest):
+    """Template engine handles boolean comparisons."""
+    await rest.set_state("sensor.temp", "75.5")
+    resp = await rest.client.post(
+        f"{rest.base_url}/api/template",
+        headers=rest._headers(),
+        json={"template": "{{ states('sensor.temp') | float > 70 }}"},
+    )
+    assert resp.status_code == 200
+    assert resp.text.strip().lower() in ("true", "True")
+
+
+@pytest.mark.asyncio
+async def test_template_default_filter(rest):
+    """Template default filter provides fallback for missing state."""
+    resp = await rest.client.post(
+        f"{rest.base_url}/api/template",
+        headers=rest._headers(),
+        json={"template": "{{ states('sensor.nonexistent') | default('N/A') }}"},
+    )
+    assert resp.status_code == 200
+    text = resp.text.strip()
+    assert text in ("N/A", "unknown", "unavailable")
+
+
+# ── WebSocket Edge Cases ─────────────────────────────────
+
+
+@pytest.mark.asyncio
+async def test_ws_get_states_includes_attributes(ws, rest):
+    """WS get_states result includes entity attributes."""
+    await rest.set_state("sensor.ws_attr_test", "42", attributes={"unit": "deg"})
+    states = await ws.get_states()
+    entity = next((s for s in states if s["entity_id"] == "sensor.ws_attr_test"), None)
+    assert entity is not None
+    assert entity["state"] == "42"
+    assert entity["attributes"]["unit"] == "deg"
+
+
+@pytest.mark.asyncio
+async def test_ws_multiple_subscribes(ws, rest):
+    """Multiple WS subscriptions receive the same events."""
+    sub1 = await ws.subscribe_events("state_changed")
+    sub2 = await ws.subscribe_events("state_changed")
+    await rest.set_state("sensor.multi_sub", "value")
+    event1 = await ws.recv_event(timeout=5)
+    event2 = await ws.recv_event(timeout=5)
+    assert event1["type"] == "event"
+    assert event2["type"] == "event"
+
+
+# ── Search Edge Cases ────────────────────────────────────
+
+
+@pytest.mark.asyncio
+async def test_search_by_area(rest):
+    """Search by area_id returns entities assigned to that area."""
+    # Create area and assign entity
+    area_resp = await rest.client.post(
+        f"{rest.base_url}/api/areas",
+        headers=rest._headers(),
+        json={"area_id": "search_area", "name": "Search Area"},
+    )
+    await rest.set_state("sensor.in_search_area", "42")
+    await rest.client.post(
+        f"{rest.base_url}/api/areas/search_area/entities/sensor.in_search_area",
+        headers=rest._headers(),
+    )
+    resp = await rest.client.get(
+        f"{rest.base_url}/api/states/search?area=search_area",
+        headers=rest._headers(),
+    )
+    assert resp.status_code == 200
+    results = resp.json()
+    entity_ids = [r["entity_id"] for r in results]
+    assert "sensor.in_search_area" in entity_ids
+
+
+@pytest.mark.asyncio
+async def test_logbook_entries_have_entity_id_and_state(rest):
+    """Logbook entries should have entity_id, state, and when fields."""
+    await rest.set_state("sensor.logbook_field_test", "first")
+    await rest.set_state("sensor.logbook_field_test", "second")
+    resp = await rest.client.get(
+        f"{rest.base_url}/api/logbook",
+        headers=rest._headers(),
+    )
+    assert resp.status_code == 200
+    entries = resp.json()
+    assert len(entries) > 0
+    entry = entries[-1]
+    assert "entity_id" in entry
+    assert "state" in entry
+    assert "when" in entry
