@@ -13,6 +13,7 @@ use std::sync::Arc;
 
 use crate::auth::AuthConfig;
 use crate::automation::AutomationEngine;
+use crate::integrations::{zigbee2mqtt, zwave, tasmota, esphome};
 use crate::scene::SceneEngine;
 use crate::services::ServiceRegistry;
 use crate::state::{EntityState, StateMachine};
@@ -39,6 +40,10 @@ struct RouterState {
     db_path: PathBuf,
     _automations_path: PathBuf,
     scenes_path: PathBuf,
+    z2m_bridge: Arc<zigbee2mqtt::Zigbee2MqttBridge>,
+    zwave_bridge: Arc<zwave::ZwaveBridge>,
+    tasmota_bridge: Arc<tasmota::TasmotaBridge>,
+    esphome_bridge: Arc<esphome::ESPHomeBridge>,
 }
 
 /// POST /api/states/{entity_id} request body
@@ -99,6 +104,10 @@ pub fn router(
     db_path: PathBuf,
     automations_path: PathBuf,
     scenes_path: PathBuf,
+    z2m_bridge: Arc<zigbee2mqtt::Zigbee2MqttBridge>,
+    zwave_bridge: Arc<zwave::ZwaveBridge>,
+    tasmota_bridge: Arc<tasmota::TasmotaBridge>,
+    esphome_bridge: Arc<esphome::ESPHomeBridge>,
 ) -> Router {
     let router_state = RouterState {
         app: state,
@@ -109,6 +118,10 @@ pub fn router(
         db_path,
         _automations_path: automations_path,
         scenes_path,
+        z2m_bridge,
+        zwave_bridge,
+        tasmota_bridge,
+        esphome_bridge,
     };
 
     Router::new()
@@ -166,6 +179,13 @@ pub fn router(
         .route("/api/labels", get(list_labels_handler).post(create_label_handler))
         .route("/api/labels/:label_id", axum::routing::delete(delete_label_handler))
         .route("/api/labels/:label_id/entities/:entity_id", post(assign_label_handler).delete(unassign_label_handler))
+        // Integration bridge status
+        .route("/api/integrations", get(list_integrations))
+        .route("/api/integrations/zigbee2mqtt", get(get_zigbee2mqtt))
+        .route("/api/integrations/zwave", get(get_zwave))
+        .route("/api/integrations/tasmota", get(get_tasmota))
+        .route("/api/integrations/esphome", get(get_esphome))
+        .route("/api/integrations/zigbee2mqtt/permit_join", post(zigbee2mqtt_permit_join))
         // Long-lived access tokens
         .route("/api/auth/tokens", get(list_tokens))
         .route("/api/auth/tokens", post(create_token))
@@ -1616,6 +1636,133 @@ async fn delete_token_handler(
     rs.auth.remove_token_by_id(&token_id);
 
     Ok(Json(serde_json::json!({"result": "ok"})))
+}
+
+// ── Integration Bridge Endpoints ─────────────────────────
+
+/// GET /api/integrations — list all integration summaries
+async fn list_integrations(
+    State(rs): State<RouterState>,
+    headers: HeaderMap,
+) -> Result<Json<Vec<serde_json::Value>>, StatusCode> {
+    check_auth(&rs, &headers)?;
+
+    let z2m_state = rs.z2m_bridge.bridge_state();
+    let z2m_status = if z2m_state == "online" { "online" } else { "offline" };
+
+    let zwave_status = if rs.zwave_bridge.is_connected() { "connected" } else { "disconnected" };
+
+    let tasmota_count = rs.tasmota_bridge.device_count();
+    let tasmota_status = if tasmota_count > 0 { "active" } else { "inactive" };
+
+    let esphome_count = rs.esphome_bridge.device_count();
+    let esphome_status = if esphome_count > 0 { "active" } else { "inactive" };
+
+    Ok(Json(vec![
+        serde_json::json!({
+            "id": "zigbee2mqtt",
+            "name": "Zigbee2MQTT",
+            "status": z2m_status,
+            "device_count": rs.z2m_bridge.device_count(),
+        }),
+        serde_json::json!({
+            "id": "zwave",
+            "name": "Z-Wave JS UI",
+            "status": zwave_status,
+            "device_count": rs.zwave_bridge.node_count(),
+        }),
+        serde_json::json!({
+            "id": "tasmota",
+            "name": "Tasmota",
+            "status": tasmota_status,
+            "device_count": tasmota_count,
+        }),
+        serde_json::json!({
+            "id": "esphome",
+            "name": "ESPHome",
+            "status": esphome_status,
+            "device_count": esphome_count,
+        }),
+    ]))
+}
+
+/// GET /api/integrations/zigbee2mqtt — zigbee2mqtt bridge detail
+async fn get_zigbee2mqtt(
+    State(rs): State<RouterState>,
+    headers: HeaderMap,
+) -> Result<Json<serde_json::Value>, StatusCode> {
+    check_auth(&rs, &headers)?;
+
+    Ok(Json(serde_json::json!({
+        "bridge_state": rs.z2m_bridge.bridge_state(),
+        "device_count": rs.z2m_bridge.device_count(),
+        "devices": rs.z2m_bridge.devices(),
+        "permit_join": rs.z2m_bridge.permit_join(),
+    })))
+}
+
+/// GET /api/integrations/zwave — Z-Wave bridge detail
+async fn get_zwave(
+    State(rs): State<RouterState>,
+    headers: HeaderMap,
+) -> Result<Json<serde_json::Value>, StatusCode> {
+    check_auth(&rs, &headers)?;
+
+    Ok(Json(serde_json::json!({
+        "connected": rs.zwave_bridge.is_connected(),
+        "node_count": rs.zwave_bridge.node_count(),
+        "nodes": rs.zwave_bridge.nodes(),
+    })))
+}
+
+/// GET /api/integrations/tasmota — Tasmota bridge detail
+async fn get_tasmota(
+    State(rs): State<RouterState>,
+    headers: HeaderMap,
+) -> Result<Json<serde_json::Value>, StatusCode> {
+    check_auth(&rs, &headers)?;
+
+    Ok(Json(serde_json::json!({
+        "device_count": rs.tasmota_bridge.device_count(),
+        "devices": rs.tasmota_bridge.devices(),
+    })))
+}
+
+/// GET /api/integrations/esphome — ESPHome bridge detail
+async fn get_esphome(
+    State(rs): State<RouterState>,
+    headers: HeaderMap,
+) -> Result<Json<serde_json::Value>, StatusCode> {
+    check_auth(&rs, &headers)?;
+
+    Ok(Json(serde_json::json!({
+        "device_count": rs.esphome_bridge.device_count(),
+        "devices": rs.esphome_bridge.devices(),
+    })))
+}
+
+/// POST /api/integrations/zigbee2mqtt/permit_join — enable/disable pairing mode
+#[derive(Deserialize)]
+struct PermitJoinRequest {
+    enable: bool,
+    #[serde(default)]
+    #[allow(dead_code)]
+    duration: Option<u32>,
+}
+
+async fn zigbee2mqtt_permit_join(
+    State(rs): State<RouterState>,
+    headers: HeaderMap,
+    Json(body): Json<PermitJoinRequest>,
+) -> Result<Json<serde_json::Value>, StatusCode> {
+    check_auth(&rs, &headers)?;
+
+    rs.z2m_bridge.set_permit_join(body.enable);
+
+    Ok(Json(serde_json::json!({
+        "result": "ok",
+        "permit_join": body.enable,
+    })))
 }
 
 /// GET /api/error_log — return recent error log entries (HA-compatible)

@@ -15,13 +15,13 @@
 use std::sync::Arc;
 
 use dashmap::DashMap;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 use crate::api::AppState;
 
 /// A Zigbee device as reported by zigbee2mqtt bridge/devices.
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct ZigbeeDevice {
     pub ieee_address: String,
     #[serde(default)]
@@ -44,7 +44,7 @@ pub struct ZigbeeDevice {
     pub supported: bool,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct DeviceDefinition {
     #[serde(default)]
     pub model: Option<String>,
@@ -166,6 +166,16 @@ impl Zigbee2MqttBridge {
     /// Get bridge state.
     pub fn bridge_state(&self) -> String {
         self.bridge_state.read().unwrap_or_else(|e| e.into_inner()).clone()
+    }
+
+    /// Get permit_join status.
+    pub fn permit_join(&self) -> bool {
+        self.permit_join.load(std::sync::atomic::Ordering::Relaxed)
+    }
+
+    /// Set permit_join status.
+    pub fn set_permit_join(&self, enable: bool) {
+        self.permit_join.store(enable, std::sync::atomic::Ordering::Relaxed);
     }
 
     // ── Private handlers ─────────────────────────────────
