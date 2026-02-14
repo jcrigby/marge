@@ -278,6 +278,19 @@
 .bulk-btn:hover {
   border-color: var(--accent);
 }
+.bulk-select {
+  padding: 0.3rem 0.5rem;
+  background: var(--bg);
+  border: 1px solid var(--border-subtle);
+  color: var(--text);
+  border-radius: 4px;
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+.bulk-select:focus {
+  border-color: var(--accent);
+  outline: none;
+}
 .bulk-btn-danger {
   color: #f44;
   border-color: #f44;
@@ -875,6 +888,33 @@
   font-size: 0.8rem;
 }
 
+/* ── Statistics summary ──────────────────── */
+.stats-summary {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0.5rem;
+}
+.stats-kv {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 0.4rem;
+  background: var(--bg);
+  border-radius: 6px;
+}
+.stats-label {
+  font-size: 0.65rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-dim);
+}
+.stats-val {
+  font-size: 1rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--accent);
+}
+
 /* ── Detail controls ──────────────────────── */
 .detail-controls {
   margin-bottom: 1rem;
@@ -1314,6 +1354,45 @@
   color: var(--text-dim);
   font-family: monospace;
 }
+.metrics-table-wrap {
+  overflow-x: auto;
+}
+.metrics-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8rem;
+}
+.metrics-table th {
+  text-align: left;
+  padding: 0.4rem 0.5rem;
+  color: var(--text-dim);
+  font-weight: 500;
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  border-bottom: 1px solid var(--border-subtle);
+}
+.metrics-table td {
+  padding: 0.3rem 0.5rem;
+  border-bottom: 1px solid var(--border-subtle);
+}
+.metric-name {
+  font-family: monospace;
+  font-size: 0.75rem;
+  color: var(--accent);
+}
+.metric-labels {
+  font-family: monospace;
+  font-size: 0.7rem;
+  color: var(--text-dim);
+}
+.metric-value {
+  font-family: monospace;
+  font-size: 0.8rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
 .settings-danger {
   border-top: 1px solid rgba(255, 68, 68, 0.3);
   margin-top: 0.5rem;
@@ -1488,6 +1567,40 @@
   font-size: 0.65rem;
   color: var(--text-dim);
   margin-top: 0.25rem;
+}
+
+/* ── Quick actions dropdown ──────────────── */
+.quick-actions-list {
+  padding: 0.5rem;
+  max-height: 340px;
+  overflow-y: auto;
+}
+.quick-actions-group {
+  margin-bottom: 0.5rem;
+}
+.quick-actions-group-title {
+  font-size: 0.65rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-dim);
+  padding: 0.25rem 0.5rem;
+}
+.quick-action-btn {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 0.5rem 0.75rem;
+  border: none;
+  background: none;
+  color: var(--text);
+  font-size: 0.85rem;
+  cursor: pointer;
+  border-radius: 6px;
+  transition: background 0.1s;
+  text-transform: capitalize;
+}
+.quick-action-btn:hover {
+  background: var(--bg-card-on);
 }
 
 /* ── Label manager ────────────────────────── */
