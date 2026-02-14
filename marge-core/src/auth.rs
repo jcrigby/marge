@@ -119,6 +119,29 @@ impl AuthConfig {
     }
 }
 
+/// Hash a password using argon2id with a random salt.
+pub fn hash_password(password: &str) -> Result<String, argon2::password_hash::Error> {
+    use argon2::{Argon2, PasswordHasher};
+    use argon2::password_hash::rand_core::OsRng;
+    use argon2::password_hash::SaltString;
+
+    let salt = SaltString::generate(&mut OsRng);
+    let argon2 = Argon2::default();
+    Ok(argon2.hash_password(password.as_bytes(), &salt)?.to_string())
+}
+
+/// Verify a password against an argon2id hash.
+pub fn verify_password(password: &str, hash: &str) -> bool {
+    use argon2::{Argon2, PasswordVerifier};
+    use argon2::password_hash::PasswordHash;
+
+    let parsed = match PasswordHash::new(hash) {
+        Ok(h) => h,
+        Err(_) => return false,
+    };
+    Argon2::default().verify_password(password.as_bytes(), &parsed).is_ok()
+}
+
 /// Constant-time string comparison to prevent timing attacks.
 fn constant_time_eq(a: &str, b: &str) -> bool {
     if a.len() != b.len() {

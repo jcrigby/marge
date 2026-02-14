@@ -190,6 +190,10 @@ pub fn router(
         .route("/api/auth/tokens", get(list_tokens))
         .route("/api/auth/tokens", post(create_token))
         .route("/api/auth/tokens/:token_id", axum::routing::delete(delete_token_handler))
+        // User accounts (Phase 7)
+        .route("/api/auth/login", post(login_handler))
+        .route("/api/auth/users", get(list_users_handler).post(create_user_handler))
+        .route("/api/auth/users/:username", axum::routing::delete(delete_user_handler))
         // Automation reload (HA frontend uses this path)
         .route("/api/config/automation/reload", post(reload_automations))
         // HA-compatible stubs
@@ -1636,6 +1640,171 @@ async fn delete_token_handler(
     rs.auth.remove_token_by_id(&token_id);
 
     Ok(Json(serde_json::json!({"result": "ok"})))
+}
+
+// ── User Account Endpoints (Phase 7) ─────────────────────
+
+/// POST /api/auth/login — authenticate with username/password, receive a token
+async fn login_handler(
+    State(rs): State<RouterState>,
+    Json(body): Json<serde_json::Value>,
+) -> Result<Json<serde_json::Value>, StatusCode> {
+    let username = body.get("username").and_then(|v| v.as_str())
+        .ok_or(StatusCode::BAD_REQUEST)?
+        .to_string();
+    let password = body.get("password").and_then(|v| v.as_str())
+        .ok_or(StatusCode::BAD_REQUEST)?
+        .to_string();
+
+    // Look up the user's password hash
+    let db_path = rs.db_path.clone();
+    let uname = username.clone();
+    let hash = tokio::task::spawn_blocking(move || {
+        crate::recorder::get_user_password_hash(&db_path, &uname)
+    })
+    .await
+    .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
+    .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+    let password_hash = match hash {
+        Some(h) => h,
+        None => {
+            return Ok(Json(serde_json::json!({
+                "result": "error",
+                "message": "Invalid credentials"
+            })));
+        }
+    };
+
+    // Verify password (CPU-intensive, run on blocking thread)
+    let pw = password.clone();
+    let ph = password_hash.clone();
+    let valid = tokio::task::spawn_blocking(move || {
+        crate::auth::verify_password(&pw, &ph)
+    })
+    .await
+    .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+    if !valid {
+        return Err(StatusCode::UNAUTHORIZED);
+    }
+
+    // Generate a new access token for this session
+    let token_id = format!("tok_{}", uuid::Uuid::new_v4().as_simple());
+    let token_value = format!("marge_{}", uuid::Uuid::new_v4().as_simple());
+    let created_at = chrono::Utc::now().to_rfc3339();
+    let token_name = format!("login:{}", username);
+
+    // Persist to SQLite
+    let db_path = rs.db_path.clone();
+    let id2 = token_id.clone();
+    let name2 = token_name.clone();
+    let tv2 = token_value.clone();
+    tokio::task::spawn_blocking(move || {
+        crate::recorder::store_token(&db_path, &id2, &name2, &tv2)
+    })
+    .await
+    .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
+    .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+    // Add to in-memory auth
+    rs.auth.add_token(token_value.clone(), crate::auth::TokenInfo {
+        id: token_id.clone(),
+        name: token_name,
+        created_at,
+        token: None,
+    });
+
+    Ok(Json(serde_json::json!({
+        "result": "ok",
+        "token": token_value,
+        "token_id": token_id,
+    })))
+}
+
+/// POST /api/auth/users — create a new user account
+async fn create_user_handler(
+    State(rs): State<RouterState>,
+    headers: HeaderMap,
+    Json(body): Json<serde_json::Value>,
+) -> Result<Json<serde_json::Value>, StatusCode> {
+    check_auth(&rs, &headers)?;
+
+    let username = body.get("username").and_then(|v| v.as_str())
+        .ok_or(StatusCode::BAD_REQUEST)?
+        .to_string();
+    let password = body.get("password").and_then(|v| v.as_str())
+        .ok_or(StatusCode::BAD_REQUEST)?
+        .to_string();
+    let display_name = body.get("display_name").and_then(|v| v.as_str())
+        .map(|s| s.to_string());
+
+    // Hash the password (CPU-intensive, run on blocking thread)
+    let pw = password.clone();
+    let password_hash = tokio::task::spawn_blocking(move || {
+        crate::auth::hash_password(&pw)
+    })
+    .await
+    .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
+    .map_err(|e| {
+        tracing::error!("Password hash error: {}", e);
+        StatusCode::INTERNAL_SERVER_ERROR
+    })?;
+
+    let db_path = rs.db_path.clone();
+    let dn = display_name.clone();
+    tokio::task::spawn_blocking(move || {
+        crate::recorder::create_user(&db_path, &username, &password_hash, dn.as_deref())
+    })
+    .await
+    .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
+    .map_err(|e| {
+        tracing::error!("Create user error: {}", e);
+        StatusCode::INTERNAL_SERVER_ERROR
+    })?;
+
+    Ok(Json(serde_json::json!({"result": "ok"})))
+}
+
+/// GET /api/auth/users — list all user accounts (no passwords)
+async fn list_users_handler(
+    State(rs): State<RouterState>,
+    headers: HeaderMap,
+) -> Result<Json<Vec<crate::recorder::UserInfo>>, StatusCode> {
+    check_auth(&rs, &headers)?;
+
+    let db_path = rs.db_path.clone();
+    let users = tokio::task::spawn_blocking(move || {
+        crate::recorder::list_users(&db_path)
+    })
+    .await
+    .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
+    .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+    Ok(Json(users))
+}
+
+/// DELETE /api/auth/users/{username} — delete a user account
+async fn delete_user_handler(
+    State(rs): State<RouterState>,
+    headers: HeaderMap,
+    Path(username): Path<String>,
+) -> Result<Json<serde_json::Value>, StatusCode> {
+    check_auth(&rs, &headers)?;
+
+    let db_path = rs.db_path.clone();
+    let deleted = tokio::task::spawn_blocking(move || {
+        crate::recorder::delete_user(&db_path, &username)
+    })
+    .await
+    .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
+    .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+    if deleted {
+        Ok(Json(serde_json::json!({"result": "ok"})))
+    } else {
+        Err(StatusCode::NOT_FOUND)
+    }
 }
 
 // ── Integration Bridge Endpoints ─────────────────────────

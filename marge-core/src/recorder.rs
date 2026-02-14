@@ -100,6 +100,13 @@ fn open_db(path: &Path) -> rusqlite::Result<Connection> {
             message     TEXT NOT NULL,
             created_at  TEXT NOT NULL,
             dismissed   INTEGER NOT NULL DEFAULT 0
+        );
+
+        CREATE TABLE IF NOT EXISTS users (
+            username      TEXT PRIMARY KEY,
+            password_hash TEXT NOT NULL,
+            display_name  TEXT,
+            created_at    TEXT NOT NULL DEFAULT (datetime('now'))
         );",
     )?;
 
@@ -782,6 +789,73 @@ pub fn dismiss_all_notifications(db_path: &Path) -> anyhow::Result<()> {
     let conn = open_db(db_path)?;
     conn.execute("UPDATE notifications SET dismissed = 1", [])?;
     Ok(())
+}
+
+// ── User Accounts (Phase 7 — local auth) ─────────────────
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct UserInfo {
+    pub username: String,
+    pub display_name: Option<String>,
+    pub created_at: String,
+}
+
+/// Create a new user account.
+pub fn create_user(
+    db_path: &Path,
+    username: &str,
+    password_hash: &str,
+    display_name: Option<&str>,
+) -> anyhow::Result<()> {
+    let conn = open_db(db_path)?;
+    conn.execute(
+        "INSERT INTO users (username, password_hash, display_name) VALUES (?1, ?2, ?3)",
+        params![username, password_hash, display_name],
+    )?;
+    Ok(())
+}
+
+/// Get the password hash for a user (returns None if user doesn't exist).
+pub fn get_user_password_hash(db_path: &Path, username: &str) -> anyhow::Result<Option<String>> {
+    let conn = open_db(db_path)?;
+    let mut stmt = conn.prepare("SELECT password_hash FROM users WHERE username = ?1")?;
+    let hash = stmt.query_row(params![username], |row| row.get::<_, String>(0));
+    match hash {
+        Ok(h) => Ok(Some(h)),
+        Err(rusqlite::Error::QueryReturnedNoRows) => Ok(None),
+        Err(e) => Err(e.into()),
+    }
+}
+
+/// List all user accounts (no password hashes returned).
+pub fn list_users(db_path: &Path) -> anyhow::Result<Vec<UserInfo>> {
+    let conn = open_db(db_path)?;
+    let mut stmt = conn.prepare("SELECT username, display_name, created_at FROM users")?;
+    let users = stmt
+        .query_map([], |row| {
+            Ok(UserInfo {
+                username: row.get(0)?,
+                display_name: row.get(1)?,
+                created_at: row.get(2)?,
+            })
+        })?
+        .filter_map(|r| r.ok())
+        .collect();
+    Ok(users)
+}
+
+/// Delete a user account. Returns true if the user existed.
+pub fn delete_user(db_path: &Path, username: &str) -> anyhow::Result<bool> {
+    let conn = open_db(db_path)?;
+    let deleted = conn.execute("DELETE FROM users WHERE username = ?1", params![username])?;
+    Ok(deleted > 0)
+}
+
+/// Count total users (used for first-startup check).
+pub fn count_users(db_path: &Path) -> anyhow::Result<usize> {
+    let conn = open_db(db_path)?;
+    let count: i64 = conn.query_row("SELECT COUNT(*) FROM users", [], |row| row.get(0))?;
+    Ok(count as usize)
 }
 
 fn purge_history(conn: &Connection, retention_days: u32) -> rusqlite::Result<usize> {
