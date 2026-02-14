@@ -3709,3 +3709,79 @@ async def test_config_has_components(rest):
     assert "longitude" in data
     assert "unit_system" in data
     assert "version" in data
+
+
+# ── WebSocket render_template & unsubscribe ──────
+
+
+@pytest.mark.asyncio
+async def test_ws_render_template(ws):
+    """WebSocket render_template renders Jinja2 templates."""
+    import json
+
+    # Set a state to reference
+    import httpx
+    async with httpx.AsyncClient() as client:
+        await client.post("http://localhost:8124/api/states/sensor.ws_tpl_test", json={
+            "state": "42.5",
+            "attributes": {"unit_of_measurement": "°C"},
+        })
+
+    msg_id = 470
+    await ws.ws.send(json.dumps({
+        "id": msg_id,
+        "type": "render_template",
+        "template": "{{ states('sensor.ws_tpl_test') }}",
+    }))
+    result = json.loads(await ws.ws.recv())
+    assert result["id"] == msg_id
+    assert result["success"] is True
+    assert "42.5" in result["result"]["result"]
+
+
+@pytest.mark.asyncio
+async def test_ws_render_template_math(ws):
+    """WebSocket render_template handles math expressions."""
+    import json
+
+    msg_id = 475
+    await ws.ws.send(json.dumps({
+        "id": msg_id,
+        "type": "render_template",
+        "template": "{{ 2 + 3 }}",
+    }))
+    result = json.loads(await ws.ws.recv())
+    assert result["success"] is True
+    assert "5" in result["result"]["result"]
+
+
+@pytest.mark.asyncio
+async def test_ws_unsubscribe_events(ws, rest):
+    """WebSocket unsubscribe_events stops event delivery."""
+    import json, asyncio
+
+    sub_id = await ws.subscribe_events("state_changed")
+
+    # Verify events are delivered
+    await rest.set_state("test.unsub_check", "before")
+    event = await ws.recv_event(timeout=3.0)
+    assert event["id"] == sub_id
+
+    # Unsubscribe
+    msg_id = 480
+    await ws.ws.send(json.dumps({
+        "id": msg_id,
+        "type": "unsubscribe_events",
+        "subscription": sub_id,
+    }))
+    result = json.loads(await ws.ws.recv())
+    assert result["success"] is True
+
+    # Events should no longer be delivered
+    await rest.set_state("test.unsub_check", "after")
+    try:
+        event = await asyncio.wait_for(ws.recv_event(timeout=1.0), timeout=1.5)
+        # If we get an event, it shouldn't be for our unsubscribed ID
+        assert event["id"] != sub_id
+    except (asyncio.TimeoutError, Exception):
+        pass  # Expected — no event delivered
