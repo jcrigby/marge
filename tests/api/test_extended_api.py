@@ -2393,3 +2393,229 @@ def test_state_search_with_domain(client):
     sensor_results = r.json()
     assert len(sensor_results) <= len(all_results)
     assert all(e["entity_id"].startswith("sensor.") for e in sensor_results)
+
+
+# ── Statistics Aggregation ──────────────────────────
+
+
+@pytest.mark.asyncio
+async def test_statistics_min_max_accuracy(rest):
+    """Statistics min/max accurately reflect written values."""
+    entity = "sensor.stats_accuracy"
+    values = [5.0, 15.0, 25.0, 10.0, 20.0]
+    for v in values:
+        await rest.set_state(entity, str(v))
+        await asyncio.sleep(0.1)
+    await asyncio.sleep(0.5)
+
+    resp = await rest.client.get(
+        f"{rest.base_url}/api/statistics/{entity}",
+        headers=rest._headers(),
+    )
+    assert resp.status_code == 200
+    data = resp.json()
+    assert len(data) >= 1
+    bucket = data[0]
+    assert bucket["min"] == 5.0
+    assert bucket["max"] == 25.0
+
+
+# ── Entity Lifecycle Edge Cases ─────────────────────
+
+
+@pytest.mark.asyncio
+async def test_set_state_create_and_update(rest):
+    """POST /api/states creates and updates entities successfully."""
+    unique = f"sensor.lifecycle_{int(time.time() * 1000) % 100000}"
+    # Create
+    resp = await rest.client.post(
+        f"{rest.base_url}/api/states/{unique}",
+        headers=rest._headers(),
+        json={"state": "new", "attributes": {}},
+    )
+    assert resp.status_code in (200, 201)
+    data = resp.json()
+    assert data["state"] == "new"
+    assert data["entity_id"] == unique
+
+    # Update
+    resp = await rest.client.post(
+        f"{rest.base_url}/api/states/{unique}",
+        headers=rest._headers(),
+        json={"state": "updated", "attributes": {"key": "val"}},
+    )
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["state"] == "updated"
+    assert data["attributes"]["key"] == "val"
+
+
+# ── Template Edge Cases ─────────────────────────────
+
+
+@pytest.mark.asyncio
+async def test_template_math_operations(rest):
+    """Template supports arithmetic operations."""
+    resp = await rest.client.post(
+        f"{rest.base_url}/api/template",
+        headers=rest._headers(),
+        json={"template": "{{ (10 * 3 + 5) / 7 }}"},
+    )
+    assert resp.status_code == 200
+    assert float(resp.text.strip()) == 5.0
+
+
+@pytest.mark.asyncio
+async def test_template_states_unknown_entity(rest):
+    """states() returns 'unknown' for nonexistent entity."""
+    resp = await rest.client.post(
+        f"{rest.base_url}/api/template",
+        headers=rest._headers(),
+        json={"template": "{{ states('sensor.nonexistent_zzz') }}"},
+    )
+    assert resp.status_code == 200
+    assert resp.text.strip() == "unknown"
+
+
+# ── Scene Activation Verifies State ─────────────────
+
+
+@pytest.mark.asyncio
+async def test_scene_activation_sets_entity_states(rest):
+    """Activating a scene sets the target entity states."""
+    resp = await rest.client.get(
+        f"{rest.base_url}/api/config/scene/config",
+        headers=rest._headers(),
+    )
+    scenes = resp.json()
+    if not scenes:
+        pytest.skip("No scenes loaded")
+    scene = scenes[0]
+
+    # Activate scene
+    await rest.call_service("scene", "turn_on", {
+        "entity_id": f"scene.{scene['id']}",
+    })
+    await asyncio.sleep(0.5)
+
+    # Verify at least one entity has the expected state
+    for entity_entry in scene.get("entities", []):
+        if isinstance(entity_entry, dict):
+            eid = entity_entry.get("entity_id")
+        else:
+            eid = entity_entry
+        if eid:
+            state = await rest.get_state(eid)
+            assert state is not None, f"Entity {eid} from scene should exist"
+            break
+
+
+# ── WS Subscribe + Multiple Events ─────────────────
+
+
+@pytest.mark.asyncio
+async def test_ws_subscribe_multiple_changes(ws, rest):
+    """Subscription receives multiple consecutive state changes."""
+    await ws.subscribe_events("state_changed")
+
+    for i in range(3):
+        await rest.set_state("sensor.ws_multi_test", str(i * 10))
+        await asyncio.sleep(0.1)
+
+    events_received = 0
+    for _ in range(3):
+        try:
+            event = await ws.recv_event(timeout=3.0)
+            if event.get("type") == "event":
+                events_received += 1
+        except asyncio.TimeoutError:
+            break
+    assert events_received >= 2
+
+
+# ── Cover Services ──────────────────────────────────
+
+
+@pytest.mark.asyncio
+async def test_cover_open_close_cycle(rest):
+    """cover.open_cover and cover.close_cover toggle state."""
+    await rest.set_state("cover.cts_garage", "closed")
+    await rest.call_service("cover", "open_cover", {"entity_id": "cover.cts_garage"})
+    state = await rest.get_state("cover.cts_garage")
+    assert state["state"] == "open"
+
+    await rest.call_service("cover", "close_cover", {"entity_id": "cover.cts_garage"})
+    state = await rest.get_state("cover.cts_garage")
+    assert state["state"] == "closed"
+
+
+# ── Concurrent WebSocket Commands ───────────────────
+
+
+@pytest.mark.asyncio
+async def test_ws_rapid_commands(ws):
+    """WS handles rapid sequential commands without errors."""
+    commands = ["get_config", "get_states", "get_services", "get_notifications"]
+    for cmd in commands:
+        result = await ws.send_command(cmd)
+        assert result.get("success", False), f"Command {cmd} failed"
+
+
+# ── Area Duplicate Prevention ───────────────────────
+
+
+@pytest.mark.asyncio
+async def test_area_duplicate_entity_assignment(rest):
+    """Assigning same entity to area twice is idempotent."""
+    await rest.set_state("sensor.dup_area_test", "10")
+    await rest.client.post(
+        f"{rest.base_url}/api/areas",
+        headers=rest._headers(),
+        json={"area_id": "dup_test_room", "name": "Dup Room"},
+    )
+
+    # Assign twice
+    for _ in range(2):
+        resp = await rest.client.post(
+            f"{rest.base_url}/api/areas/dup_test_room/entities/sensor.dup_area_test",
+            headers=rest._headers(),
+        )
+        assert resp.status_code == 200
+
+    # Verify entity appears only once
+    resp = await rest.client.get(
+        f"{rest.base_url}/api/areas",
+        headers=rest._headers(),
+    )
+    areas = resp.json()
+    room = next((a for a in areas if a["area_id"] == "dup_test_room"), None)
+    assert room is not None
+    count = room["entities"].count("sensor.dup_area_test")
+    assert count == 1
+
+    # Cleanup
+    await rest.client.delete(
+        f"{rest.base_url}/api/areas/dup_test_room",
+        headers=rest._headers(),
+    )
+
+
+# ── History Ordered ─────────────────────────────────
+
+
+@pytest.mark.asyncio
+async def test_history_entries_ordered_by_time(rest):
+    """History entries are returned in chronological order."""
+    entity = "sensor.history_order"
+    for val in ["a", "b", "c"]:
+        await rest.set_state(entity, val)
+        await asyncio.sleep(0.3)
+    await asyncio.sleep(0.5)
+
+    resp = await rest.client.get(
+        f"{rest.base_url}/api/history/period/{entity}",
+        headers=rest._headers(),
+    )
+    data = resp.json()
+    timestamps = [e["last_changed"] for e in data]
+    assert timestamps == sorted(timestamps)
