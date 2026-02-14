@@ -226,6 +226,66 @@
   gap: 0.75rem;
 }
 
+/* ── Entity list view ──────────────────────── */
+.entity-list {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+.entity-list-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.4rem 0.75rem;
+  border-bottom: 1px solid var(--border-subtle);
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: background 0.1s;
+}
+.entity-list-row:last-child {
+  border-bottom: none;
+}
+.entity-list-row:hover {
+  background: var(--bg-card);
+}
+.entity-list-row.selected {
+  background: rgba(108, 140, 255, 0.08);
+}
+.entity-list-check {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+  cursor: pointer;
+}
+.entity-list-name {
+  flex: 1;
+  font-weight: 500;
+  text-transform: capitalize;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.entity-list-id {
+  font-family: monospace;
+  font-size: 0.7rem;
+  color: var(--text-dim);
+  opacity: 0.6;
+  flex-shrink: 0;
+  max-width: 12rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.entity-list-state {
+  font-weight: 500;
+  font-size: 0.75rem;
+  flex-shrink: 0;
+  min-width: 3rem;
+  text-align: right;
+}
+
 .empty-state {
   text-align: center;
   padding: 4rem 1rem;
