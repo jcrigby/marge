@@ -2233,3 +2233,163 @@ async def test_ws_ping_pong(ws):
     """WebSocket ping returns pong."""
     ok = await ws.ping()
     assert ok
+
+
+# ── Events List ──────────────────────────────
+
+
+def test_events_list(client):
+    """GET /api/events returns event types list."""
+    # Fire a test event
+    client.post("/api/events/cts_test_event", json={"key": "val"})
+    r = client.get("/api/events")
+    assert r.status_code == 200
+    data = r.json()
+    assert isinstance(data, list)
+
+
+# ── Dismiss All Notifications ─────────────────
+
+
+def test_dismiss_all_notifications(client):
+    """POST /api/notifications/dismiss_all clears all notifications."""
+    client.post("/api/services/persistent_notification/create", json={
+        "notification_id": "dismiss_all_1", "title": "One", "message": "First",
+    })
+    client.post("/api/services/persistent_notification/create", json={
+        "notification_id": "dismiss_all_2", "title": "Two", "message": "Second",
+    })
+    r = client.post("/api/notifications/dismiss_all")
+    assert r.status_code == 200
+
+    r = client.get("/api/notifications")
+    assert len(r.json()) == 0
+
+
+# ── Automation Config ────────────────────────
+
+
+def test_automation_config_list(client):
+    """GET /api/config/automation/config returns automation list."""
+    r = client.get("/api/config/automation/config")
+    assert r.status_code == 200
+    autos = r.json()
+    assert isinstance(autos, list)
+    if autos:
+        assert "id" in autos[0]
+
+
+def test_automation_yaml_roundtrip(client):
+    """GET then PUT automation YAML preserves content."""
+    r = client.get("/api/config/automation/yaml")
+    assert r.status_code == 200
+    yaml_content = r.text
+
+    # PUT back the same content
+    r = client.put("/api/config/automation/yaml",
+                   content=yaml_content,
+                   headers={"Content-Type": "application/x-yaml"})
+    assert r.status_code == 200
+
+
+# ── Scene Config ─────────────────────────────
+
+
+def test_scene_yaml_roundtrip(client):
+    """GET then PUT scene YAML preserves content."""
+    r = client.get("/api/config/scene/yaml")
+    assert r.status_code == 200
+    yaml_content = r.text
+
+    r = client.put("/api/config/scene/yaml",
+                   content=yaml_content,
+                   headers={"Content-Type": "application/x-yaml"})
+    assert r.status_code == 200
+
+
+# ── Prometheus Metrics ───────────────────────
+
+
+def test_prometheus_metrics(client):
+    """GET /metrics returns Prometheus text format."""
+    r = client.get("/metrics")
+    assert r.status_code == 200
+    text = r.text
+    assert "marge_" in text or "entity_count" in text
+
+
+# ── Label CRUD Round-Trip ────────────────────
+
+
+def test_label_crud_roundtrip(client):
+    """Create, list, assign entity, unassign, delete label."""
+    # Create
+    r = client.post("/api/labels", json={
+        "label_id": "cts_crud_label", "name": "CRUD Label", "color": "#123456",
+    })
+    assert r.status_code in (200, 201)
+
+    # List and verify
+    r = client.get("/api/labels")
+    labels = r.json()
+    found = next((l for l in labels if l["label_id"] == "cts_crud_label"), None)
+    assert found is not None
+    assert found["name"] == "CRUD Label"
+
+    # Assign entity
+    client.post("/api/states/sensor.label_crud_test", json={"state": "1"})
+    r = client.post("/api/labels/cts_crud_label/entities/sensor.label_crud_test")
+    assert r.status_code == 200
+
+    # Unassign
+    r = client.delete("/api/labels/cts_crud_label/entities/sensor.label_crud_test")
+    assert r.status_code == 200
+
+    # Delete
+    r = client.delete("/api/labels/cts_crud_label")
+    assert r.status_code == 200
+
+
+# ── Device CRUD Round-Trip ───────────────────
+
+
+def test_device_crud_roundtrip(client):
+    """Create, list, assign entity, delete device."""
+    r = client.post("/api/devices", json={
+        "device_id": "cts_crud_dev", "name": "CRUD Device",
+        "manufacturer": "CTS", "model": "TestModel",
+    })
+    assert r.status_code in (200, 201)
+
+    r = client.get("/api/devices")
+    devices = r.json()
+    found = next((d for d in devices if d["device_id"] == "cts_crud_dev"), None)
+    assert found is not None
+
+    # Assign entity
+    client.post("/api/states/sensor.device_crud_test", json={"state": "42"})
+    r = client.post("/api/devices/cts_crud_dev/entities/sensor.device_crud_test")
+    assert r.status_code == 200
+
+    # Delete device
+    r = client.delete("/api/devices/cts_crud_dev")
+    assert r.status_code == 200
+
+
+# ── Search with Domain Filter ─────────────────
+
+
+def test_state_search_with_domain(client):
+    """State search with domain filter limits results."""
+    client.post("/api/states/sensor.search_domain_test", json={"state": "10"})
+    client.post("/api/states/light.search_domain_test", json={"state": "on"})
+
+    # Search without domain
+    r = client.get("/api/states/search", params={"q": "search_domain"})
+    all_results = r.json()
+
+    # Search with domain filter
+    r = client.get("/api/states/search", params={"q": "search_domain", "domain": "sensor"})
+    sensor_results = r.json()
+    assert len(sensor_results) <= len(all_results)
+    assert all(e["entity_id"].startswith("sensor.") for e in sensor_results)
