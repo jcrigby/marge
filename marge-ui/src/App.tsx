@@ -14,6 +14,7 @@ import IntegrationManager from './IntegrationManager'
 import LabelManager from './LabelManager'
 import NotificationCenter from './NotificationCenter'
 import Settings from './Settings'
+import LoginPage from './LoginPage'
 import ToastContainer from './Toast'
 import './App.css'
 
@@ -335,6 +336,7 @@ function QuickActions({ entities }: { entities: EntityState[] }) {
 
 function App() {
   const initial = readUrlParams();
+  const [isLoggedIn, setIsLoggedIn] = useState(() => !!localStorage.getItem('marge_token'));
   const [entities, setEntities] = useState<EntityState[]>([]);
   const [health, setHealth] = useState<HealthData | null>(null);
   const [filter, setFilter] = useState(initial.q);
@@ -552,6 +554,11 @@ function App() {
     return badges;
   }, [areas, labels]);
 
+  const handleLogout = useCallback(() => {
+    localStorage.removeItem('marge_token');
+    setIsLoggedIn(false);
+  }, []);
+
   const filteredList = filtered();
   const sortedFilteredList = sortEntities(filteredList, sortMode);
   const groups = groupMode === 'area'
@@ -559,6 +566,10 @@ function App() {
     : groupMode === 'label'
     ? groupByLabel(sortedFilteredList, labels)
     : groupByDomain(sortedFilteredList);
+
+  if (!isLoggedIn) {
+    return <LoginPage onLogin={() => setIsLoggedIn(true)} />;
+  }
 
   return (
     <div className="app">
@@ -581,6 +592,9 @@ function App() {
           title={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
         >
           {theme === 'dark' ? '\u{2600}' : '\u{1F319}'}
+        </button>
+        <button className="logout-btn" onClick={handleLogout} title="Sign out">
+          Logout
         </button>
       </header>
 
