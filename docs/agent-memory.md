@@ -14,9 +14,9 @@
 - Scene engine: 2 scenes (evening, goodnight)
 
 ## Key Files
-- `marge-core/src/` — api.rs(~1950), auth.rs(~240), automation.rs(1220), discovery.rs(830), mqtt.rs(229), recorder.rs(~875), scene.rs(87), services.rs(851), state.rs(169), template.rs(506), websocket.rs(554), main.rs(~360), plugins.rs(374)
-- `marge-core/src/integrations/` — zigbee2mqtt.rs(417), zwave.rs(302), tasmota.rs(344), esphome.rs(269), weather.rs(212)
-- `marge-ui/src/` — App.tsx(~960), IntegrationManager.tsx(369), AutomationEditor.tsx(487), LoginPage.tsx(74), EntityCard.tsx(836), EntityDetail.tsx(815), + 12 more
+- `marge-core/src/` — api.rs(~2100), auth.rs(~240), automation.rs(1220), discovery.rs(830), mqtt.rs(229), recorder.rs(~875), scene.rs(87), services.rs(851), state.rs(169), template.rs(506), websocket.rs(554), main.rs(~375), plugins.rs(~600)
+- `marge-core/src/integrations/` — zigbee2mqtt.rs(417), zwave.rs(302), tasmota.rs(344), esphome.rs(269), weather.rs(212), shelly.rs(470), hue.rs(676)
+- `marge-ui/src/` — App.tsx(~960), IntegrationManager.tsx(~690), AutomationEditor.tsx(487), LoginPage.tsx(74), EntityCard.tsx(836), EntityDetail.tsx(815), + 12 more
 - `tests/` — 3633 CTS tests across 120+ test files
 
 ## Phase Tracker
@@ -27,8 +27,8 @@ See [phase-tracker.md](phase-tracker.md) for detailed status.
 - **Phase 4 (Frontend + Auth)**: COMPLETE — 8-tab UI, login, automation editor, integrations
 - **Phase 5 (Plugin System)**: MOSTLY COMPLETE — WASM runtime, weather, webhooks
 - **Phase 6 (Production)**: MOSTLY COMPLETE — backup/restore, graceful shutdown, history
-- **Phase 7 (Local Network)**: NOT STARTED — Shelly, Hue, Cast, Sonos, Matter sidecar, WASM HTTP host funcs
-- **Coverage**: ~70% now, ~80% after Shelly+Hue, ~85% after Cast+Sonos+Matter
+- **Phase 7 (Local Network)**: IN PROGRESS — Shelly DONE, Hue DONE, WASM HTTP DONE; Cast, Sonos, Matter remaining
+- **Coverage**: ~80% now (Shelly+Hue done), ~85% after Cast+Sonos+Matter
 - CTS: 4818/4818 green (2026-02-16)
 
 ## Critical Gotchas

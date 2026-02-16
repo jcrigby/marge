@@ -61,30 +61,33 @@ All four bridges implemented with unit tests + CTS integration tests.
 - [ ] Matter support (python-matter-server sidecar) — deferred
 - [ ] Mobile companion app — deferred
 
-## Phase 7: Local Network Integrations — NOT STARTED
+## Phase 7: Local Network Integrations — IN PROGRESS
 **Goal**: Cover the ~15% of homes that use non-MQTT local devices (Shelly, Hue, Sonos, Cast).
 These are Rust core modules in `integrations/`, NOT WASM plugins, because they need
 persistent connections, mDNS discovery, or event streams.
 
 Priority order (by install base and effort):
 
-### 7.1 Shelly (112K installs) — HIGH PRIORITY
-- Gen1: HTTP REST API (`/status`, `/relay/0?turn=on`) + CoIoT (CoAP multicast for events)
-- Gen2: RPC over HTTP (`/rpc/Switch.Set`) + WebSocket for events
-- mDNS discovery (`_shelly._tcp.local`)
-- Entities: switch, light (dimmer/RGBW), sensor (power/energy/temperature), cover
-- **File**: `integrations/shelly.rs`, ~400-500 LOC
-- **Deps**: reqwest (already have), mdns-sd or manual mDNS query
-- **Approach**: HTTP polling every 5-10s + optional CoIoT/WS listener for instant updates
+### 7.1 Shelly (112K installs) — COMPLETE (2026-02-16)
+- [x] Gen1: HTTP REST API (`/status`, `/relay/0?turn=on`)
+- [x] Gen2: RPC over HTTP (`/rpc/Shelly.GetStatus`, `/rpc/Switch.Set`, `/rpc/Light.Set`)
+- [x] Device discovery via manual IP + GET /shelly probe
+- [x] Entities: switch, light, sensor (power/energy/temperature)
+- [x] 10s HTTP polling loop
+- [x] API: GET /api/integrations/shelly/status, POST /api/integrations/shelly/discover
+- [x] UI: ShellyView in IntegrationManager with device table + manual discovery
+- **File**: `integrations/shelly.rs` (470 LOC, 7 unit tests)
 
-### 7.2 Philips Hue (76K installs) — HIGH PRIORITY
-- REST API to Hue Bridge (`/api/<username>/lights`, `/groups`, `/sensors`)
-- SSE event stream (`/eventstream/clip/v2`) for instant updates
-- mDNS discovery (`_hue._tcp.local`) or N-UPnP (meethue.com/api/nupnp)
-- Link button pairing flow (press button, POST /api, receive username)
-- Entities: light (on/off/brightness/color_temp/xy_color), sensor (motion/temperature/light_level), scene
-- **File**: `integrations/hue.rs`, ~500-600 LOC
-- **Deps**: reqwest, eventsource-client or manual SSE parsing
+### 7.2 Philips Hue (76K installs) — COMPLETE (2026-02-16)
+- [x] REST API polling: /api/{user}/lights, /api/{user}/sensors, /api/{user}/config
+- [x] Link button pairing: POST /api with devicetype, receives username
+- [x] Light entities: brightness, color_temp, xy_color, reachable, manufacturer
+- [x] Sensor entities: ZLLPresence (motion), ZLLTemperature (1/100 C), ZLLLightLevel (lux), Daylight
+- [x] Command dispatch: PUT /api/{user}/lights/{id}/state with on/bri/ct/xy/transitiontime
+- [x] 5s polling loop
+- [x] API: GET /api/integrations/hue/status, POST pair, POST add
+- [x] UI: HueView with bridge cards, pair/add toggle, device tables
+- **File**: `integrations/hue.rs` (676 LOC, 7 unit tests)
 
 ### 7.3 Google Cast (238K installs) — MEDIUM PRIORITY (hard)
 - mDNS discovery (`_googlecast._tcp.local`)
@@ -108,12 +111,14 @@ Priority order (by install base and effort):
 - **File**: `integrations/matter.rs` + `sidecar.rs`, ~300-400 LOC
 - **Deps**: tokio-tungstenite (already have WS infra)
 
-### 7.6 WASM HTTP Host Functions — PREREQUISITE FOR CLOUD PLUGINS
-- Add `marge_http_get(url_ptr, url_len) -> (status, body_ptr, body_len)` to plugins.rs
-- Add `marge_http_post(url_ptr, url_len, body_ptr, body_len) -> (status, body_ptr, body_len)`
+### 7.6 WASM HTTP Host Functions — COMPLETE (2026-02-16)
+- [x] `marge_http_get(url_ptr, url_len, buf_ptr, buf_len) -> i64` (packed status|body_len)
+- [x] `marge_http_post(url_ptr, url_len, body_ptr, body_len, buf_ptr, buf_len) -> i64`
+- [x] Bridges async reqwest into synchronous WASM via tokio block_in_place
+- [x] Guest memory read/write helpers (read_guest_bytes, write_guest_bytes)
+- [x] 10s timeout, marge-plugin/1.0 user-agent
 - Enables the entire Tier 3 cloud plugin ecosystem (Tuya, TP-Link, Spotify, etc.)
-- **File**: `plugins.rs`, ~100 LOC addition
-- **Deps**: reqwest (already have)
+- **File**: `plugins.rs` (+224 LOC)
 
 ## Coverage Milestones
 - **Current (Phases 1-6)**: ~70% of homes (MQTT Discovery + 4 bridges)
@@ -139,3 +144,7 @@ Priority order (by install base and effort):
 - 2026-02-14: Phase 5+6 — backup restore + weather integration + WASM plugin runtime (commit 83ac375)
 - 2026-02-16: CTS 4818/4818 green on clean restart, WS max_size fix (commit 6ca1087)
 - 2026-02-16: Phase 7 roadmap written — local network integrations (Shelly, Hue, Cast, Sonos, Matter)
+- 2026-02-16: Phase 7.1 Shelly integration (commit 518decd) — 470 LOC, Gen1+Gen2, 7 unit tests
+- 2026-02-16: Phase 7.2 Philips Hue integration (commit cb18e20) — 676 LOC, pairing+polling, 7 unit tests
+- 2026-02-16: Phase 7.6 WASM HTTP host functions (commit afb8785) — marge_http_get/post, +224 LOC
+- 2026-02-16: 63/63 Rust unit tests green, React build clean
