@@ -87,6 +87,32 @@ async def test_ws_area_create_empty_fails(ws):
     assert result["success"] is False
 
 
+async def test_ws_area_registry_create_missing_fields(ws):
+    """config/area_registry/create without name fails."""
+    resp = await ws.send_command(
+        "config/area_registry/create",
+        area_id="test",
+    )
+    assert resp.get("success", False) is False
+
+
+async def test_ws_area_create_missing_id(ws):
+    """WS config/area_registry/create with missing area_id fails."""
+    resp = await ws.send_command("config/area_registry/create",
+        name="No ID")
+    assert resp["success"] is False
+
+
+async def test_ws_area_create_empty_fields(ws):
+    """WS area create with empty fields fails."""
+    resp = await ws.send_command(
+        "config/area_registry/create",
+        area_id="",
+        name="",
+    )
+    assert resp["success"] is False
+
+
 # ── Device Registry ───────────────────────────────────────
 
 async def test_ws_device_registry_list(ws):
@@ -158,6 +184,15 @@ async def test_ws_label_create_empty_fails(ws):
         name="",
     )
     assert result["success"] is False
+
+
+async def test_ws_label_registry_missing_fields(ws):
+    """config/label_registry/create without name fails."""
+    resp = await ws.send_command(
+        "config/label_registry/create",
+        label_id="test",
+    )
+    assert resp.get("success", False) is False
 
 
 # ── Entity Registry ───────────────────────────────────────

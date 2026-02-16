@@ -202,20 +202,6 @@ async def test_timestamps_are_iso8601(rest):
         assert "20" in ts, f"{field} should contain year"
 
 
-# ── Context Presence (from depth) ──────────────────────
-
-
-async def test_state_has_context(rest):
-    """Entity state includes context object."""
-    tag = uuid.uuid4().hex[:8]
-    eid = f"sensor.ctx_{tag}"
-    await rest.set_state(eid, "1")
-    state = await rest.get_state(eid)
-    assert "context" in state
-    ctx = state["context"]
-    assert "id" in ctx
-
-
 # ── Entity Count and Remove (from depth) ───────────────
 
 

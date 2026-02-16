@@ -116,22 +116,6 @@ async def test_fan_set_percentage_nonzero_is_on(rest):
     assert state["attributes"]["percentage"] == 50
 
 
-async def test_fan_toggle_on_to_off(rest):
-    """fan.toggle from on to off."""
-    tag = uuid.uuid4().hex[:8]
-    eid = f"fan.ft_{tag}"
-    await rest.set_state(eid, "on")
-
-    await rest.client.post(
-        f"{rest.base_url}/api/services/fan/toggle",
-        json={"entity_id": eid},
-        headers=rest._headers(),
-    )
-
-    state = await rest.get_state(eid)
-    assert state["state"] == "off"
-
-
 # ── Cover Extended ─────────────────────────────────────
 
 async def test_cover_open_sets_position_100(rest):

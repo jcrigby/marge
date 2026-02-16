@@ -45,35 +45,6 @@ async def fire_event(event_type: str):
 # ── Smoke/CO Emergency: state trigger, no conditions ──────────
 
 @pytest.mark.asyncio
-async def test_smoke_trigger_turns_on_all_lights():
-    """binary_sensor.smoke_detector → 'on' should turn all 9 lights on at brightness 255."""
-    # Precondition: all lights off, doors locked
-    lights = [
-        "light.bedroom", "light.bathroom", "light.kitchen",
-        "light.living_room_main", "light.living_room_accent",
-        "light.living_room_lamp", "light.living_room_floor",
-        "light.porch", "light.pathway",
-    ]
-    for lid in lights:
-        await set_state(lid, "off")
-    await set_state("lock.front_door", "locked")
-    await set_state("lock.back_door", "locked")
-    await set_state("alarm_control_panel.home", "armed_home")
-    await set_state("binary_sensor.smoke_detector", "off")
-    await asyncio.sleep(0.1)
-
-    # Act: smoke detector trips
-    await set_state("binary_sensor.smoke_detector", "on")
-    await asyncio.sleep(0.2)
-
-    # Assert: all lights on with brightness 255
-    for lid in lights:
-        s = await get_state(lid)
-        assert s["state"] == "on", f"{lid} should be on"
-        assert s["attributes"].get("brightness") == 255, f"{lid} brightness should be 255"
-
-
-@pytest.mark.asyncio
 async def test_smoke_trigger_unlocks_doors():
     """Smoke emergency should unlock all doors."""
     await set_state("lock.front_door", "locked")
@@ -88,54 +59,6 @@ async def test_smoke_trigger_unlocks_doors():
     back = await get_state("lock.back_door")
     assert front["state"] == "unlocked"
     assert back["state"] == "unlocked"
-
-
-@pytest.mark.asyncio
-async def test_smoke_trigger_disarms_alarm():
-    """Smoke emergency should disarm alarm for evacuation."""
-    await set_state("alarm_control_panel.home", "armed_night")
-    await set_state("binary_sensor.smoke_detector", "off")
-    await asyncio.sleep(0.1)
-
-    await set_state("binary_sensor.smoke_detector", "on")
-    await asyncio.sleep(0.2)
-
-    alarm = await get_state("alarm_control_panel.home")
-    assert alarm["state"] == "disarmed"
-
-
-@pytest.mark.asyncio
-async def test_co_trigger_also_fires_emergency():
-    """CO detector should trigger the same emergency response."""
-    await set_state("lock.front_door", "locked")
-    await set_state("binary_sensor.co_detector", "off")
-    await asyncio.sleep(0.1)
-
-    await set_state("binary_sensor.co_detector", "on")
-    await asyncio.sleep(0.2)
-
-    front = await get_state("lock.front_door")
-    assert front["state"] == "unlocked"
-
-
-# ── Security Alert: state trigger WITH condition ──────────────
-
-@pytest.mark.asyncio
-async def test_security_alert_fires_when_armed_away():
-    """Motion in entryway + alarm armed_away → automation fires (notification)."""
-    # We can't directly verify a persistent_notification, but we CAN
-    # verify the automation entity shows it ran by checking it stays 'on'
-    # and the condition chain works. Here we just verify it doesn't crash.
-    await set_state("alarm_control_panel.home", "armed_away")
-    await set_state("binary_sensor.entryway_motion", "off")
-    await asyncio.sleep(0.1)
-
-    await set_state("binary_sensor.entryway_motion", "on")
-    await asyncio.sleep(0.2)
-
-    # Automation entity should still be on (no crash)
-    auto = await get_state("automation.security_alert")
-    assert auto["state"] == "on"
 
 
 @pytest.mark.asyncio

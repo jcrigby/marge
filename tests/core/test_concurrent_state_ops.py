@@ -48,26 +48,6 @@ async def test_concurrent_writes_different_entities(rest):
         assert state["state"] == str(i)
 
 
-async def test_concurrent_service_calls(rest):
-    """Concurrent service calls on different entities all succeed."""
-    tag = uuid.uuid4().hex[:8]
-    entities = [f"light.csvc_{tag}_{i}" for i in range(5)]
-
-    # Pre-create all entities
-    await asyncio.gather(*[rest.set_state(eid, "off") for eid in entities])
-
-    # Turn all on concurrently
-    async def turn_on(eid):
-        await rest.call_service("light", "turn_on", {"entity_id": eid})
-
-    await asyncio.gather(*[turn_on(eid) for eid in entities])
-
-    # All should be on
-    for eid in entities:
-        state = await rest.get_state(eid)
-        assert state["state"] == "on", f"{eid} should be on"
-
-
 async def test_rapid_state_toggle(rest):
     """Rapid on/off toggling produces consistent final state."""
     tag = uuid.uuid4().hex[:8]

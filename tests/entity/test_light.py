@@ -29,26 +29,6 @@ async def test_light_turn_off(rest):
     assert state["state"] == "off"
 
 
-async def test_light_toggle_on_to_off(rest):
-    """light.toggle flips 'on' to 'off'."""
-    entity_id = "light.test_toggle"
-    await rest.set_state(entity_id, "on")
-    await rest.call_service("light", "toggle", {"entity_id": entity_id})
-
-    state = await rest.get_state(entity_id)
-    assert state["state"] == "off"
-
-
-async def test_light_toggle_off_to_on(rest):
-    """light.toggle flips 'off' to 'on'."""
-    entity_id = "light.test_toggle2"
-    await rest.set_state(entity_id, "off")
-    await rest.call_service("light", "toggle", {"entity_id": entity_id})
-
-    state = await rest.get_state(entity_id)
-    assert state["state"] == "on"
-
-
 async def test_light_brightness(rest):
     """light.turn_on with brightness sets the brightness attribute."""
     entity_id = "light.test_brightness"

@@ -3,7 +3,7 @@ CTS -- WebSocket Registry Operation Tests
 
 Tests WS commands for registry management: entity_registry/list,
 entity_registry/update, area CRUD, label CRUD, device_registry/list,
-ping/pong, subscribe_trigger, lovelace/config, get_notifications.
+ping/pong, get_config.
 """
 
 import pytest
@@ -13,12 +13,6 @@ pytestmark = pytest.mark.asyncio
 
 # ── Ping / Pong ──────────────────────────────────────────
 
-async def test_ws_ping_returns_pong(ws):
-    """WS ping command returns pong response."""
-    result = await ws.ping()
-    assert result is True
-
-
 async def test_ws_ping_multiple(ws):
     """Multiple pings all succeed."""
     for _ in range(3):
@@ -26,18 +20,6 @@ async def test_ws_ping_multiple(ws):
 
 
 # ── Entity Registry ─────────────────────────────────────
-
-async def test_ws_entity_registry_list(ws, rest):
-    """config/entity_registry/list returns entity entries."""
-    await rest.set_state("sensor.ws_reg_list_test", "42")
-    result = await ws.send_command("config/entity_registry/list")
-    assert result["success"] is True
-    entries = result["result"]
-    assert isinstance(entries, list)
-    assert len(entries) > 0
-    ids = [e["entity_id"] for e in entries]
-    assert "sensor.ws_reg_list_test" in ids
-
 
 async def test_ws_entity_registry_entry_fields(ws, rest):
     """Entity registry entries have expected fields."""
@@ -61,29 +43,6 @@ async def test_ws_entity_registry_update(ws, rest):
     assert result["success"] is True
     state = await rest.get_state("sensor.ws_reg_upd")
     assert state["attributes"]["friendly_name"] == "Updated Name"
-
-
-async def test_ws_entity_registry_update_icon(ws, rest):
-    """config/entity_registry/update sets icon attribute."""
-    await rest.set_state("sensor.ws_reg_icon", "0")
-    result = await ws.send_command(
-        "config/entity_registry/update",
-        entity_id="sensor.ws_reg_icon",
-        icon="mdi:thermometer",
-    )
-    assert result["success"] is True
-    state = await rest.get_state("sensor.ws_reg_icon")
-    assert state["attributes"]["icon"] == "mdi:thermometer"
-
-
-async def test_ws_entity_registry_update_nonexistent(ws):
-    """config/entity_registry/update fails for missing entity."""
-    result = await ws.send_command(
-        "config/entity_registry/update",
-        entity_id="sensor.ws_reg_nonexistent_xyz",
-        name="Test",
-    )
-    assert result["success"] is False
 
 
 # ── Area Registry via WS ────────────────────────────────
@@ -204,43 +163,6 @@ async def test_ws_label_create_missing_fields(ws):
     assert result["success"] is False
 
 
-# ── Device Registry via WS ──────────────────────────────
-
-async def test_ws_device_registry_list(ws):
-    """config/device_registry/list returns devices."""
-    result = await ws.send_command("config/device_registry/list")
-    assert result["success"] is True
-    assert isinstance(result["result"], list)
-
-
-# ── Lovelace Config ─────────────────────────────────────
-
-async def test_ws_lovelace_config(ws):
-    """lovelace/config returns stub config."""
-    result = await ws.send_command("lovelace/config")
-    assert result["success"] is True
-    config = result["result"]
-    assert "views" in config
-    assert "title" in config
-
-
-# ── Subscribe Trigger ───────────────────────────────────
-
-async def test_ws_subscribe_trigger(ws):
-    """subscribe_trigger returns success."""
-    result = await ws.send_command("subscribe_trigger")
-    assert result["success"] is True
-
-
-# ── Get Notifications ───────────────────────────────────
-
-async def test_ws_get_notifications(ws):
-    """get_notifications returns list."""
-    result = await ws.send_command("get_notifications")
-    assert result["success"] is True
-    assert isinstance(result["result"], list)
-
-
 # ── Get Config ──────────────────────────────────────────
 
 async def test_ws_get_config_fields(ws):
@@ -255,21 +177,3 @@ async def test_ws_get_config_fields(ws):
     assert "version" in config
     assert "state" in config
     assert config["state"] == "RUNNING"
-
-
-# ── Entity Registry Update with Area ────────────────────
-
-async def test_ws_entity_update_area_assignment(ws, rest):
-    """config/entity_registry/update assigns entity to area."""
-    await rest.set_state("sensor.ws_reg_area", "0")
-    await ws.send_command(
-        "config/area_registry/create",
-        area_id="ws_ent_area",
-        name="Entity Area",
-    )
-    result = await ws.send_command(
-        "config/entity_registry/update",
-        entity_id="sensor.ws_reg_area",
-        area_id="ws_ent_area",
-    )
-    assert result["success"] is True

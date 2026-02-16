@@ -140,7 +140,7 @@ Priority order (by install base and effort):
 - Each integration is a subagent task (Task tool) — keep main session as orchestrator
 - Build + test after each integration
 - Update this tracker after each commit
-- CTS: 2401 tests across 177 files as of 2026-02-16 (pruned from 4854/411)
+- CTS: 1922 tests across 172 files as of 2026-02-16 (pruned from 4854/411)
 
 ---
 ## Session Log
@@ -161,4 +161,6 @@ Priority order (by install base and effort):
 - 2026-02-16: Phase 7.3 Cast + 7.4 Sonos + 7.5 Matter (commit 5117f26) — all wired, 86/86 unit tests
 - 2026-02-16: Phase 7 COMPLETE — 10 integrations total, ~85% home coverage
 - 2026-02-16: CTS pruning — deleted 234 _depth files (39.5K lines), 4862->2401 tests, zero coverage loss (commit 8519342)
-- 2026-02-16: Broke up test_extended_api.py monster (3787 lines) — 47 unique tests distributed, 170 dups deleted (commit 6957167)
+- 2026-02-16: Broke up test_extended_api.py monster (3787 lines) — 47 unique tests distributed, 170 dups deleted (commit 60df79e)
+- 2026-02-16: Cross-file name dedup — 282 tests removed, 4 files deleted, ~48 files stripped (commit dc52950)
+- 2026-02-16: Final CTS: 1922 tests / 172 files (60% reduction from original 4854/411)

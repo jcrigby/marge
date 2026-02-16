@@ -24,12 +24,6 @@ async def test_ws_multiple_pings(ws):
         assert result is True
 
 
-async def test_ws_unknown_command_returns_error(ws):
-    """Unknown WS command returns success=false."""
-    resp = await ws.send_command("nonexistent_command_xyz")
-    assert resp.get("success", True) is False
-
-
 async def test_ws_sequential_commands(ws):
     """Multiple sequential WS commands all succeed."""
     # Ping
@@ -56,19 +50,6 @@ async def test_ws_subscribe_unsubscribe(ws):
 
     unsub = await ws.send_command("unsubscribe_events", subscription=sub_id)
     assert unsub.get("success", False) is True
-
-
-async def test_ws_render_template_math(ws):
-    """WS render_template with math expression."""
-    resp = await ws.send_command("render_template", template="{{ 100 * 3 + 5 }}")
-    assert resp.get("success", False) is True
-    assert "305" in str(resp.get("result", {}).get("result", ""))
-
-
-async def test_ws_render_template_error(ws):
-    """WS render_template with invalid template returns error."""
-    resp = await ws.send_command("render_template", template="{{ undefined_func() }}")
-    assert resp.get("success", True) is False
 
 
 async def test_ws_call_service_light(ws, rest):

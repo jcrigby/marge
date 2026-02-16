@@ -116,23 +116,6 @@ async def test_trigger_nonexistent_automation(rest):
     assert resp.status_code == 200
 
 
-# ── Automation Entities ──────────────────────────────────
-
-async def test_automation_entities_exist(rest):
-    """Automation entities exist in state machine."""
-    states = await rest.get_states()
-    auto_entities = [s for s in states if s["entity_id"].startswith("automation.")]
-    assert len(auto_entities) >= 6
-
-
-async def test_automation_entity_has_friendly_name(rest):
-    """Automation entities have friendly_name attribute (from alias)."""
-    state = await rest.get_state("automation.morning_wakeup")
-    assert state is not None
-    assert "friendly_name" in state["attributes"]
-    assert len(state["attributes"]["friendly_name"]) > 0
-
-
 # ── Merged from depth: trigger via REST ──────────────────
 
 async def test_trigger_automation_rest(rest):
@@ -209,31 +192,6 @@ async def test_automation_turn_off_on_cycle(rest):
     )
     state_on = await rest.get_state(eid)
     assert state_on["state"] == "on"
-
-
-async def test_automation_toggle(rest):
-    """automation.toggle flips state."""
-    eid = "automation.smoke_co_emergency"
-
-    state1 = await rest.get_state(eid)
-    original = state1["state"]
-
-    await rest.client.post(
-        f"{rest.base_url}/api/services/automation/toggle",
-        json={"entity_id": eid},
-        headers=rest._headers(),
-    )
-    state2 = await rest.get_state(eid)
-    assert state2["state"] != original
-
-    # Toggle back
-    await rest.client.post(
-        f"{rest.base_url}/api/services/automation/toggle",
-        json={"entity_id": eid},
-        headers=rest._headers(),
-    )
-    state3 = await rest.get_state(eid)
-    assert state3["state"] == original
 
 
 async def test_force_trigger_bypasses_disabled(rest):

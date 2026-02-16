@@ -10,7 +10,7 @@ import pytest
 pytestmark = pytest.mark.asyncio
 
 
-# ── Light Services ───────────────────────────────────────────
+# -- Light Services --
 
 async def test_light_turn_on_with_brightness(rest):
     """light.turn_on with brightness sets attribute."""
@@ -56,7 +56,7 @@ async def test_light_toggle_from_off(rest):
     assert state["state"] == "on"
 
 
-# ── Climate Services ────────────────────────────────────────
+# -- Climate Services --
 
 async def test_climate_set_multiple_attributes(rest):
     """climate.set_temperature sets temperature attribute."""
@@ -69,87 +69,7 @@ async def test_climate_set_multiple_attributes(rest):
     assert state["attributes"]["temperature"] == 68
 
 
-async def test_climate_set_hvac_mode(rest):
-    """climate.set_hvac_mode changes state."""
-    await rest.set_state("climate.svc_int_hvac", "off")
-    await rest.call_service("climate", "set_hvac_mode", {
-        "entity_id": "climate.svc_int_hvac",
-        "hvac_mode": "cool",
-    })
-    state = await rest.get_state("climate.svc_int_hvac")
-    assert state["state"] == "cool"
-
-
-async def test_climate_set_fan_mode(rest):
-    """climate.set_fan_mode sets fan_mode attribute."""
-    await rest.set_state("climate.svc_int_fan", "heat")
-    await rest.call_service("climate", "set_fan_mode", {
-        "entity_id": "climate.svc_int_fan",
-        "fan_mode": "high",
-    })
-    state = await rest.get_state("climate.svc_int_fan")
-    assert state["attributes"]["fan_mode"] == "high"
-
-
-async def test_climate_set_preset_mode(rest):
-    """climate.set_preset_mode sets preset_mode attribute."""
-    await rest.set_state("climate.svc_int_preset", "heat")
-    await rest.call_service("climate", "set_preset_mode", {
-        "entity_id": "climate.svc_int_preset",
-        "preset_mode": "eco",
-    })
-    state = await rest.get_state("climate.svc_int_preset")
-    assert state["attributes"]["preset_mode"] == "eco"
-
-
-# ── Fan Services ─────────────────────────────────────────────
-
-async def test_fan_turn_on_with_percentage(rest):
-    """fan.turn_on with percentage sets attribute."""
-    await rest.set_state("fan.svc_int_pct", "off")
-    await rest.call_service("fan", "turn_on", {
-        "entity_id": "fan.svc_int_pct",
-        "percentage": 75,
-    })
-    state = await rest.get_state("fan.svc_int_pct")
-    assert state["state"] == "on"
-    assert state["attributes"]["percentage"] == 75
-
-
-async def test_fan_set_direction(rest):
-    """fan.set_direction sets direction attribute."""
-    await rest.set_state("fan.svc_int_dir", "on")
-    await rest.call_service("fan", "set_direction", {
-        "entity_id": "fan.svc_int_dir",
-        "direction": "reverse",
-    })
-    state = await rest.get_state("fan.svc_int_dir")
-    assert state["attributes"]["direction"] == "reverse"
-
-
-async def test_fan_set_preset_mode(rest):
-    """fan.set_preset_mode sets preset_mode attribute."""
-    await rest.set_state("fan.svc_int_fpm", "on")
-    await rest.call_service("fan", "set_preset_mode", {
-        "entity_id": "fan.svc_int_fpm",
-        "preset_mode": "sleep",
-    })
-    state = await rest.get_state("fan.svc_int_fpm")
-    assert state["attributes"]["preset_mode"] == "sleep"
-
-
-# ── Cover Services ──────────────────────────────────────────
-
-async def test_cover_set_position(rest):
-    """cover.set_cover_position sets position attribute."""
-    await rest.set_state("cover.svc_int_pos", "open")
-    await rest.call_service("cover", "set_cover_position", {
-        "entity_id": "cover.svc_int_pos",
-        "position": 50,
-    })
-    state = await rest.get_state("cover.svc_int_pos")
-    assert state["attributes"]["current_position"] == 50
-
+# -- Cover Services --
 
 async def test_cover_toggle_from_open(rest):
     """cover.toggle from open switches to closed."""
@@ -161,7 +81,7 @@ async def test_cover_toggle_from_open(rest):
     assert state["state"] == "closed"
 
 
-# ── Media Player Services ───────────────────────────────────
+# -- Media Player Services --
 
 async def test_media_player_volume_set(rest):
     """media_player.volume_set sets volume_level attribute."""
@@ -172,17 +92,6 @@ async def test_media_player_volume_set(rest):
     })
     state = await rest.get_state("media_player.svc_int_vol")
     assert state["attributes"]["volume_level"] == 0.75
-
-
-async def test_media_player_volume_mute(rest):
-    """media_player.volume_mute sets is_volume_muted attribute."""
-    await rest.set_state("media_player.svc_int_mute", "playing")
-    await rest.call_service("media_player", "volume_mute", {
-        "entity_id": "media_player.svc_int_mute",
-        "is_volume_muted": True,
-    })
-    state = await rest.get_state("media_player.svc_int_mute")
-    assert state["attributes"]["is_volume_muted"] is True
 
 
 async def test_media_player_shuffle_set(rest):
@@ -208,7 +117,7 @@ async def test_media_player_source(rest):
 
 
 async def test_media_player_state_transitions(rest):
-    """media_player state transitions: play → pause → stop."""
+    """media_player state transitions: play -> pause -> stop."""
     entity = "media_player.svc_int_trans"
     await rest.set_state(entity, "idle")
     await rest.call_service("media_player", "media_play", {"entity_id": entity})
@@ -224,39 +133,7 @@ async def test_media_player_state_transitions(rest):
     assert state["state"] == "idle"
 
 
-# ── Input Helpers ────────────────────────────────────────────
-
-async def test_input_boolean_toggle(rest):
-    """input_boolean.toggle flips between on/off."""
-    await rest.set_state("input_boolean.svc_int_ib", "off")
-    await rest.call_service("input_boolean", "toggle", {
-        "entity_id": "input_boolean.svc_int_ib",
-    })
-    state = await rest.get_state("input_boolean.svc_int_ib")
-    assert state["state"] == "on"
-
-
-async def test_input_number_set_value(rest):
-    """input_number.set_value sets state to numeric value."""
-    await rest.set_state("input_number.svc_int_in", "0")
-    await rest.call_service("input_number", "set_value", {
-        "entity_id": "input_number.svc_int_in",
-        "value": 42,
-    })
-    state = await rest.get_state("input_number.svc_int_in")
-    assert state["state"] == "42"
-
-
-async def test_input_text_set_value(rest):
-    """input_text.set_value sets state to text value."""
-    await rest.set_state("input_text.svc_int_it", "")
-    await rest.call_service("input_text", "set_value", {
-        "entity_id": "input_text.svc_int_it",
-        "value": "Hello World",
-    })
-    state = await rest.get_state("input_text.svc_int_it")
-    assert state["state"] == "Hello World"
-
+# -- Input Helpers --
 
 async def test_input_select_option(rest):
     """input_select.select_option sets state to option."""

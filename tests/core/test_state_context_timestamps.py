@@ -137,24 +137,6 @@ async def test_last_changed_stable_on_attr_only_change(rest):
     assert lc1 == lc2
 
 
-async def test_last_reported_always_updates(rest):
-    """last_reported updates on every set, even with same state."""
-    tag = uuid.uuid4().hex[:8]
-    eid = f"sensor.lr_{tag}"
-    await rest.set_state(eid, "same")
-    state1 = await rest.get_state(eid)
-    lr1 = state1.get("last_reported", state1.get("last_updated"))
-
-    await asyncio.sleep(0.05)
-    await rest.set_state(eid, "same")
-    state2 = await rest.get_state(eid)
-    lr2 = state2.get("last_reported", state2.get("last_updated"))
-
-    # last_reported should always change (or fall back to last_updated behavior)
-    assert lr1 is not None
-    assert lr2 is not None
-
-
 async def test_new_entity_timestamps_all_equal(rest):
     """Brand new entity has all timestamps equal."""
     tag = uuid.uuid4().hex[:8]

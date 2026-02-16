@@ -29,7 +29,7 @@ See [phase-tracker.md](phase-tracker.md) for detailed status.
 - **Phase 6 (Production)**: MOSTLY COMPLETE — backup/restore, graceful shutdown, history
 - **Phase 7 (Local Network)**: COMPLETE — Shelly, Hue, Cast, Sonos, Matter + WASM HTTP host functions
 - **Coverage**: ~85% of homes (10 integrations)
-- CTS: 2204 tests / 176 files (pruned from 4854/411 on 2026-02-16), 86/86 Rust unit tests
+- CTS: 1922 tests / 172 files (pruned from 4854/411 on 2026-02-16), 86/86 Rust unit tests
 
 ## Critical Gotchas
 - **rumqttd 0.19**: No Default for ServerSettings, `broker.start()` is blocking (use spawn_blocking)

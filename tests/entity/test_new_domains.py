@@ -1,8 +1,7 @@
 """
 CTS -- New Domain Service Tests
 
-Tests services for water_heater, humidifier, text, lawn_mower,
-remote, and extended climate/media_player/lock services.
+Tests services for water_heater, lawn_mower, remote, and service listing.
 """
 
 import pytest
@@ -10,7 +9,7 @@ import pytest
 pytestmark = pytest.mark.asyncio
 
 
-# ── Water Heater ──────────────────────────────────────────
+# -- Water Heater --
 
 async def test_water_heater_set_temperature(rest):
     """water_heater.set_temperature sets temperature attribute."""
@@ -54,135 +53,7 @@ async def test_water_heater_turn_off(rest):
     assert state["state"] == "off"
 
 
-# ── Humidifier ────────────────────────────────────────────
-
-async def test_humidifier_turn_on(rest):
-    """humidifier.turn_on sets state to on."""
-    await rest.set_state("humidifier.bedroom", "off")
-    await rest.call_service("humidifier", "turn_on", {
-        "entity_id": "humidifier.bedroom",
-    })
-    state = await rest.get_state("humidifier.bedroom")
-    assert state["state"] == "on"
-
-
-async def test_humidifier_turn_off(rest):
-    """humidifier.turn_off sets state to off."""
-    await rest.set_state("humidifier.bedroom", "on")
-    await rest.call_service("humidifier", "turn_off", {
-        "entity_id": "humidifier.bedroom",
-    })
-    state = await rest.get_state("humidifier.bedroom")
-    assert state["state"] == "off"
-
-
-async def test_humidifier_toggle(rest):
-    """humidifier.toggle toggles between on/off."""
-    await rest.set_state("humidifier.bedroom", "on")
-    await rest.call_service("humidifier", "toggle", {
-        "entity_id": "humidifier.bedroom",
-    })
-    state = await rest.get_state("humidifier.bedroom")
-    assert state["state"] == "off"
-
-
-async def test_humidifier_set_humidity(rest):
-    """humidifier.set_humidity sets humidity attribute."""
-    await rest.set_state("humidifier.bedroom", "on")
-    await rest.call_service("humidifier", "set_humidity", {
-        "entity_id": "humidifier.bedroom",
-        "humidity": 50,
-    })
-    state = await rest.get_state("humidifier.bedroom")
-    assert state["attributes"]["humidity"] == 50
-
-
-async def test_humidifier_set_mode(rest):
-    """humidifier.set_mode sets mode attribute."""
-    await rest.set_state("humidifier.bedroom", "on")
-    await rest.call_service("humidifier", "set_mode", {
-        "entity_id": "humidifier.bedroom",
-        "mode": "sleep",
-    })
-    state = await rest.get_state("humidifier.bedroom")
-    assert state["attributes"]["mode"] == "sleep"
-
-
-# ── Text ──────────────────────────────────────────────────
-
-async def test_text_set_value(rest):
-    """text.set_value sets the entity state."""
-    await rest.set_state("text.notes", "")
-    await rest.call_service("text", "set_value", {
-        "entity_id": "text.notes",
-        "value": "Remember to water plants",
-    })
-    state = await rest.get_state("text.notes")
-    assert state["state"] == "Remember to water plants"
-
-
-# ── Climate turn_on / turn_off ────────────────────────────
-
-async def test_climate_turn_on(rest):
-    """climate.turn_on sets state to on."""
-    await rest.set_state("climate.office", "off")
-    await rest.call_service("climate", "turn_on", {
-        "entity_id": "climate.office",
-    })
-    state = await rest.get_state("climate.office")
-    assert state["state"] == "on"
-
-
-async def test_climate_turn_off(rest):
-    """climate.turn_off sets state to off."""
-    await rest.set_state("climate.office", "heat")
-    await rest.call_service("climate", "turn_off", {
-        "entity_id": "climate.office",
-    })
-    state = await rest.get_state("climate.office")
-    assert state["state"] == "off"
-
-
-# ── Media Player play_media ───────────────────────────────
-
-async def test_media_player_play_media(rest):
-    """media_player.play_media sets state to playing with content attributes."""
-    await rest.set_state("media_player.tv", "idle")
-    await rest.call_service("media_player", "play_media", {
-        "entity_id": "media_player.tv",
-        "media_content_id": "spotify:track:abc123",
-        "media_content_type": "music",
-    })
-    state = await rest.get_state("media_player.tv")
-    assert state["state"] == "playing"
-    assert state["attributes"]["media_content_id"] == "spotify:track:abc123"
-    assert state["attributes"]["media_content_type"] == "music"
-
-
-async def test_media_player_select_sound_mode(rest):
-    """media_player.select_sound_mode sets sound_mode attribute."""
-    await rest.set_state("media_player.tv", "playing")
-    await rest.call_service("media_player", "select_sound_mode", {
-        "entity_id": "media_player.tv",
-        "sound_mode": "surround",
-    })
-    state = await rest.get_state("media_player.tv")
-    assert state["attributes"]["sound_mode"] == "surround"
-
-
-# ── Lock open ─────────────────────────────────────────────
-
-async def test_lock_open(rest):
-    """lock.open sets state to open."""
-    await rest.set_state("lock.front_gate", "locked")
-    await rest.call_service("lock", "open", {
-        "entity_id": "lock.front_gate",
-    })
-    state = await rest.get_state("lock.front_gate")
-    assert state["state"] == "open"
-
-
-# ── Lawn Mower ────────────────────────────────────────────
+# -- Lawn Mower --
 
 async def test_lawn_mower_start(rest):
     """lawn_mower.start_mowing sets state to mowing."""
@@ -214,7 +85,7 @@ async def test_lawn_mower_dock(rest):
     assert state["state"] == "docked"
 
 
-# ── Remote ────────────────────────────────────────────────
+# -- Remote --
 
 async def test_remote_turn_on(rest):
     """remote.turn_on sets state to on."""
@@ -247,7 +118,7 @@ async def test_remote_send_command(rest):
     assert state["attributes"]["last_command"] == "volume_up"
 
 
-# ── Service Listing ───────────────────────────────────────
+# -- Service Listing --
 
 async def test_services_include_water_heater(rest):
     """GET /api/services includes water_heater domain."""

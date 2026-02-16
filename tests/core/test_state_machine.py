@@ -71,14 +71,6 @@ async def test_state_has_timestamps(rest):
     assert "last_reported" in result
 
 
-async def test_state_has_context(rest):
-    """State objects include a context with an id."""
-    entity_id = "test.context_check"
-    result = await rest.set_state(entity_id, "on")
-    assert "context" in result
-    assert "id" in result["context"]
-
-
 async def test_last_changed_updates_on_value_change(rest):
     """last_changed updates when state value changes (STATE-006)."""
     entity_id = "test.last_changed_value"
@@ -117,19 +109,6 @@ async def test_last_updated_changes_on_attribute_change(rest):
     r2 = await rest.set_state(entity_id, "on", {"brightness": 200})
     t2 = r2["last_updated"]
     assert t2 > t1, "last_updated should update when attributes change"
-
-
-async def test_last_reported_always_updates(rest):
-    """last_reported updates on every write, even if nothing changed."""
-    entity_id = "test.last_reported_always"
-    r1 = await rest.set_state(entity_id, "on", {"brightness": 100})
-    t1 = r1["last_reported"]
-
-    await asyncio.sleep(0.05)
-
-    r2 = await rest.set_state(entity_id, "on", {"brightness": 100})
-    t2 = r2["last_reported"]
-    assert t2 > t1, "last_reported should always update"
 
 
 async def test_context_id_unique_per_update(rest):

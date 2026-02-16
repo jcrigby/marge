@@ -1,7 +1,7 @@
 """
 CTS -- Cover Entity Tests
 
-Tests cover domain services: open_cover, close_cover, stop_cover, toggle, set_cover_position.
+Tests cover domain services: open_cover, close_cover, stop_cover, set_cover_position (zero).
 """
 
 import pytest
@@ -40,42 +40,6 @@ async def test_cover_stop(rest):
     state = await rest.get_state(entity_id)
     assert state["state"] == "opening"
     assert state["attributes"]["current_position"] == 65
-
-
-async def test_cover_toggle_open_to_closed(rest):
-    """cover.toggle flips open to closed."""
-    entity_id = "cover.test_toggle_oc"
-    await rest.set_state(entity_id, "open", {"current_position": 100})
-    await rest.call_service("cover", "toggle", {"entity_id": entity_id})
-
-    state = await rest.get_state(entity_id)
-    assert state["state"] == "closed"
-    assert state["attributes"]["current_position"] == 0
-
-
-async def test_cover_toggle_closed_to_open(rest):
-    """cover.toggle flips closed to open."""
-    entity_id = "cover.test_toggle_co"
-    await rest.set_state(entity_id, "closed", {"current_position": 0})
-    await rest.call_service("cover", "toggle", {"entity_id": entity_id})
-
-    state = await rest.get_state(entity_id)
-    assert state["state"] == "open"
-    assert state["attributes"]["current_position"] == 100
-
-
-async def test_cover_set_position(rest):
-    """cover.set_cover_position sets position and derives state."""
-    entity_id = "cover.test_setpos"
-    await rest.set_state(entity_id, "closed", {"current_position": 0})
-    await rest.call_service("cover", "set_cover_position", {
-        "entity_id": entity_id,
-        "position": 42,
-    })
-
-    state = await rest.get_state(entity_id)
-    assert state["state"] == "open"
-    assert state["attributes"]["current_position"] == 42
 
 
 async def test_cover_set_position_zero(rest):

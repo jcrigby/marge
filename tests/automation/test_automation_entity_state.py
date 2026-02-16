@@ -196,30 +196,6 @@ async def test_automation_entity_has_attributes(rest):
         assert isinstance(auto["attributes"], dict)
 
 
-# ── Merged from depth: toggle ───────────────────────────────
-
-async def test_automation_toggle(rest):
-    """automation.toggle flips enabled state."""
-    resp = await rest.client.get(
-        f"{rest.base_url}/api/config/automation/config",
-        headers=rest._headers(),
-    )
-    autos = resp.json()
-    auto_id = autos[0]["id"]
-    eid = f"automation.{auto_id}"
-
-    # Get initial state
-    initial = (await rest.get_state(eid))["state"]
-    await rest.call_service("automation", "toggle", {"entity_id": eid})
-    toggled = (await rest.get_state(eid))["state"]
-    assert toggled != initial
-
-    # Toggle back
-    await rest.call_service("automation", "toggle", {"entity_id": eid})
-    restored = (await rest.get_state(eid))["state"]
-    assert restored == initial
-
-
 # ── Merged from depth: trigger API ──────────────────────────
 
 async def test_automation_trigger_succeeds(rest):

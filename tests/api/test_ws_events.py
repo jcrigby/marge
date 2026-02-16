@@ -52,30 +52,6 @@ async def test_ws_state_changed_includes_attributes(ws, rest):
     assert new_state["attributes"]["unit"] == "C"
 
 
-# ── Multiple Subscriptions ───────────────────────────────
-
-async def test_ws_multiple_subscriptions(ws, rest):
-    """Multiple subscribe_events on same connection all receive events."""
-    sub1 = await ws.subscribe_events("state_changed")
-    sub2 = await ws.subscribe_events("state_changed")
-
-    await rest.set_state("sensor.ws_multi_sub", "changed")
-
-    # Should receive 2 events (one per subscription)
-    events = []
-    for _ in range(2):
-        try:
-            ev = await ws.recv_event(timeout=3.0)
-            events.append(ev)
-        except asyncio.TimeoutError:
-            break
-
-    assert len(events) == 2
-    ids = {e["id"] for e in events}
-    assert sub1 in ids
-    assert sub2 in ids
-
-
 # ── Get States via WS ────────────────────────────────────
 
 async def test_ws_get_states_returns_list(ws, rest):
@@ -98,17 +74,6 @@ async def test_ws_get_states_entity_format(ws, rest):
     assert "last_changed" in entity
 
 
-# ── Get Config via WS ────────────────────────────────────
-
-async def test_ws_get_config(ws):
-    """get_config WS command returns server config."""
-    result = await ws.send_command("get_config")
-    assert result["success"] is True
-    config = result["result"]
-    assert "location_name" in config
-    assert "version" in config
-
-
 # ── Call Service via WS ───────────────────────────────────
 
 async def test_ws_call_service(ws, rest):
@@ -125,23 +90,3 @@ async def test_ws_call_service(ws, rest):
 
     state = await rest.get_state("light.ws_svc_test")
     assert state["state"] == "on"
-
-
-# ── Fire Event via WS ────────────────────────────────────
-
-async def test_ws_fire_event(ws):
-    """fire_event via WS returns success."""
-    result = await ws.send_command(
-        "fire_event",
-        event_type="cts_test_event",
-        event_data={"source": "ws_test"},
-    )
-    assert result["success"] is True
-
-
-# ── Ping/Pong ────────────────────────────────────────────
-
-async def test_ws_ping_returns_pong(ws):
-    """ping command returns pong."""
-    ok = await ws.ping()
-    assert ok is True

@@ -1,8 +1,8 @@
 """
-CTS -- Alarm, Climate, and Water Heater Service Depth Tests
+CTS -- Alarm and Climate Service Depth Tests
 
-Tests alarm_control_panel arm/disarm/trigger, climate preset modes
-and fan modes, and water_heater operation modes and temperature.
+Tests alarm_control_panel arm/disarm/trigger and climate
+set_temperature attribute storage.
 """
 
 import uuid
@@ -11,7 +11,7 @@ import pytest
 pytestmark = pytest.mark.asyncio
 
 
-# ── Alarm Control Panel ──────────────────────────────────
+# -- Alarm Control Panel --
 
 async def test_arm_home(rest):
     """Alarm arm_home sets state."""
@@ -83,52 +83,7 @@ async def test_trigger(rest):
     assert state["state"] == "triggered"
 
 
-# ── Climate ──────────────────────────────────────────────
-
-async def test_climate_set_fan_mode(rest):
-    """Climate set_fan_mode stores fan_mode attribute."""
-    tag = uuid.uuid4().hex[:8]
-    eid = f"climate.fm_{tag}"
-    await rest.set_state(eid, "cool")
-
-    await rest.call_service("climate", "set_fan_mode", {
-        "entity_id": eid,
-        "fan_mode": "high",
-    })
-
-    state = await rest.get_state(eid)
-    assert state["attributes"].get("fan_mode") == "high"
-
-
-async def test_climate_set_preset_mode(rest):
-    """Climate set_preset_mode stores preset_mode attribute."""
-    tag = uuid.uuid4().hex[:8]
-    eid = f"climate.pm_{tag}"
-    await rest.set_state(eid, "heat")
-
-    await rest.call_service("climate", "set_preset_mode", {
-        "entity_id": eid,
-        "preset_mode": "eco",
-    })
-
-    state = await rest.get_state(eid)
-    assert state["attributes"].get("preset_mode") == "eco"
-
-
-async def test_climate_set_swing_mode(rest):
-    """Climate set_swing_mode stores swing_mode attribute."""
-    tag = uuid.uuid4().hex[:8]
-    eid = f"climate.sm_{tag}"
-    await rest.set_state(eid, "cool")
-
-    await rest.call_service("climate", "set_swing_mode", {
-        "entity_id": eid,
-        "swing_mode": "vertical",
-    })
-
-    state = await rest.get_state(eid)
-    assert state["attributes"].get("swing_mode") == "vertical"
-
+# -- Climate --
 
 async def test_climate_set_temperature_stores_attr(rest):
     """Climate set_temperature stores temperature and target_temp_high/low."""
@@ -143,77 +98,3 @@ async def test_climate_set_temperature_stores_attr(rest):
 
     state = await rest.get_state(eid)
     assert state["attributes"].get("temperature") == 68
-
-
-async def test_climate_turn_off(rest):
-    """Climate turn_off sets state to off."""
-    tag = uuid.uuid4().hex[:8]
-    eid = f"climate.off_{tag}"
-    await rest.set_state(eid, "heat")
-
-    await rest.call_service("climate", "turn_off", {
-        "entity_id": eid,
-    })
-
-    state = await rest.get_state(eid)
-    assert state["state"] == "off"
-
-
-# ── Water Heater ─────────────────────────────────────────
-
-async def test_water_heater_set_temperature(rest):
-    """Water heater set_temperature stores temperature."""
-    tag = uuid.uuid4().hex[:8]
-    eid = f"water_heater.temp_{tag}"
-    await rest.set_state(eid, "eco")
-
-    await rest.call_service("water_heater", "set_temperature", {
-        "entity_id": eid,
-        "temperature": 120,
-    })
-
-    state = await rest.get_state(eid)
-    assert state["attributes"].get("temperature") == 120
-
-
-async def test_water_heater_set_operation_mode(rest):
-    """Water heater set_operation_mode changes state."""
-    tag = uuid.uuid4().hex[:8]
-    eid = f"water_heater.op_{tag}"
-    await rest.set_state(eid, "eco")
-
-    await rest.call_service("water_heater", "set_operation_mode", {
-        "entity_id": eid,
-        "operation_mode": "performance",
-    })
-
-    state = await rest.get_state(eid)
-    assert state["state"] == "performance"
-
-
-async def test_water_heater_turn_on(rest):
-    """Water heater turn_on sets state to eco."""
-    tag = uuid.uuid4().hex[:8]
-    eid = f"water_heater.on_{tag}"
-    await rest.set_state(eid, "off")
-
-    await rest.call_service("water_heater", "turn_on", {
-        "entity_id": eid,
-    })
-
-    state = await rest.get_state(eid)
-    assert state["state"] == "eco"
-
-
-async def test_water_heater_turn_off(rest):
-    """Water heater turn_off sets state to off."""
-    tag = uuid.uuid4().hex[:8]
-    eid = f"water_heater.woff_{tag}"
-    await rest.set_state(eid, "eco")
-
-    await rest.call_service("water_heater", "turn_off", {
-        "entity_id": eid,
-    })
-
-    state = await rest.get_state(eid)
-    assert state["state"] == "off"

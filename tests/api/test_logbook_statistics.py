@@ -14,17 +14,6 @@ pytestmark = pytest.mark.asyncio
 
 # ── Logbook Global ───────────────────────────────────────
 
-async def test_logbook_global_returns_list(rest):
-    """GET /api/logbook returns list of entries."""
-    resp = await rest.client.get(
-        f"{rest.base_url}/api/logbook",
-        headers=rest._headers(),
-    )
-    assert resp.status_code == 200
-    data = resp.json()
-    assert isinstance(data, list)
-
-
 async def test_logbook_global_entries_have_fields(rest):
     """Logbook entries contain expected fields."""
     # Create a state change to ensure logbook has content
@@ -95,32 +84,7 @@ async def test_statistics_numeric_entity(rest):
         assert "mean" in entry or "min" in entry or "sum" in entry
 
 
-async def test_statistics_nonexistent_entity(rest):
-    """Statistics for nonexistent entity returns empty."""
-    resp = await rest.client.get(
-        f"{rest.base_url}/api/statistics/sensor.stat_nonexistent_xyz",
-        headers=rest._headers(),
-    )
-    assert resp.status_code == 200
-    data = resp.json()
-    assert data == [] or isinstance(data, list)
-
-
 # ── History Period ───────────────────────────────────────
-
-async def test_history_returns_list(rest):
-    """History period returns list of state entries."""
-    await rest.set_state("sensor.hist_test", "100")
-    await asyncio.sleep(0.2)
-
-    resp = await rest.client.get(
-        f"{rest.base_url}/api/history/period/sensor.hist_test",
-        headers=rest._headers(),
-    )
-    assert resp.status_code == 200
-    data = resp.json()
-    assert isinstance(data, list)
-
 
 async def test_history_entries_have_state(rest):
     """History entries include state values."""
@@ -138,39 +102,3 @@ async def test_history_entries_have_state(rest):
         for entry in data:
             assert "state" in entry
             assert "entity_id" in entry
-
-
-async def test_history_empty_for_unknown_entity(rest):
-    """History for unknown entity returns empty list."""
-    resp = await rest.client.get(
-        f"{rest.base_url}/api/history/period/sensor.hist_unknown_xyz",
-        headers=rest._headers(),
-    )
-    assert resp.status_code == 200
-    assert resp.json() == []
-
-
-# ── Error Log ────────────────────────────────────────────
-
-async def test_error_log_returns_text(rest):
-    """GET /api/error_log returns text content."""
-    resp = await rest.client.get(
-        f"{rest.base_url}/api/error_log",
-        headers=rest._headers(),
-    )
-    assert resp.status_code == 200
-    # Error log may return empty string or text
-
-
-# ── Check Config ─────────────────────────────────────────
-
-async def test_check_config_valid(rest):
-    """POST /api/config/core/check_config returns valid."""
-    resp = await rest.client.post(
-        f"{rest.base_url}/api/config/core/check_config",
-        json={},
-        headers=rest._headers(),
-    )
-    assert resp.status_code == 200
-    data = resp.json()
-    assert data["result"] == "valid"

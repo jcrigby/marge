@@ -13,50 +13,14 @@ pytestmark = pytest.mark.asyncio
 
 # ── Core Commands ─────────────────────────────────────────
 
-async def test_ws_ping_pong(ws):
-    """WS ping returns pong."""
-    ok = await ws.ping()
-    assert ok is True
-
-
-async def test_ws_get_states(ws, rest):
-    """WS get_states returns all entity states."""
-    await rest.set_state("sensor.ws_states_test", "42")
-    states = await ws.get_states()
-    assert isinstance(states, list)
-    ids = [s["entity_id"] for s in states]
-    assert "sensor.ws_states_test" in ids
-
-
-async def test_ws_get_config(ws):
-    """WS get_config returns location and version."""
-    resp = await ws.send_command("get_config")
-    assert resp["success"] is True
-    config = resp["result"]
-    assert config["location_name"] == "Marge Demo Home"
-    assert "version" in config
-    assert config["state"] == "RUNNING"
-    assert "latitude" in config
-    assert "longitude" in config
-    assert "unit_system" in config
-
-
-async def test_ws_get_services(ws):
-    """WS get_services returns service registry."""
+async def test_ws_get_services_has_service_names(ws):
+    """get_services includes service names per domain."""
     resp = await ws.send_command("get_services")
-    assert resp["success"] is True
     result = resp["result"]
-    assert isinstance(result, list)
-    domains = [s["domain"] for s in result]
-    assert "light" in domains
-    assert "switch" in domains
-    assert "timer" in domains
-
-
-async def test_ws_fire_event(ws):
-    """WS fire_event succeeds."""
-    resp = await ws.send_command("fire_event", event_type="test_event")
-    assert resp["success"] is True
+    light = next(e for e in result if e["domain"] == "light")
+    assert "turn_on" in light["services"]
+    assert "turn_off" in light["services"]
+    assert "toggle" in light["services"]
 
 
 async def test_ws_get_notifications(ws, rest):
@@ -105,17 +69,6 @@ async def test_ws_unsubscribe(ws, rest):
 
 # ── Call Service via WS ───────────────────────────────────
 
-async def test_ws_call_service_light(ws, rest):
-    """WS call_service light.turn_on works."""
-    await rest.set_state("light.ws_call_test", "off")
-    resp = await ws.send_command("call_service",
-        domain="light", service="turn_on",
-        service_data={"entity_id": "light.ws_call_test"})
-    assert resp["success"] is True
-    state = await rest.get_state("light.ws_call_test")
-    assert state["state"] == "on"
-
-
 async def test_ws_call_service_timer(ws, rest):
     """WS call_service timer.start works."""
     await rest.set_state("timer.ws_call_test", "idle")
@@ -138,40 +91,6 @@ async def test_ws_call_service_counter(ws, rest):
     assert state["state"] == "1"
 
 
-# ── Registry List Commands ────────────────────────────────
-
-async def test_ws_entity_registry_list(ws, rest):
-    """WS config/entity_registry/list returns entity entries."""
-    await rest.set_state("sensor.ws_reg_test", "42", {"friendly_name": "WS Reg Test"})
-    resp = await ws.send_command("config/entity_registry/list")
-    assert resp["success"] is True
-    entries = resp["result"]
-    assert isinstance(entries, list)
-    ids = [e["entity_id"] for e in entries]
-    assert "sensor.ws_reg_test" in ids
-
-
-async def test_ws_area_registry_list(ws):
-    """WS config/area_registry/list returns areas."""
-    resp = await ws.send_command("config/area_registry/list")
-    assert resp["success"] is True
-    assert isinstance(resp["result"], list)
-
-
-async def test_ws_device_registry_list(ws):
-    """WS config/device_registry/list returns devices."""
-    resp = await ws.send_command("config/device_registry/list")
-    assert resp["success"] is True
-    assert isinstance(resp["result"], list)
-
-
-async def test_ws_label_registry_list(ws):
-    """WS config/label_registry/list returns labels."""
-    resp = await ws.send_command("config/label_registry/list")
-    assert resp["success"] is True
-    assert isinstance(resp["result"], list)
-
-
 # ── Template Rendering ────────────────────────────────────
 
 async def test_ws_render_template_states(ws, rest):
@@ -181,14 +100,6 @@ async def test_ws_render_template_states(ws, rest):
         template="{{ states('sensor.ws_tmpl_test') }}")
     assert resp["success"] is True
     assert resp["result"]["result"] == "99"
-
-
-async def test_ws_render_template_math(ws):
-    """WS render_template with math expressions."""
-    resp = await ws.send_command("render_template",
-        template="{{ 6 * 7 }}")
-    assert resp["success"] is True
-    assert resp["result"]["result"].strip() == "42"
 
 
 # ── Persistent Notification via WS ────────────────────────

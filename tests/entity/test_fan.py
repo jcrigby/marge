@@ -1,7 +1,7 @@
 """
 CTS -- Fan Entity Tests
 
-Tests fan domain services: turn_on, turn_off, toggle, set_percentage.
+Tests fan domain services: turn_on, turn_off, toggle, set_percentage (zero/nonzero).
 """
 
 import pytest
@@ -42,20 +42,6 @@ async def test_fan_toggle(rest):
     assert state2["state"] == "on"
 
 
-async def test_fan_set_percentage(rest):
-    """fan.set_percentage sets speed and turns on."""
-    entity_id = "fan.test_pct"
-    await rest.set_state(entity_id, "off")
-    await rest.call_service("fan", "set_percentage", {
-        "entity_id": entity_id,
-        "percentage": 75,
-    })
-
-    state = await rest.get_state(entity_id)
-    assert state["state"] == "on"
-    assert state["attributes"]["percentage"] == 75
-
-
 async def test_fan_set_percentage_zero(rest):
     """fan.set_percentage to 0 turns off."""
     entity_id = "fan.test_pct_zero"
@@ -69,15 +55,13 @@ async def test_fan_set_percentage_zero(rest):
     assert state["state"] == "off"
 
 
-async def test_fan_turn_on_with_percentage(rest):
-    """fan.turn_on with percentage data sets both."""
-    entity_id = "fan.test_on_pct"
-    await rest.set_state(entity_id, "off")
-    await rest.call_service("fan", "turn_on", {
-        "entity_id": entity_id,
-        "percentage": 33,
+async def test_fan_set_percentage_nonzero(rest):
+    """fan set_percentage > 0 sets state to on."""
+    await rest.set_state("fan.depth_pctn", "off")
+    await rest.call_service("fan", "set_percentage", {
+        "entity_id": "fan.depth_pctn",
+        "percentage": 50,
     })
-
-    state = await rest.get_state(entity_id)
+    state = await rest.get_state("fan.depth_pctn")
     assert state["state"] == "on"
-    assert state["attributes"]["percentage"] == 33
+    assert state["attributes"]["percentage"] == 50

@@ -95,15 +95,6 @@ async def test_context_has_required_fields(rest):
     assert len(state["context"]["id"]) > 0
 
 
-async def test_last_reported_always_updates(rest):
-    """last_reported is present on every state object."""
-    tag = uuid.uuid4().hex[:8]
-    eid = f"sensor.ts_reported_{tag}"
-    await rest.set_state(eid, "x")
-    s1 = await rest.get_state(eid)
-    assert "last_reported" in s1
-
-
 async def test_timestamps_are_iso_format(rest):
     """Timestamps are in ISO 8601 format."""
     tag = uuid.uuid4().hex[:8]
@@ -158,18 +149,6 @@ async def test_last_updated_updates_on_any_change(rest):
     state2 = await rest.get_state(eid)
 
     assert state2["last_updated"] >= state1["last_updated"]
-
-
-# ── Context Presence (from depth) ──────────────────────
-
-
-async def test_state_has_context(rest):
-    """State object has context field."""
-    tag = uuid.uuid4().hex[:8]
-    eid = f"sensor.tstamp_ctx_{tag}"
-    await rest.set_state(eid, "val")
-    state = await rest.get_state(eid)
-    assert "context" in state
 
 
 # ── Multiple Entities Timestamps (from depth) ──────────

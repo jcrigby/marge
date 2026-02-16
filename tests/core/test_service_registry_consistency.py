@@ -144,23 +144,6 @@ async def test_service_call_empty_entity_list(rest):
     assert resp.status_code == 200
 
 
-async def test_service_call_returns_changed_states(rest):
-    """Service call returns the changed entity states."""
-    tag = uuid.uuid4().hex[:8]
-    eid = f"switch.svc_ret_{tag}"
-    await rest.set_state(eid, "off")
-
-    resp = await rest.client.post(
-        f"{rest.base_url}/api/services/switch/turn_on",
-        json={"entity_id": eid},
-        headers=rest._headers(),
-    )
-    assert resp.status_code == 200
-    data = resp.json()
-    # Response should contain the changed state(s)
-    assert isinstance(data, (dict, list))
-
-
 async def test_rest_and_ws_services_match(rest, ws):
     """REST /api/services and WS get_services return same domains."""
     rest_resp = await rest.client.get(

@@ -40,24 +40,6 @@ async def test_automation_turn_on(rest):
     assert state["state"] == "on"
 
 
-async def test_automation_toggle(rest):
-    """automation.toggle flips automation enabled state."""
-    state_before = await rest.get_state("automation.morning_wakeup")
-    was_on = state_before["state"] == "on"
-    await rest.call_service("automation", "toggle", {
-        "entity_id": "automation.morning_wakeup",
-    })
-    state_after = await rest.get_state("automation.morning_wakeup")
-    if was_on:
-        assert state_after["state"] == "off"
-    else:
-        assert state_after["state"] == "on"
-    # Toggle back to original
-    await rest.call_service("automation", "toggle", {
-        "entity_id": "automation.morning_wakeup",
-    })
-
-
 async def test_disabled_automation_not_triggered(rest):
     """Disabled automation doesn't execute when triggered."""
     # Set up a known state
@@ -87,34 +69,6 @@ async def test_trigger_existing_automation(rest):
         headers=rest._headers(),
     )
     assert resp.status_code == 200
-
-
-async def test_trigger_updates_last_triggered(rest):
-    """Triggering automation updates last_triggered metadata."""
-    # Read current state
-    resp = await rest.client.get(
-        f"{rest.base_url}/api/config/automation/config",
-        headers=rest._headers(),
-    )
-    automations = resp.json()
-    morning = next(a for a in automations if a["id"] == "morning_wakeup")
-    old_count = morning["total_triggers"]
-
-    # Trigger
-    await rest.call_service("automation", "trigger", {
-        "entity_id": "automation.morning_wakeup",
-    })
-    await asyncio.sleep(0.2)
-
-    # Check updated
-    resp = await rest.client.get(
-        f"{rest.base_url}/api/config/automation/config",
-        headers=rest._headers(),
-    )
-    automations = resp.json()
-    morning = next(a for a in automations if a["id"] == "morning_wakeup")
-    assert morning["total_triggers"] >= old_count + 1
-    assert morning["last_triggered"] is not None
 
 
 # ── Automation Config Detail ──────────────────────────────────

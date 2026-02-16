@@ -70,19 +70,6 @@ async def test_context_id_present(rest):
     assert len(state["context"]["id"]) > 0
 
 
-async def test_context_id_changes_on_update(rest):
-    """Context ID changes with each state update."""
-    await rest.set_state("sensor.ctx_change", "1")
-    state1 = await rest.get_state("sensor.ctx_change")
-    ctx1 = state1["context"]["id"]
-
-    await rest.set_state("sensor.ctx_change", "2")
-    state2 = await rest.get_state("sensor.ctx_change")
-    ctx2 = state2["context"]["id"]
-
-    assert ctx1 != ctx2
-
-
 # ── Batch Operations ────────────────────────────────────────
 
 async def test_many_entities_created(rest):
@@ -103,19 +90,6 @@ async def test_concurrent_different_entities(rest):
     assert len(results) == 20
     for i, r in enumerate(results):
         assert r["state"] == str(i)
-
-
-async def test_concurrent_same_entity(rest):
-    """Concurrent updates to same entity — last writer wins."""
-    entity = "sensor.concurrent_same"
-    tasks = [
-        rest.set_state(entity, str(i))
-        for i in range(10)
-    ]
-    await asyncio.gather(*tasks)
-    state = await rest.get_state(entity)
-    # State should be one of the values
-    assert state["state"] in [str(i) for i in range(10)]
 
 
 # ── Delete Operations ───────────────────────────────────────

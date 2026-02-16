@@ -11,29 +11,6 @@ import pytest
 pytestmark = pytest.mark.asyncio
 
 
-# ── Automation Entity State ──────────────────────────────
-
-async def test_automation_entities_exist(rest):
-    """All loaded automations appear as automation.* entities."""
-    states = await rest.get_states()
-    auto_ids = [s["entity_id"] for s in states if s["entity_id"].startswith("automation.")]
-    assert len(auto_ids) >= 1, "Expected at least one automation entity"
-
-
-async def test_automation_entity_has_friendly_name(rest):
-    """Automation entity has friendly_name attribute."""
-    state = await rest.get_state("automation.smoke_co_emergency")
-    assert state is not None
-    assert "friendly_name" in state["attributes"]
-
-
-async def test_automation_entity_state_on(rest):
-    """Enabled automation has state 'on'."""
-    state = await rest.get_state("automation.smoke_co_emergency")
-    assert state is not None
-    assert state["state"] == "on"
-
-
 async def test_automation_disable_sets_off(rest):
     """Disabling automation sets entity state to 'off'."""
     await rest.call_service("automation", "turn_off", {
@@ -92,21 +69,6 @@ async def test_force_trigger_increments_count(rest):
 
 
 # ── Automation Reload ────────────────────────────────────
-
-async def test_reload_preserves_automations(rest):
-    """Reloading automations preserves the automation list."""
-    resp = await rest.client.post(
-        f"{rest.base_url}/api/config/core/reload",
-        json={},
-        headers=rest._headers(),
-    )
-    assert resp.status_code == 200
-
-    # Automations should still exist
-    state = await rest.get_state("automation.smoke_co_emergency")
-    assert state is not None
-    assert state["state"] == "on"
-
 
 async def test_reload_preserves_trigger_counts(rest):
     """Reloading does not reset trigger counts."""
@@ -181,32 +143,6 @@ async def test_state_trigger_fires_automation(rest):
     # Check the automation was triggered (last_triggered updated)
     state = await rest.get_state("automation.smoke_co_emergency")
     assert "last_triggered" in state["attributes"]
-
-
-async def test_disabled_automation_does_not_fire(rest):
-    """Disabled automation does not fire on matching state change."""
-    # Disable it
-    await rest.call_service("automation", "turn_off", {
-        "entity_id": "automation.smoke_co_emergency"
-    })
-    state = await rest.get_state("automation.smoke_co_emergency")
-    assert state["state"] == "off"
-
-    s1 = state["attributes"].get("current", 0)
-
-    # Trigger state change that would match
-    await rest.set_state("binary_sensor.smoke_detector", "off")
-    await asyncio.sleep(0.1)
-    await rest.set_state("binary_sensor.smoke_detector", "on")
-    await asyncio.sleep(0.5)
-
-    s2 = await rest.get_state("automation.smoke_co_emergency")
-    assert s2["attributes"].get("current", 0) == s1
-
-    # Re-enable
-    await rest.call_service("automation", "turn_on", {
-        "entity_id": "automation.smoke_co_emergency"
-    })
 
 
 # ── Event Trigger ────────────────────────────────────────

@@ -10,10 +10,10 @@ import pytest
 pytestmark = pytest.mark.asyncio
 
 
-async def test_ws_unknown_command_returns_error(ws):
-    """Unknown WS command returns error result."""
-    resp = await ws.send_command("totally_bogus_command")
-    assert not resp.get("success", True)
+async def test_ws_ping_returns_pong(ws):
+    """ping command returns pong."""
+    resp = await ws.send_command("ping")
+    assert resp.get("type") == "pong"
 
 
 async def test_ws_unsubscribe_nonexistent_id(ws):
@@ -41,13 +41,6 @@ async def test_ws_subscribe_returns_subscription_id(ws):
     assert resp.get("success", False) is True
 
 
-async def test_ws_get_states_returns_list(ws):
-    """get_states returns array of entity states."""
-    resp = await ws.send_command("get_states")
-    assert resp.get("success", False) is True
-    assert isinstance(resp.get("result"), list)
-
-
 async def test_ws_get_config_returns_object(ws):
     """get_config returns config object."""
     resp = await ws.send_command("get_config")
@@ -55,19 +48,6 @@ async def test_ws_get_config_returns_object(ws):
     result = resp.get("result", {})
     assert "latitude" in result
     assert "longitude" in result
-
-
-async def test_ws_ping_returns_pong(ws):
-    """ping command returns pong."""
-    resp = await ws.send_command("ping")
-    assert resp.get("type") == "pong"
-
-
-async def test_ws_multiple_pings(ws):
-    """Multiple pings all return pongs."""
-    for _ in range(5):
-        resp = await ws.send_command("ping")
-        assert resp.get("type") == "pong"
 
 
 async def test_ws_get_services_result_is_list(ws):
@@ -98,17 +78,3 @@ async def test_ws_render_template_error(ws):
     )
     # Should return error, not crash
     assert resp.get("success", True) is False or "error" in str(resp).lower()
-
-
-async def test_ws_entity_registry_list(ws):
-    """config/entity_registry/list returns result."""
-    resp = await ws.send_command("config/entity_registry/list")
-    assert resp.get("success", False) is True
-    assert isinstance(resp.get("result"), list)
-
-
-async def test_ws_area_registry_list(ws):
-    """config/area_registry/list returns result."""
-    resp = await ws.send_command("config/area_registry/list")
-    assert resp.get("success", False) is True
-    assert isinstance(resp.get("result"), list)

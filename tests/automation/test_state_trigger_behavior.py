@@ -102,25 +102,3 @@ async def test_automation_friendly_name(rest):
     assert len(state["attributes"]["friendly_name"]) > 0
 
 
-async def test_reload_preserves_automations(rest):
-    """Reload doesn't lose automation entities."""
-    # Get automation count before reload
-    resp1 = await rest.client.get(
-        f"{rest.base_url}/api/config/automation/config",
-        headers=rest._headers(),
-    )
-    before = len(resp1.json())
-
-    # Reload
-    await rest.client.post(
-        f"{rest.base_url}/api/config/core/reload",
-        json={},
-        headers=rest._headers(),
-    )
-
-    resp2 = await rest.client.get(
-        f"{rest.base_url}/api/config/automation/config",
-        headers=rest._headers(),
-    )
-    after = len(resp2.json())
-    assert after == before
