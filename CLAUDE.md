@@ -34,3 +34,15 @@ mosquitto (1883) — ha-legacy (8123) — marge (8124/1884) — dashboard (3000)
 - After each subagent completes, verify the work (build, tests), update memory breadcrumbs, then move to the next task.
 - MIL-STD-498 style documentation in docs/
 - No emojis unless asked
+
+## Memory Sync Protocol
+Two docs files serve as cross-machine breadcrumbs for session continuity:
+- `docs/phase-tracker.md` — roadmap, phase completion status, session log
+- `docs/agent-memory.md` — architecture, key files, gotchas, current state
+
+**Sync rules:**
+1. On session start: read both files to restore context
+2. After each commit: update `docs/phase-tracker.md` (check items, add session log entry)
+3. After significant changes: update `docs/agent-memory.md` (file sizes, phase status, new gotchas)
+4. Sync both files into the commit whenever other code is being committed (no separate "docs only" commits unless nothing else changed)
+5. The `.claude/projects/` memory files should mirror `docs/agent-memory.md` content
