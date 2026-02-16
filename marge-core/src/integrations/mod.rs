@@ -4,3 +4,4 @@ pub mod tasmota;
 pub mod esphome;
 pub mod weather;
 pub mod shelly;
+pub mod hue;

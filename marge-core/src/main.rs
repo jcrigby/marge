@@ -298,6 +298,12 @@ async fn main() -> anyhow::Result<()> {
     let shelly_bridge_api = shelly_bridge.clone();
     tracing::info!("Shelly integration ready");
 
+    // ── Philips Hue Integration (Phase 7 §7.2) ─────────
+    let hue_integration = Arc::new(integrations::hue::HueIntegration::new(app_state.clone()));
+    integrations::hue::start_hue_poller(hue_integration.clone(), 5);
+    let hue_integration_api = hue_integration.clone();
+    tracing::info!("Philips Hue integration ready");
+
     // ── Plugin System (Phase 5 §5.1) ─────────────────────
     let mut plugin_mgr = plugins::PluginManager::new(app_state.clone());
     let plugin_dir = std::path::Path::new("/config/plugins");
@@ -325,6 +331,7 @@ async fn main() -> anyhow::Result<()> {
         tasmota_bridge_api,
         esphome_bridge_api,
         shelly_bridge_api,
+        hue_integration_api,
     )
     .merge(websocket::router(
         app_state.clone(), auth.clone(), service_registry_for_ws,

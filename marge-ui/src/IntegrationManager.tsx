@@ -82,6 +82,24 @@ interface ShellyDetail {
   devices: ShellyDevice[];
 }
 
+interface HueBridgeInfo {
+  ip: string;
+  username: string;
+  name: string;
+  model_id: string;
+  sw_version: string;
+  online: boolean;
+  light_count: number;
+  sensor_count: number;
+  last_polled: string | null;
+}
+
+interface HueDetail {
+  bridge_count: number;
+  device_count: number;
+  bridges: HueBridgeInfo[];
+}
+
 function StatusDot({ online }: { online: boolean }) {
   return (
     <span
@@ -332,6 +350,137 @@ function ShellyView({ detail, onDiscover }: { detail: ShellyDetail; onDiscover: 
   );
 }
 
+function HueView({ detail, onPair, onAdd }: {
+  detail: HueDetail;
+  onPair: (ip: string) => void;
+  onAdd: (ip: string, username: string) => void;
+}) {
+  const [ip, setIp] = useState('');
+  const [username, setUsername] = useState('');
+  const [mode, setMode] = useState<'pair' | 'add'>('pair');
+
+  const handlePair = () => {
+    const trimmed = ip.trim();
+    if (trimmed) {
+      onPair(trimmed);
+      setIp('');
+    }
+  };
+
+  const handleAdd = () => {
+    const trimmedIp = ip.trim();
+    const trimmedUser = username.trim();
+    if (trimmedIp && trimmedUser) {
+      onAdd(trimmedIp, trimmedUser);
+      setIp('');
+      setUsername('');
+    }
+  };
+
+  return (
+    <div className="integration-detail">
+      <div className="integration-badges">
+        <span className="integration-badge badge-inactive">
+          {detail.bridge_count} bridge{detail.bridge_count !== 1 ? 's' : ''}
+        </span>
+        <span className="integration-badge badge-inactive">
+          {detail.device_count} device{detail.device_count !== 1 ? 's' : ''}
+        </span>
+        <button
+          className={`integration-badge ${mode === 'pair' ? 'badge-active' : 'badge-inactive'}`}
+          onClick={() => setMode(mode === 'pair' ? 'add' : 'pair')}
+          style={{ cursor: 'pointer' }}
+        >
+          Mode: {mode === 'pair' ? 'Pair (Link Button)' : 'Add (Pre-paired)'}
+        </button>
+      </div>
+      <div style={{ display: 'flex', gap: '0.5rem', margin: '0.5rem 0', flexWrap: 'wrap' }}>
+        <input
+          type="text"
+          value={ip}
+          onChange={(e) => setIp(e.target.value)}
+          placeholder="Bridge IP (e.g. 192.168.1.50)"
+          style={{
+            flex: 1,
+            minWidth: '10rem',
+            padding: '0.35rem 0.5rem',
+            border: '1px solid var(--border)',
+            borderRadius: '4px',
+            background: 'var(--bg)',
+            color: 'var(--fg)',
+            fontSize: '0.85rem',
+          }}
+          onKeyDown={(e) => { if (e.key === 'Enter') mode === 'pair' ? handlePair() : handleAdd(); }}
+        />
+        {mode === 'add' && (
+          <input
+            type="text"
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
+            placeholder="Username / API key"
+            style={{
+              flex: 1,
+              minWidth: '10rem',
+              padding: '0.35rem 0.5rem',
+              border: '1px solid var(--border)',
+              borderRadius: '4px',
+              background: 'var(--bg)',
+              color: 'var(--fg)',
+              fontSize: '0.85rem',
+            }}
+            onKeyDown={(e) => { if (e.key === 'Enter') handleAdd(); }}
+          />
+        )}
+        <button
+          onClick={mode === 'pair' ? handlePair : handleAdd}
+          className="integration-badge badge-active"
+          style={{ cursor: 'pointer', whiteSpace: 'nowrap' }}
+        >
+          {mode === 'pair' ? 'Pair Bridge' : 'Add Bridge'}
+        </button>
+      </div>
+      {mode === 'pair' && (
+        <div style={{ fontSize: '0.8rem', color: 'var(--muted)', marginBottom: '0.5rem' }}>
+          Press the link button on your Hue Bridge, then click "Pair Bridge".
+        </div>
+      )}
+      {detail.bridges.length > 0 && (
+        <div className="integration-table-wrap">
+          <table className="integration-table">
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>IP</th>
+                <th>Model</th>
+                <th>Firmware</th>
+                <th>Lights</th>
+                <th>Sensors</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {detail.bridges.map((b) => (
+                <tr key={b.ip}>
+                  <td className="int-device-name">{b.name}</td>
+                  <td className="int-device-addr">{b.ip}</td>
+                  <td>{b.model_id}</td>
+                  <td>{b.sw_version}</td>
+                  <td className="int-device-id">{b.light_count}</td>
+                  <td className="int-device-id">{b.sensor_count}</td>
+                  <td>
+                    <StatusDot online={b.online} />
+                    <span className="int-status-label">{b.online ? 'Online' : 'Offline'}</span>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function IntegrationManager() {
   const [integrations, setIntegrations] = useState<IntegrationSummary[]>([]);
   const [expanded, setExpanded] = useState<string | null>(null);
@@ -340,6 +489,7 @@ export default function IntegrationManager() {
   const [tasmota, setTasmota] = useState<TasmotaDetail | null>(null);
   const [esphome, setEsphome] = useState<EsphomeDetail | null>(null);
   const [shellyDetail, setShellyDetail] = useState<ShellyDetail | null>(null);
+  const [hueDetail, setHueDetail] = useState<HueDetail | null>(null);
   const [loading, setLoading] = useState<string | null>(null);
 
   const fetchIntegrations = useCallback(() => {
@@ -382,6 +532,9 @@ export default function IntegrationManager() {
           case 'shelly':
             setShellyDetail(data);
             break;
+          case 'hue':
+            setHueDetail(data);
+            break;
         }
       })
       .catch(() => {
@@ -407,6 +560,45 @@ export default function IntegrationManager() {
         }
       })
       .catch(() => toastError('Failed to discover Shelly device'));
+  }, []);
+
+  const handleHuePair = useCallback((ip: string) => {
+    fetch('/api/integrations/hue/pair', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ip }),
+    })
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.result === 'ok') {
+          toastSuccess(`Hue bridge paired: ${data.bridge?.name || ip}`);
+          return fetch('/api/integrations/hue').then((r2) => r2.json()).then(setHueDetail);
+        } else if (data.result === 'partial') {
+          toastSuccess(`Paired (username: ${data.username}) but config fetch failed`);
+          return fetch('/api/integrations/hue').then((r2) => r2.json()).then(setHueDetail);
+        } else {
+          toastError(`Pairing failed: ${data.message || 'Unknown error'}`);
+        }
+      })
+      .catch(() => toastError('Failed to pair Hue bridge'));
+  }, []);
+
+  const handleHueAdd = useCallback((ip: string, username: string) => {
+    fetch('/api/integrations/hue/add', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ip, username }),
+    })
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.result === 'ok') {
+          toastSuccess(`Hue bridge added: ${data.bridge?.name || ip}`);
+          return fetch('/api/integrations/hue').then((r2) => r2.json()).then(setHueDetail);
+        } else {
+          toastError(`Add bridge failed: ${data.message || 'Unknown error'}`);
+        }
+      })
+      .catch(() => toastError('Failed to add Hue bridge'));
   }, []);
 
   const handlePermitJoin = useCallback((enable: boolean) => {
@@ -477,6 +669,9 @@ export default function IntegrationManager() {
                       )}
                       {int.id === 'shelly' && shellyDetail && (
                         <ShellyView detail={shellyDetail} onDiscover={handleShellyDiscover} />
+                      )}
+                      {int.id === 'hue' && hueDetail && (
+                        <HueView detail={hueDetail} onPair={handleHuePair} onAdd={handleHueAdd} />
                       )}
                     </>
                   )}

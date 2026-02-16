@@ -13,7 +13,7 @@ use std::sync::Arc;
 
 use crate::auth::AuthConfig;
 use crate::automation::AutomationEngine;
-use crate::integrations::{zigbee2mqtt, zwave, tasmota, esphome, shelly};
+use crate::integrations::{zigbee2mqtt, zwave, tasmota, esphome, shelly, hue};
 use crate::scene::SceneEngine;
 use crate::services::ServiceRegistry;
 use crate::state::{EntityState, StateMachine};
@@ -46,6 +46,7 @@ struct RouterState {
     tasmota_bridge: Arc<tasmota::TasmotaBridge>,
     esphome_bridge: Arc<esphome::ESPHomeBridge>,
     shelly_bridge: Arc<shelly::ShellyBridge>,
+    hue_integration: Arc<hue::HueIntegration>,
 }
 
 /// POST /api/states/{entity_id} request body
@@ -111,6 +112,7 @@ pub fn router(
     tasmota_bridge: Arc<tasmota::TasmotaBridge>,
     esphome_bridge: Arc<esphome::ESPHomeBridge>,
     shelly_bridge: Arc<shelly::ShellyBridge>,
+    hue_integration: Arc<hue::HueIntegration>,
 ) -> Router {
     let router_state = RouterState {
         app: state,
@@ -126,6 +128,7 @@ pub fn router(
         tasmota_bridge,
         esphome_bridge,
         shelly_bridge,
+        hue_integration,
     };
 
     Router::new()
@@ -192,6 +195,10 @@ pub fn router(
         .route("/api/integrations/esphome", get(get_esphome))
         .route("/api/integrations/shelly", get(get_shelly))
         .route("/api/integrations/shelly/discover", post(shelly_discover))
+        .route("/api/integrations/hue", get(get_hue))
+        .route("/api/integrations/hue/status", get(get_hue))
+        .route("/api/integrations/hue/pair", post(hue_pair))
+        .route("/api/integrations/hue/add", post(hue_add))
         .route("/api/integrations/zigbee2mqtt/permit_join", post(zigbee2mqtt_permit_join))
         // Long-lived access tokens
         .route("/api/auth/tokens", get(list_tokens))
@@ -1937,6 +1944,10 @@ async fn list_integrations(
     let shelly_count = rs.shelly_bridge.device_count();
     let shelly_status = if shelly_count > 0 { "active" } else { "inactive" };
 
+    let hue_count = rs.hue_integration.bridge_count();
+    let hue_device_count = rs.hue_integration.device_count();
+    let hue_status = if hue_count > 0 { "active" } else { "inactive" };
+
     Ok(Json(vec![
         serde_json::json!({
             "id": "zigbee2mqtt",
@@ -1967,6 +1978,12 @@ async fn list_integrations(
             "name": "Shelly",
             "status": shelly_status,
             "device_count": shelly_count,
+        }),
+        serde_json::json!({
+            "id": "hue",
+            "name": "Philips Hue",
+            "status": hue_status,
+            "device_count": hue_device_count,
         }),
     ]))
 }
@@ -2062,6 +2079,103 @@ async fn shelly_discover(
                     "name": device.name,
                     "gen": device.gen,
                     "firmware": device.firmware,
+                }
+            })))
+        }
+        Err(e) => {
+            Ok(Json(serde_json::json!({
+                "result": "error",
+                "message": e,
+            })))
+        }
+    }
+}
+
+/// GET /api/integrations/hue — Hue integration detail
+async fn get_hue(
+    State(rs): State<RouterState>,
+    headers: HeaderMap,
+) -> Result<Json<serde_json::Value>, StatusCode> {
+    check_auth(&rs, &headers)?;
+
+    Ok(Json(serde_json::json!({
+        "bridge_count": rs.hue_integration.bridge_count(),
+        "device_count": rs.hue_integration.device_count(),
+        "bridges": rs.hue_integration.bridges(),
+    })))
+}
+
+/// POST /api/integrations/hue/pair — initiate link-button pairing with a Hue Bridge
+async fn hue_pair(
+    State(rs): State<RouterState>,
+    headers: HeaderMap,
+    Json(body): Json<serde_json::Value>,
+) -> Result<Json<serde_json::Value>, StatusCode> {
+    check_auth(&rs, &headers)?;
+
+    let ip = body.get("ip").and_then(|v| v.as_str())
+        .ok_or(StatusCode::BAD_REQUEST)?
+        .to_string();
+
+    match rs.hue_integration.pair_bridge(&ip).await {
+        Ok(username) => {
+            // Auto-add the bridge after successful pairing
+            match rs.hue_integration.add_bridge(&ip, &username).await {
+                Ok(bridge) => {
+                    Ok(Json(serde_json::json!({
+                        "result": "ok",
+                        "username": username,
+                        "bridge": {
+                            "ip": bridge.ip,
+                            "name": bridge.name,
+                            "model_id": bridge.model_id,
+                            "sw_version": bridge.sw_version,
+                        }
+                    })))
+                }
+                Err(e) => {
+                    // Pairing succeeded but config fetch failed — still return the username
+                    Ok(Json(serde_json::json!({
+                        "result": "partial",
+                        "username": username,
+                        "message": format!("Paired but config fetch failed: {}", e),
+                    })))
+                }
+            }
+        }
+        Err(e) => {
+            Ok(Json(serde_json::json!({
+                "result": "error",
+                "message": e,
+            })))
+        }
+    }
+}
+
+/// POST /api/integrations/hue/add — add a pre-paired Hue Bridge
+async fn hue_add(
+    State(rs): State<RouterState>,
+    headers: HeaderMap,
+    Json(body): Json<serde_json::Value>,
+) -> Result<Json<serde_json::Value>, StatusCode> {
+    check_auth(&rs, &headers)?;
+
+    let ip = body.get("ip").and_then(|v| v.as_str())
+        .ok_or(StatusCode::BAD_REQUEST)?
+        .to_string();
+    let username = body.get("username").and_then(|v| v.as_str())
+        .ok_or(StatusCode::BAD_REQUEST)?
+        .to_string();
+
+    match rs.hue_integration.add_bridge(&ip, &username).await {
+        Ok(bridge) => {
+            Ok(Json(serde_json::json!({
+                "result": "ok",
+                "bridge": {
+                    "ip": bridge.ip,
+                    "name": bridge.name,
+                    "model_id": bridge.model_id,
+                    "sw_version": bridge.sw_version,
                 }
             })))
         }
