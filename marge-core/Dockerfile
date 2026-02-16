@@ -8,6 +8,7 @@ RUN npm run build
 
 ## ── Stage 2: Build Rust binary ──────────────────
 FROM rust:1.93-slim-bookworm AS builder
+RUN apt-get update && apt-get install -y --no-install-recommends pkg-config libssl-dev && rm -rf /var/lib/apt/lists/*
 WORKDIR /build
 
 # Copy manifest first for layer caching
