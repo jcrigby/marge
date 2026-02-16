@@ -7,6 +7,8 @@
 //! - `marge_log(level, msg_ptr, msg_len)` -- logs via tracing at the requested level
 //! - `marge_get_state(entity_ptr, entity_len) -> i32` -- returns JSON length written to memory
 //! - `marge_set_state(entity_ptr, entity_len, state_ptr, state_len)` -- sets entity state
+//! - `marge_http_get(url_ptr, url_len, buf_ptr, buf_len) -> i64` -- HTTP GET, returns (status << 32 | body_len)
+//! - `marge_http_post(url_ptr, url_len, body_ptr, body_len, buf_ptr, buf_len) -> i64` -- HTTP POST, returns (status << 32 | body_len)
 //!
 //! Plugins implement: `fn init()`, `fn on_state_changed(entity_ptr, entity_len, old_ptr, old_len, new_ptr, new_len)`
 
@@ -27,6 +29,8 @@ const FUEL_PER_INVOCATION: u64 = 1_000_000;
 struct PluginState {
     app: Arc<AppState>,
     name: String,
+    http_client: reqwest::Client,
+    tokio_handle: tokio::runtime::Handle,
 }
 
 // ── Loaded plugin ───────────────────────────────────────────
@@ -46,6 +50,8 @@ pub struct PluginManager {
     engine: Engine,
     plugins: Vec<LoadedPlugin>,
     app: Arc<AppState>,
+    http_client: reqwest::Client,
+    tokio_handle: tokio::runtime::Handle,
 }
 
 impl PluginManager {
@@ -56,10 +62,20 @@ impl PluginManager {
 
         let engine = Engine::new(&config).expect("Failed to create wasmtime engine");
 
+        let http_client = reqwest::Client::builder()
+            .timeout(std::time::Duration::from_secs(10))
+            .user_agent("marge-plugin/1.0")
+            .build()
+            .expect("Failed to create HTTP client for plugins");
+
+        let tokio_handle = tokio::runtime::Handle::current();
+
         Self {
             engine,
             plugins: Vec::new(),
             app,
+            http_client,
+            tokio_handle,
         }
     }
 
@@ -83,6 +99,8 @@ impl PluginManager {
         let plugin_state = PluginState {
             app: self.app.clone(),
             name: plugin_name.clone(),
+            http_client: self.http_client.clone(),
+            tokio_handle: self.tokio_handle.clone(),
         };
         let mut store = Store::new(&self.engine, plugin_state);
 
@@ -344,7 +362,177 @@ fn register_host_functions(linker: &mut Linker<PluginState>) -> Result<()> {
         },
     )?;
 
+    // ── marge_http_get(url_ptr, url_len, buf_ptr, buf_len) -> i64 ──
+    //
+    // Performs an HTTP GET request and writes the response body into the
+    // guest-provided buffer at (buf_ptr, buf_len).  Returns a packed i64:
+    //   high 32 bits = HTTP status code (or -1 on error)
+    //   low 32 bits  = bytes written to buffer (truncated if body > buf_len)
+    linker.func_wrap(
+        "env",
+        "marge_http_get",
+        |mut caller: Caller<'_, PluginState>,
+         url_ptr: i32,
+         url_len: i32,
+         buf_ptr: i32,
+         buf_len: i32|
+         -> i64 {
+            let plugin_name = caller.data().name.clone();
+            let url = match read_guest_string(&mut caller, url_ptr, url_len) {
+                Ok(s) => s,
+                Err(e) => {
+                    tracing::warn!(plugin = %plugin_name, error = %e, "marge_http_get: bad URL");
+                    return pack_http_result(-1, 0);
+                }
+            };
+
+            tracing::debug!(plugin = %plugin_name, url = %url, "marge_http_get");
+
+            let client = caller.data().http_client.clone();
+            let handle = caller.data().tokio_handle.clone();
+
+            // Bridge async reqwest into the synchronous host function via
+            // tokio's block_in_place + Handle::block_on.
+            let result = tokio::task::block_in_place(|| {
+                handle.block_on(async { client.get(&url).send().await })
+            });
+
+            match result {
+                Ok(resp) => {
+                    let status = resp.status().as_u16() as i32;
+                    let body = tokio::task::block_in_place(|| {
+                        handle.block_on(async { resp.bytes().await })
+                    });
+                    match body {
+                        Ok(bytes) => {
+                            let written =
+                                write_guest_bytes(&mut caller, buf_ptr, buf_len, &bytes);
+                            pack_http_result(status, written)
+                        }
+                        Err(e) => {
+                            tracing::warn!(
+                                plugin = %plugin_name,
+                                error = %e,
+                                "marge_http_get: failed to read body"
+                            );
+                            pack_http_result(status, 0)
+                        }
+                    }
+                }
+                Err(e) => {
+                    tracing::warn!(
+                        plugin = %plugin_name,
+                        url = %url,
+                        error = %e,
+                        "marge_http_get: request failed"
+                    );
+                    pack_http_result(-1, 0)
+                }
+            }
+        },
+    )?;
+
+    // ── marge_http_post(url_ptr, url_len, body_ptr, body_len, buf_ptr, buf_len) -> i64 ──
+    //
+    // Performs an HTTP POST with the given request body.  Returns packed i64
+    // like marge_http_get.
+    linker.func_wrap(
+        "env",
+        "marge_http_post",
+        |mut caller: Caller<'_, PluginState>,
+         url_ptr: i32,
+         url_len: i32,
+         body_ptr: i32,
+         body_len: i32,
+         buf_ptr: i32,
+         buf_len: i32|
+         -> i64 {
+            let plugin_name = caller.data().name.clone();
+            let url = match read_guest_string(&mut caller, url_ptr, url_len) {
+                Ok(s) => s,
+                Err(e) => {
+                    tracing::warn!(plugin = %plugin_name, error = %e, "marge_http_post: bad URL");
+                    return pack_http_result(-1, 0);
+                }
+            };
+
+            let req_body = match read_guest_bytes(&mut caller, body_ptr, body_len) {
+                Ok(b) => b,
+                Err(e) => {
+                    tracing::warn!(
+                        plugin = %plugin_name,
+                        error = %e,
+                        "marge_http_post: bad request body"
+                    );
+                    return pack_http_result(-1, 0);
+                }
+            };
+
+            tracing::debug!(
+                plugin = %plugin_name,
+                url = %url,
+                body_len = req_body.len(),
+                "marge_http_post"
+            );
+
+            let client = caller.data().http_client.clone();
+            let handle = caller.data().tokio_handle.clone();
+
+            let result = tokio::task::block_in_place(|| {
+                handle.block_on(async {
+                    client
+                        .post(&url)
+                        .header("Content-Type", "application/json")
+                        .body(req_body)
+                        .send()
+                        .await
+                })
+            });
+
+            match result {
+                Ok(resp) => {
+                    let status = resp.status().as_u16() as i32;
+                    let body = tokio::task::block_in_place(|| {
+                        handle.block_on(async { resp.bytes().await })
+                    });
+                    match body {
+                        Ok(bytes) => {
+                            let written =
+                                write_guest_bytes(&mut caller, buf_ptr, buf_len, &bytes);
+                            pack_http_result(status, written)
+                        }
+                        Err(e) => {
+                            tracing::warn!(
+                                plugin = %plugin_name,
+                                error = %e,
+                                "marge_http_post: failed to read body"
+                            );
+                            pack_http_result(status, 0)
+                        }
+                    }
+                }
+                Err(e) => {
+                    tracing::warn!(
+                        plugin = %plugin_name,
+                        url = %url,
+                        error = %e,
+                        "marge_http_post: request failed"
+                    );
+                    pack_http_result(-1, 0)
+                }
+            }
+        },
+    )?;
+
     Ok(())
+}
+
+// ── HTTP result packing ─────────────────────────────────────
+
+/// Pack an HTTP status code and body length into a single i64.
+/// High 32 bits = status, low 32 bits = bytes written.
+fn pack_http_result(status: i32, body_len: i32) -> i64 {
+    ((status as i64) << 32) | (body_len as u32 as i64)
 }
 
 // ── Memory helpers ──────────────────────────────────────────
@@ -356,6 +544,17 @@ fn read_guest_string(
     ptr: i32,
     len: i32,
 ) -> Result<String> {
+    let bytes = read_guest_bytes(caller, ptr, len)?;
+    let s = std::str::from_utf8(&bytes).context("Invalid UTF-8 in guest memory")?;
+    Ok(s.to_string())
+}
+
+/// Read raw bytes from the guest's linear memory.
+fn read_guest_bytes(
+    caller: &mut Caller<'_, PluginState>,
+    ptr: i32,
+    len: i32,
+) -> Result<Vec<u8>> {
     let mem = match caller.get_export("memory") {
         Some(Extern::Memory(mem)) => mem,
         _ => bail!("Plugin does not export 'memory'"),
@@ -367,8 +566,30 @@ fn read_guest_string(
         .and_then(|slice| slice.get(..len as u32 as usize))
         .ok_or_else(|| anyhow::anyhow!("Pointer/length out of bounds"))?;
 
-    let s = std::str::from_utf8(data)
-        .context("Invalid UTF-8 in guest memory")?;
+    Ok(data.to_vec())
+}
 
-    Ok(s.to_string())
+/// Write bytes into the guest's linear memory at (ptr, max_len).
+/// Returns the number of bytes actually written (capped at max_len).
+fn write_guest_bytes(
+    caller: &mut Caller<'_, PluginState>,
+    ptr: i32,
+    max_len: i32,
+    data: &[u8],
+) -> i32 {
+    let mem = match caller.get_export("memory") {
+        Some(Extern::Memory(mem)) => mem,
+        _ => return 0,
+    };
+
+    let write_len = data.len().min(max_len as u32 as usize);
+    let dest = mem.data_mut(caller);
+    let start = ptr as u32 as usize;
+
+    if start + write_len > dest.len() {
+        return 0;
+    }
+
+    dest[start..start + write_len].copy_from_slice(&data[..write_len]);
+    write_len as i32
 }
