@@ -1,0 +1,18 @@
+[package]
+name = "joke-sensor"
+version = "0.1.0"
+edition = "2021"
+description = "Example Marge WASM plugin -- fetches jokes from a public API and exposes them as sensor.joke"
+
+[lib]
+crate-type = ["cdylib"]
+
+# No dependencies. This plugin uses only the host functions provided by Marge
+# and a minimal hand-rolled JSON parser. Keeping dependencies at zero produces
+# a tiny .wasm binary (~2 KB) that loads instantly.
+[dependencies]
+
+[profile.release]
+opt-level = "s"      # optimize for size
+lto = true           # link-time optimization for smaller binary
+strip = true         # strip debug symbols
