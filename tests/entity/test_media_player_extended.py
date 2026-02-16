@@ -15,6 +15,8 @@ pytestmark = pytest.mark.asyncio
 # ── State-transition services (parametrized) ────────────────
 
 @pytest.mark.parametrize("initial_state,service,expected_state", [
+    ("off", "turn_on", "on"),
+    ("playing", "turn_off", "off"),
     ("paused", "media_play", "playing"),
     ("playing", "media_pause", "paused"),
     ("playing", "media_stop", "idle"),

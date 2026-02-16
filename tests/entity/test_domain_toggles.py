@@ -1,8 +1,9 @@
 """
 CTS -- Domain Toggle and State Transition Tests
 
-Tests toggle semantics across all toggleable domains and
-verifies correct state transitions for various service calls.
+Tests toggle semantics across all toggleable domains, light/switch
+service operations, and verifies correct state transitions for
+various service calls.
 """
 
 import pytest
@@ -10,7 +11,78 @@ import pytest
 pytestmark = pytest.mark.asyncio
 
 
-# ── Switch Toggle ────────────────────────────────────────
+# ── Light Services ───────────────────────────────────────
+
+async def test_light_turn_on(rest):
+    """light.turn_on sets state to 'on'."""
+    await rest.set_state("light.dt_lt_on", "off")
+    await rest.call_service("light", "turn_on", {"entity_id": "light.dt_lt_on"})
+    state = await rest.get_state("light.dt_lt_on")
+    assert state["state"] == "on"
+
+
+async def test_light_turn_off(rest):
+    """light.turn_off sets state to 'off'."""
+    await rest.set_state("light.dt_lt_off", "on")
+    await rest.call_service("light", "turn_off", {"entity_id": "light.dt_lt_off"})
+    state = await rest.get_state("light.dt_lt_off")
+    assert state["state"] == "off"
+
+
+@pytest.mark.parametrize("attr,value", [
+    ("brightness", 128),
+    ("color_temp", 400),
+])
+async def test_light_turn_on_with_attribute(rest, attr, value):
+    """light.turn_on with brightness/color_temp sets the attribute."""
+    eid = f"light.dt_lt_{attr}"
+    await rest.set_state(eid, "off")
+    await rest.call_service("light", "turn_on", {
+        "entity_id": eid,
+        attr: value,
+    })
+    state = await rest.get_state(eid)
+    assert state["state"] == "on"
+    assert state["attributes"].get(attr) == value
+
+
+async def test_light_turn_on_multiple(rest):
+    """light.turn_on with multiple entity_ids."""
+    ids = ["light.dt_lt_multi_a", "light.dt_lt_multi_b"]
+    for eid in ids:
+        await rest.set_state(eid, "off")
+    await rest.call_service("light", "turn_on", {"entity_id": ids})
+    for eid in ids:
+        state = await rest.get_state(eid)
+        assert state["state"] == "on"
+
+
+async def test_light_preserves_attributes_on_off(rest):
+    """Turning off a light preserves its attributes."""
+    await rest.set_state("light.dt_lt_preserve", "on", {"brightness": 200, "color_temp": 350})
+    await rest.call_service("light", "turn_off", {"entity_id": "light.dt_lt_preserve"})
+    state = await rest.get_state("light.dt_lt_preserve")
+    assert state["state"] == "off"
+    assert state["attributes"].get("brightness") == 200
+
+
+# ── Switch Services ──────────────────────────────────────
+
+async def test_switch_turn_on(rest):
+    """switch.turn_on sets state to 'on'."""
+    await rest.set_state("switch.dt_sw_on", "off")
+    await rest.call_service("switch", "turn_on", {"entity_id": "switch.dt_sw_on"})
+    state = await rest.get_state("switch.dt_sw_on")
+    assert state["state"] == "on"
+
+
+async def test_switch_turn_off(rest):
+    """switch.turn_off sets state to 'off'."""
+    await rest.set_state("switch.dt_sw_off", "on")
+    await rest.call_service("switch", "turn_off", {"entity_id": "switch.dt_sw_off"})
+    state = await rest.get_state("switch.dt_sw_off")
+    assert state["state"] == "off"
+
 
 async def test_switch_toggle_on_to_off(rest):
     """switch.toggle from on goes to off."""
@@ -26,6 +98,16 @@ async def test_switch_toggle_off_to_on(rest):
     await rest.call_service("switch", "toggle", {"entity_id": "switch.dt_sw2"})
     state = await rest.get_state("switch.dt_sw2")
     assert state["state"] == "on"
+
+
+async def test_switch_preserves_attributes(rest):
+    """switch operations preserve entity attributes."""
+    await rest.set_state("switch.dt_sw_attrs", "on", {"friendly_name": "Coffee Maker", "icon": "mdi:coffee"})
+    await rest.call_service("switch", "turn_off", {"entity_id": "switch.dt_sw_attrs"})
+    state = await rest.get_state("switch.dt_sw_attrs")
+    assert state["state"] == "off"
+    assert state["attributes"]["friendly_name"] == "Coffee Maker"
+    assert state["attributes"]["icon"] == "mdi:coffee"
 
 
 # ── Input Boolean Toggle ────────────────────────────────

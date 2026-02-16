@@ -7,6 +7,7 @@ event type listing, and history with various entity operations.
 
 import asyncio
 import uuid
+from datetime import datetime, timedelta, timezone
 import pytest
 
 pytestmark = pytest.mark.asyncio
@@ -178,3 +179,137 @@ async def test_logbook_entity_captures_changes(rest):
     assert isinstance(data, list)
     # Recorder may batch writes; at least verify it returns a list
     # (actual entry count depends on recorder flush timing)
+
+
+# ── Merged from test_logbook_statistics.py ─────────────
+
+
+async def test_logbook_per_entity_filtered(rest):
+    """GET /api/logbook/:entity_id returns entries only for that entity."""
+    tag = uuid.uuid4().hex[:8]
+    eid = f"sensor.lb_per_{tag}"
+    await rest.set_state(eid, "alpha")
+    await asyncio.sleep(0.2)
+    await rest.set_state(eid, "beta")
+    await asyncio.sleep(0.2)
+
+    resp = await rest.client.get(
+        f"{rest.base_url}/api/logbook/{eid}",
+        headers=rest._headers(),
+    )
+    assert resp.status_code == 200
+    data = resp.json()
+    assert isinstance(data, list)
+    for entry in data:
+        assert entry["entity_id"] == eid
+
+
+async def test_statistics_numeric_entity(rest):
+    """Statistics for numeric entity returns aggregates."""
+    for val in ["10", "20", "30", "40", "50"]:
+        await rest.set_state("sensor.stat_numeric", val)
+        await asyncio.sleep(0.15)
+
+    resp = await rest.client.get(
+        f"{rest.base_url}/api/statistics/sensor.stat_numeric",
+        headers=rest._headers(),
+    )
+    assert resp.status_code == 200
+    data = resp.json()
+    assert isinstance(data, list)
+    if len(data) > 0:
+        entry = data[0]
+        assert "mean" in entry or "min" in entry or "sum" in entry
+
+
+# ── Merged from test_history_params.py ─────────────────
+
+
+async def test_history_with_start_param(rest):
+    """History with start= returns entries after that time."""
+    tag = uuid.uuid4().hex[:8]
+    entity = f"sensor.hist_param_start_{tag}"
+    await rest.set_state(entity, "v1")
+    await asyncio.sleep(0.15)
+
+    now = datetime.now(timezone.utc)
+    start = (now - timedelta(hours=1)).isoformat()
+
+    resp = await rest.client.get(
+        f"{rest.base_url}/api/history/period/{entity}?start={start}",
+        headers=rest._headers(),
+    )
+    assert resp.status_code == 200
+    data = resp.json()
+    assert len(data) >= 1
+
+
+async def test_history_with_start_and_end(rest):
+    """History with start= and end= returns bounded entries."""
+    tag = uuid.uuid4().hex[:8]
+    entity = f"sensor.hist_param_range_{tag}"
+    await rest.set_state(entity, "r1")
+    await asyncio.sleep(0.15)
+
+    now = datetime.now(timezone.utc)
+    start = (now - timedelta(hours=1)).isoformat()
+    end = (now + timedelta(hours=1)).isoformat()
+
+    resp = await rest.client.get(
+        f"{rest.base_url}/api/history/period/{entity}?start={start}&end={end}",
+        headers=rest._headers(),
+    )
+    assert resp.status_code == 200
+    data = resp.json()
+    assert len(data) >= 1
+
+
+async def test_history_narrow_window_empty(rest):
+    """History with very narrow old window returns no entries."""
+    tag = uuid.uuid4().hex[:8]
+    entity = f"sensor.hist_param_narrow_{tag}"
+    await rest.set_state(entity, "n1")
+    await asyncio.sleep(0.15)
+
+    now = datetime.now(timezone.utc)
+    start = (now - timedelta(days=30)).isoformat()
+    end = (now - timedelta(days=29)).isoformat()
+
+    resp = await rest.client.get(
+        f"{rest.base_url}/api/history/period/{entity}?start={start}&end={end}",
+        headers=rest._headers(),
+    )
+    assert resp.status_code == 200
+    data = resp.json()
+    assert len(data) == 0
+
+
+async def test_history_entity_has_all_fields(rest):
+    """History entries include entity_id, state, attributes, last_changed."""
+    tag = uuid.uuid4().hex[:8]
+    entity = f"sensor.hist_param_fields_{tag}"
+    await rest.set_state(entity, "42", {"unit": "C"})
+    await asyncio.sleep(0.15)
+
+    resp = await rest.client.get(
+        f"{rest.base_url}/api/history/period/{entity}",
+        headers=rest._headers(),
+    )
+    data = resp.json()
+    assert len(data) >= 1
+    entry = data[0]
+    assert "entity_id" in entry
+    assert "state" in entry
+    assert "attributes" in entry
+    assert "last_changed" in entry
+
+
+async def test_history_nonexistent_entity_empty(rest):
+    """History for nonexistent entity returns empty list."""
+    resp = await rest.client.get(
+        f"{rest.base_url}/api/history/period/sensor.nonexistent_hist_xyz",
+        headers=rest._headers(),
+    )
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data == []

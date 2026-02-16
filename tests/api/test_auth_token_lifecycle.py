@@ -166,3 +166,18 @@ async def test_token_full_lifecycle(rest):
 
     tokens = await _list_tokens(rest)
     assert not any(t["id"] == created["id"] for t in tokens)
+
+
+# ── Merged from test_auth_lifecycle.py ─────────────────
+
+
+async def test_listed_tokens_have_all_fields(rest):
+    """All listed tokens have id, name, and created_at fields."""
+    tag = uuid.uuid4().hex[:8]
+    await _create_token(rest, f"fields_check_{tag}")
+
+    tokens = await _list_tokens(rest)
+    for token in tokens:
+        assert "id" in token
+        assert "name" in token
+        assert "created_at" in token

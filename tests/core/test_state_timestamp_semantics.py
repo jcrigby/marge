@@ -117,6 +117,17 @@ async def test_context_has_uuid_format(rest):
     assert len(ctx["id"]) >= 32  # UUID with or without hyphens
 
 
+async def test_context_id_has_dashes(rest):
+    """context.id contains dashes (UUID format)."""
+    tag = uuid.uuid4().hex[:8]
+    eid = f"sensor.ctx_uuid_{tag}"
+    await rest.set_state(eid, "val")
+
+    state = await rest.get_state(eid)
+    ctx_id = state["context"]["id"]
+    assert "-" in ctx_id
+
+
 async def test_context_changes_on_each_set(rest):
     """Each set() produces a new context ID."""
     tag = uuid.uuid4().hex[:8]
@@ -273,3 +284,35 @@ async def test_attributes_preserved_on_state_change(rest):
     assert state["state"] == "2"
     assert state["attributes"]["unit"] == "W"
     assert state["attributes"]["friendly_name"] == "Power"
+
+
+# ── Timestamp Ordering and Independence ────────────────
+
+
+async def test_rapid_updates_maintain_ordering(rest):
+    """Rapid updates maintain monotonic timestamp ordering."""
+    tag = uuid.uuid4().hex[:8]
+    entity = f"sensor.ts_rapid_{tag}"
+    timestamps = []
+    for i in range(10):
+        await rest.set_state(entity, str(i))
+        s = await rest.get_state(entity)
+        timestamps.append(s["last_updated"])
+    # Timestamps should be non-decreasing
+    for i in range(1, len(timestamps)):
+        assert timestamps[i] >= timestamps[i - 1]
+
+
+async def test_multiple_entities_independent_timestamps(rest):
+    """Different entities have independent timestamps."""
+    tag = uuid.uuid4().hex[:8]
+    eid1 = f"sensor.tstamp_a_{tag}"
+    eid2 = f"sensor.tstamp_b_{tag}"
+    await rest.set_state(eid1, "first")
+    await asyncio.sleep(0.1)
+    await rest.set_state(eid2, "second")
+
+    s1 = await rest.get_state(eid1)
+    s2 = await rest.get_state(eid2)
+    # Entity 2 created later, so its timestamps should be >= entity 1
+    assert s2["last_updated"] >= s1["last_updated"]

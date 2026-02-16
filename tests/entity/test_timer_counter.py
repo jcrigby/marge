@@ -73,6 +73,7 @@ async def test_counter_decrement(rest):
     ("42", {}, "0"),
     ("99", {"initial": 10}, "10"),
     ("10", {"initial": 5}, "5"),
+    ("5", {"initial": 0}, "0"),
 ])
 async def test_counter_reset(rest, initial_value, initial_attr, expected):
     """counter.reset returns counter to initial value (default 0)."""

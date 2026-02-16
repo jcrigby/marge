@@ -1,9 +1,10 @@
 """
-CTS -- Siren and Valve Entity Tests
+CTS -- Siren, Valve, and Alarm Lifecycle Entity Tests
 
-Tests siren and valve domain services.
+Tests siren and valve domain services, plus alarm lifecycle.
 """
 
+import uuid
 import pytest
 
 pytestmark = pytest.mark.asyncio
@@ -79,3 +80,28 @@ async def test_valve_toggle(rest):
     await rest.call_service("valve", "toggle", {"entity_id": entity_id})
     state2 = await rest.get_state(entity_id)
     assert state2["state"] == "open"
+
+
+# ── Alarm Lifecycle (merged from test_vacuum_valve_siren_alarm.py) ──
+
+
+async def test_alarm_lifecycle(rest):
+    """Alarm full lifecycle: disarmed -> armed_home -> triggered -> disarmed."""
+    tag = uuid.uuid4().hex[:8]
+    eid = f"alarm_control_panel.alc_{tag}"
+    await rest.set_state(eid, "disarmed")
+
+    for service, expected in [
+        ("arm_home", "armed_home"),
+        ("trigger", "triggered"),
+        ("disarm", "disarmed"),
+        ("arm_away", "armed_away"),
+        ("disarm", "disarmed"),
+    ]:
+        await rest.client.post(
+            f"{rest.base_url}/api/services/alarm_control_panel/{service}",
+            json={"entity_id": eid},
+            headers=rest._headers(),
+        )
+        state = await rest.get_state(eid)
+        assert state["state"] == expected, f"After {service}: expected {expected}"

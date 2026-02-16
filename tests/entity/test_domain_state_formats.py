@@ -86,6 +86,25 @@ async def test_vacuum_state_values(rest):
     assert (await rest.get_state(eid))["state"] == "returning"
 
 
+async def test_vacuum_lifecycle(rest):
+    """Full vacuum lifecycle: docked -> cleaning -> paused -> cleaning -> returning."""
+    tag = uuid.uuid4().hex[:8]
+    eid = f"vacuum.lc_{tag}"
+    await rest.set_state(eid, "docked")
+
+    await rest.call_service("vacuum", "start", {"entity_id": eid})
+    assert (await rest.get_state(eid))["state"] == "cleaning"
+
+    await rest.call_service("vacuum", "pause", {"entity_id": eid})
+    assert (await rest.get_state(eid))["state"] == "paused"
+
+    await rest.call_service("vacuum", "start", {"entity_id": eid})
+    assert (await rest.get_state(eid))["state"] == "cleaning"
+
+    await rest.call_service("vacuum", "return_to_base", {"entity_id": eid})
+    assert (await rest.get_state(eid))["state"] == "returning"
+
+
 async def test_valve_open_closed_states(rest):
     """Valve domain: open → 'open', close → 'closed'."""
     tag = uuid.uuid4().hex[:8]

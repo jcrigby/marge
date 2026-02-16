@@ -20,8 +20,18 @@ pytestmark = pytest.mark.asyncio
     ("", "empty"),
     ("42.5", "numeric"),
     ("x" * 1000, "long"),
+    ("x" * 10000, "very_long"),
     ("23°C with wind", "unicode"),
+    ("\u6e29\u5ea6", "cjk"),
     ("on/off <test> & 'value'", "special_chars"),
+    ('He said "hello"', "quotes"),
+    ("line1\nline2", "newlines"),
+    ("path\\to\\file", "backslashes"),
+    ("-273.15", "negative"),
+    ("1.23e10", "scientific"),
+    ("   ", "whitespace"),
+    ("x", "single_char"),
+    ("0", "zero"),
 ])
 async def test_state_value_edge_cases(rest, state_val, label):
     """State machine correctly stores edge-case state values."""
@@ -178,3 +188,51 @@ async def test_get_all_contains_created_entity(rest):
     states = await rest.get_states()
     eids = [s["entity_id"] for s in states]
     assert eid in eids
+
+
+# ── Attribute Primitive Types ─────────────────────────
+
+
+@pytest.mark.parametrize("attr_val,label", [
+    (42, "integer"),
+    (72.5, "float"),
+])
+async def test_attribute_numeric_type_preserved(rest, attr_val, label):
+    """Numeric attribute values preserved with correct type."""
+    tag = uuid.uuid4().hex[:8]
+    eid = f"sensor.ssv_attr_{label}_{tag}"
+    await rest.set_state(eid, "ok", {"value": attr_val})
+    state = await rest.get_state(eid)
+    assert state["attributes"]["value"] == attr_val
+
+
+# ── Overwrite Entity ID Preservation ─────────────────
+
+
+async def test_overwrite_preserves_entity_id(rest):
+    """Overwriting state preserves entity_id in response."""
+    tag = uuid.uuid4().hex[:8]
+    eid = f"sensor.ssv_overwrite_{tag}"
+    await rest.set_state(eid, "first")
+    state = await rest.set_state(eid, "second")
+    assert state["entity_id"] == eid
+    assert state["state"] == "second"
+
+
+# ── Timestamps on State Update ───────────────────────
+
+
+async def test_timestamps_advance_on_state_update(rest):
+    """last_changed and last_updated advance on state value change."""
+    tag = uuid.uuid4().hex[:8]
+    eid = f"sensor.ssv_ts_{tag}"
+    await rest.set_state(eid, "first")
+    s1 = await rest.get_state(eid)
+
+    await asyncio.sleep(0.1)
+
+    await rest.set_state(eid, "second")
+    s2 = await rest.get_state(eid)
+
+    assert s2["last_changed"] >= s1["last_changed"]
+    assert s2["last_updated"] >= s1["last_updated"]

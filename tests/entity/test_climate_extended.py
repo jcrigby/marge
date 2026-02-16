@@ -2,8 +2,8 @@
 CTS -- Climate Extended Service Tests
 
 Tests climate service handlers: set_temperature (with target_temp_high/low),
-set_preset_mode, set_swing_mode, turn_on/turn_off, lifecycle, and
-temperature preservation across mode changes.
+set_preset_mode, set_swing_mode, set_fan_mode, set_hvac_mode,
+turn_on/turn_off, lifecycle, and temperature/mode preservation.
 """
 
 import uuid
@@ -135,3 +135,68 @@ async def test_climate_temperature_preserves_across_mode_changes(rest):
     assert state["state"] == "cool"
     # Attributes are preserved from the current state
     assert state["attributes"].get("temperature") == 72
+
+
+# ── Merged from test_climate.py ──────────────────────────────
+
+async def test_climate_set_temperature(rest):
+    """climate.set_temperature updates the temperature attribute."""
+    entity_id = "climate.test_temp"
+    await rest.set_state(entity_id, "heat", {"temperature": 66})
+    await rest.call_service("climate", "set_temperature", {
+        "entity_id": entity_id,
+        "temperature": 72,
+    })
+    state = await rest.get_state(entity_id)
+    assert state["attributes"]["temperature"] == 72
+
+
+async def test_climate_set_hvac_mode(rest):
+    """climate.set_hvac_mode changes the state to the mode."""
+    entity_id = "climate.test_mode"
+    await rest.set_state(entity_id, "heat")
+    await rest.call_service("climate", "set_hvac_mode", {
+        "entity_id": entity_id,
+        "hvac_mode": "cool",
+    })
+    state = await rest.get_state(entity_id)
+    assert state["state"] == "cool"
+
+
+async def test_climate_set_hvac_mode_off(rest):
+    """climate.set_hvac_mode to 'off' turns off HVAC, preserves temperature."""
+    entity_id = "climate.test_mode_off"
+    await rest.set_state(entity_id, "heat", {"temperature": 70})
+    await rest.call_service("climate", "set_hvac_mode", {
+        "entity_id": entity_id,
+        "hvac_mode": "off",
+    })
+    state = await rest.get_state(entity_id)
+    assert state["state"] == "off"
+    assert state["attributes"]["temperature"] == 70
+
+
+async def test_climate_set_fan_mode(rest):
+    """climate.set_fan_mode updates the fan_mode attribute."""
+    entity_id = "climate.test_fan"
+    await rest.set_state(entity_id, "cool", {"fan_mode": "auto"})
+    await rest.call_service("climate", "set_fan_mode", {
+        "entity_id": entity_id,
+        "fan_mode": "high",
+    })
+    state = await rest.get_state(entity_id)
+    assert state["attributes"]["fan_mode"] == "high"
+    assert state["state"] == "cool"
+
+
+async def test_climate_set_temperature_preserves_mode(rest):
+    """climate.set_temperature preserves the current HVAC mode."""
+    entity_id = "climate.test_temp_mode"
+    await rest.set_state(entity_id, "auto", {"temperature": 68})
+    await rest.call_service("climate", "set_temperature", {
+        "entity_id": entity_id,
+        "temperature": 74,
+    })
+    state = await rest.get_state(entity_id)
+    assert state["state"] == "auto"
+    assert state["attributes"]["temperature"] == 74

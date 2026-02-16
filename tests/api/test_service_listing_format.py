@@ -226,3 +226,92 @@ async def test_services_service_description_present(rest):
             assert "description" in svc_info, (
                 f"{entry['domain']}.{svc_name} missing description"
             )
+
+
+# ── Merged from test_events_services_listing.py ───────
+
+
+async def test_events_returns_list(rest):
+    """GET /api/events returns a list."""
+    resp = await rest.client.get(
+        f"{rest.base_url}/api/events",
+        headers=rest._headers(),
+    )
+    assert resp.status_code == 200
+    data = resp.json()
+    assert isinstance(data, list)
+    assert len(data) >= 4
+
+
+async def test_events_has_standard_types(rest):
+    """Event list includes standard HA event types."""
+    resp = await rest.client.get(
+        f"{rest.base_url}/api/events",
+        headers=rest._headers(),
+    )
+    data = resp.json()
+    event_types = [e["event"] for e in data]
+    assert "state_changed" in event_types
+    assert "call_service" in event_types
+    assert "automation_triggered" in event_types
+
+
+async def test_events_has_listener_count(rest):
+    """Event entries include listener_count field."""
+    resp = await rest.client.get(
+        f"{rest.base_url}/api/events",
+        headers=rest._headers(),
+    )
+    data = resp.json()
+    for event in data:
+        assert "event" in event
+        assert "listener_count" in event
+
+
+async def test_services_automation_domain(rest):
+    """Automation domain has trigger, turn_on, turn_off, toggle."""
+    resp = await rest.client.get(
+        f"{rest.base_url}/api/services",
+        headers=rest._headers(),
+    )
+    data = resp.json()
+    auto = next(d for d in data if d["domain"] == "automation")
+    svcs = list(auto["services"].keys())
+    assert "trigger" in svcs
+    assert "turn_on" in svcs
+    assert "turn_off" in svcs
+    assert "toggle" in svcs
+
+
+async def test_services_description_format(rest):
+    """Service descriptions follow domain.service format."""
+    resp = await rest.client.get(
+        f"{rest.base_url}/api/services",
+        headers=rest._headers(),
+    )
+    data = resp.json()
+    for domain_entry in data[:5]:
+        domain = domain_entry["domain"]
+        for svc_name, svc_info in domain_entry["services"].items():
+            assert svc_info["description"] == f"{domain}.{svc_name}"
+
+
+async def test_services_total_domains(rest):
+    """Services list has 40+ domains."""
+    resp = await rest.client.get(
+        f"{rest.base_url}/api/services",
+        headers=rest._headers(),
+    )
+    data = resp.json()
+    assert len(data) >= 40, f"Expected 40+ domains, got {len(data)}"
+
+
+async def test_services_total_service_count(rest):
+    """Total service count across all domains is 100+."""
+    resp = await rest.client.get(
+        f"{rest.base_url}/api/services",
+        headers=rest._headers(),
+    )
+    data = resp.json()
+    total = sum(len(d["services"]) for d in data)
+    assert total >= 100, f"Expected 100+ services, got {total}"

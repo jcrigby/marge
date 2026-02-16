@@ -334,3 +334,22 @@ async def test_logbook_with_time_range(rest):
         headers=rest._headers(),
     )
     assert resp.status_code == 200
+
+
+# ── Merged from test_logbook_history_edge.py ──────────
+
+
+async def test_history_future_range_empty(rest):
+    """History with future time range returns empty."""
+    tag = uuid.uuid4().hex[:8]
+    eid = f"sensor.histfuture_{tag}"
+    await rest.set_state(eid, "v")
+
+    resp = await rest.client.get(
+        f"{rest.base_url}/api/history/period/{eid}",
+        params={"start": "2099-01-01T00:00:00Z", "end": "2099-12-31T00:00:00Z"},
+        headers=rest._headers(),
+    )
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data == []

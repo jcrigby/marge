@@ -1,15 +1,51 @@
 """
 CTS -- Fan & Cover Extended Service Tests
 
-Tests fan (turn_on with percentage, set_direction, set_preset_mode,
-set_percentage with 0 = off), and cover (toggle, set_cover_position,
-stop_cover, position-based state).
+Tests fan (turn_on, turn_off, toggle, turn_on with percentage,
+set_direction, set_preset_mode, set_percentage with 0 = off),
+and cover (toggle, set_cover_position, stop_cover, position-based state).
 """
 
 import uuid
 import pytest
 
 pytestmark = pytest.mark.asyncio
+
+
+# ── Fan Basic ──────────────────────────────────────────
+
+async def test_fan_turn_on(rest):
+    """fan.turn_on sets state to 'on'."""
+    tag = uuid.uuid4().hex[:8]
+    eid = f"fan.fon_{tag}"
+    await rest.set_state(eid, "off")
+    await rest.call_service("fan", "turn_on", {"entity_id": eid})
+    state = await rest.get_state(eid)
+    assert state["state"] == "on"
+
+
+async def test_fan_turn_off(rest):
+    """fan.turn_off sets state to 'off'."""
+    tag = uuid.uuid4().hex[:8]
+    eid = f"fan.foff_{tag}"
+    await rest.set_state(eid, "on", {"percentage": 50})
+    await rest.call_service("fan", "turn_off", {"entity_id": eid})
+    state = await rest.get_state(eid)
+    assert state["state"] == "off"
+
+
+async def test_fan_toggle(rest):
+    """fan.toggle flips state on->off->on."""
+    tag = uuid.uuid4().hex[:8]
+    eid = f"fan.ftog_{tag}"
+    await rest.set_state(eid, "on")
+    await rest.call_service("fan", "toggle", {"entity_id": eid})
+    state = await rest.get_state(eid)
+    assert state["state"] == "off"
+
+    await rest.call_service("fan", "toggle", {"entity_id": eid})
+    state2 = await rest.get_state(eid)
+    assert state2["state"] == "on"
 
 
 # ── Fan Extended ───────────────────────────────────────

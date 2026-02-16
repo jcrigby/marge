@@ -11,76 +11,51 @@ import pytest
 pytestmark = pytest.mark.asyncio
 
 
-# -- Alarm Control Panel --
+# -- Alarm Control Panel (parametrized) --
 
-async def test_arm_home(rest):
-    """Alarm arm_home sets state."""
+@pytest.mark.parametrize("service,initial_state,expected_state", [
+    ("arm_home", "disarmed", "armed_home"),
+    ("arm_away", "disarmed", "armed_away"),
+    ("arm_night", "disarmed", "armed_night"),
+    ("disarm", "armed_home", "disarmed"),
+    ("trigger", "armed_home", "triggered"),
+])
+async def test_alarm_service(rest, service, initial_state, expected_state):
+    """Alarm service sets expected state."""
     tag = uuid.uuid4().hex[:8]
-    eid = f"alarm_control_panel.ah_{tag}"
-    await rest.set_state(eid, "disarmed")
+    eid = f"alarm_control_panel.a_{service}_{tag}"
+    await rest.set_state(eid, initial_state)
 
-    await rest.call_service("alarm_control_panel", "arm_home", {
+    await rest.call_service("alarm_control_panel", service, {
         "entity_id": eid,
     })
 
     state = await rest.get_state(eid)
+    assert state["state"] == expected_state
+
+
+# -- Alarm Full Lifecycle (merged from test_alarm.py) --
+
+async def test_alarm_full_lifecycle(rest):
+    """Alarm goes through full lifecycle: disarmed -> armed_home -> armed_away -> triggered -> disarmed."""
+    entity_id = "alarm_control_panel.lifecycle"
+    await rest.set_state(entity_id, "disarmed")
+
+    await rest.call_service("alarm_control_panel", "arm_home", {"entity_id": entity_id})
+    state = await rest.get_state(entity_id)
     assert state["state"] == "armed_home"
 
-
-async def test_arm_away(rest):
-    """Alarm arm_away sets state."""
-    tag = uuid.uuid4().hex[:8]
-    eid = f"alarm_control_panel.aa_{tag}"
-    await rest.set_state(eid, "disarmed")
-
-    await rest.call_service("alarm_control_panel", "arm_away", {
-        "entity_id": eid,
-    })
-
-    state = await rest.get_state(eid)
+    await rest.call_service("alarm_control_panel", "arm_away", {"entity_id": entity_id})
+    state = await rest.get_state(entity_id)
     assert state["state"] == "armed_away"
 
-
-async def test_arm_night(rest):
-    """Alarm arm_night sets state."""
-    tag = uuid.uuid4().hex[:8]
-    eid = f"alarm_control_panel.an_{tag}"
-    await rest.set_state(eid, "disarmed")
-
-    await rest.call_service("alarm_control_panel", "arm_night", {
-        "entity_id": eid,
-    })
-
-    state = await rest.get_state(eid)
-    assert state["state"] == "armed_night"
-
-
-async def test_disarm(rest):
-    """Alarm disarm sets state."""
-    tag = uuid.uuid4().hex[:8]
-    eid = f"alarm_control_panel.ad_{tag}"
-    await rest.set_state(eid, "armed_home")
-
-    await rest.call_service("alarm_control_panel", "disarm", {
-        "entity_id": eid,
-    })
-
-    state = await rest.get_state(eid)
-    assert state["state"] == "disarmed"
-
-
-async def test_trigger(rest):
-    """Alarm trigger sets state."""
-    tag = uuid.uuid4().hex[:8]
-    eid = f"alarm_control_panel.at_{tag}"
-    await rest.set_state(eid, "armed_home")
-
-    await rest.call_service("alarm_control_panel", "trigger", {
-        "entity_id": eid,
-    })
-
-    state = await rest.get_state(eid)
+    await rest.call_service("alarm_control_panel", "trigger", {"entity_id": entity_id})
+    state = await rest.get_state(entity_id)
     assert state["state"] == "triggered"
+
+    await rest.call_service("alarm_control_panel", "disarm", {"entity_id": entity_id})
+    state = await rest.get_state(entity_id)
+    assert state["state"] == "disarmed"
 
 
 # -- Climate --
