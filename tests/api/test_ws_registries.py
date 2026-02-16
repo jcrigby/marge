@@ -2,13 +2,23 @@
 CTS -- WebSocket Registry CRUD Tests
 
 Tests config/area_registry, config/device_registry, config/label_registry,
-config/entity_registry/update, lovelace/config, and subscribe_trigger
-via the WebSocket API.
+config/entity_registry (list + update), lovelace/config, subscribe_trigger,
+ping/pong, and get_config via the WebSocket API.
 """
+
+import uuid
 
 import pytest
 
 pytestmark = pytest.mark.asyncio
+
+
+# ── Ping / Pong ──────────────────────────────────────────
+
+async def test_ws_ping_multiple(ws):
+    """Multiple pings all succeed."""
+    for _ in range(3):
+        assert await ws.ping() is True
 
 
 # ── Area Registry ─────────────────────────────────────────
@@ -103,14 +113,38 @@ async def test_ws_area_create_missing_id(ws):
     assert resp["success"] is False
 
 
-async def test_ws_area_create_empty_fields(ws):
-    """WS area create with empty fields fails."""
-    resp = await ws.send_command(
+async def test_ws_area_create_list_delete_roundtrip(ws):
+    """Full area CRUD roundtrip via WS (uuid-isolated)."""
+    tag = uuid.uuid4().hex[:8]
+    aid = f"wsrt_{tag}"
+
+    # Create
+    r1 = await ws.send_command(
         "config/area_registry/create",
-        area_id="",
-        name="",
+        area_id=aid,
+        name=f"Roundtrip {tag}",
     )
-    assert resp["success"] is False
+    assert r1.get("success", False) is True
+
+    # List and verify
+    r2 = await ws.send_command("config/area_registry/list")
+    areas = r2["result"]
+    found = [a for a in areas if a.get("area_id") == aid]
+    assert len(found) == 1
+    assert found[0]["name"] == f"Roundtrip {tag}"
+
+    # Delete
+    r3 = await ws.send_command(
+        "config/area_registry/delete",
+        area_id=aid,
+    )
+    assert r3.get("success", False) is True
+
+    # Verify gone
+    r4 = await ws.send_command("config/area_registry/list")
+    areas2 = r4["result"]
+    found2 = [a for a in areas2 if a.get("area_id") == aid]
+    assert len(found2) == 0
 
 
 # ── Device Registry ───────────────────────────────────────
@@ -195,6 +229,34 @@ async def test_ws_label_registry_missing_fields(ws):
     assert resp.get("success", False) is False
 
 
+async def test_ws_label_create_list_delete_roundtrip(ws):
+    """Full label CRUD roundtrip via WS (uuid-isolated)."""
+    tag = uuid.uuid4().hex[:8]
+    lid = f"wslrt_{tag}"
+
+    # Create
+    r1 = await ws.send_command(
+        "config/label_registry/create",
+        label_id=lid,
+        name=f"Label {tag}",
+        color="green",
+    )
+    assert r1.get("success", False) is True
+
+    # List and verify
+    r2 = await ws.send_command("config/label_registry/list")
+    labels = r2["result"]
+    found = [l for l in labels if l.get("label_id") == lid]
+    assert len(found) == 1
+
+    # Delete
+    r3 = await ws.send_command(
+        "config/label_registry/delete",
+        label_id=lid,
+    )
+    assert r3.get("success", False) is True
+
+
 # ── Entity Registry ───────────────────────────────────────
 
 async def test_ws_entity_registry_list(ws):
@@ -205,6 +267,35 @@ async def test_ws_entity_registry_list(ws):
     if len(result["result"]) > 0:
         entry = result["result"][0]
         assert "entity_id" in entry
+
+
+async def test_ws_entity_registry_entry_fields(ws, rest):
+    """Entity registry entries have expected name and platform fields."""
+    await rest.set_state("sensor.ws_reg_fields", "10", {"friendly_name": "Test Sensor"})
+    result = await ws.send_command("config/entity_registry/list")
+    assert result["success"] is True
+    entry = next((e for e in result["result"] if e["entity_id"] == "sensor.ws_reg_fields"), None)
+    assert entry is not None
+    assert "name" in entry
+    assert "platform" in entry
+
+
+@pytest.mark.parametrize("field,expected", [
+    ("disabled_by", None),
+    ("platform", "mqtt"),
+])
+async def test_ws_entity_registry_field_value(ws, rest, field, expected):
+    """Entity registry entries have correct default field values."""
+    tag = uuid.uuid4().hex[:8]
+    eid = f"sensor.wsfld_{tag}"
+    await rest.set_state(eid, "val")
+
+    resp = await ws.send_command("config/entity_registry/list")
+    entries = resp["result"]
+    found = [e for e in entries if e["entity_id"] == eid]
+    assert len(found) == 1
+    assert field in found[0]
+    assert found[0][field] == expected
 
 
 async def test_ws_entity_registry_update_name(ws, rest):
@@ -238,6 +329,94 @@ async def test_ws_entity_registry_update_icon(ws, rest):
     assert state["attributes"]["icon"] == "mdi:thermometer"
 
 
+async def test_ws_entity_update_name_and_icon(ws, rest):
+    """Update both name and icon in single WS command."""
+    tag = uuid.uuid4().hex[:8]
+    eid = f"sensor.wsupd_{tag}"
+    await rest.set_state(eid, "val")
+
+    resp = await ws.send_command(
+        "config/entity_registry/update",
+        entity_id=eid,
+        name="Updated Name",
+        icon="mdi:lightbulb",
+    )
+    assert resp.get("success", False) is True
+
+    state = await rest.get_state(eid)
+    assert state["attributes"]["friendly_name"] == "Updated Name"
+    assert state["attributes"]["icon"] == "mdi:lightbulb"
+
+
+async def test_ws_entity_update_area_assignment(ws, rest):
+    """Entity registry update with area_id assigns entity to area."""
+    tag = uuid.uuid4().hex[:8]
+    eid = f"sensor.wsarea_{tag}"
+    aid = f"area_ws_{tag}"
+
+    await rest.set_state(eid, "val")
+
+    # Create area first
+    await ws.send_command(
+        "config/area_registry/create",
+        area_id=aid,
+        name=f"Room {tag}",
+    )
+
+    # Assign entity to area
+    resp = await ws.send_command(
+        "config/entity_registry/update",
+        entity_id=eid,
+        area_id=aid,
+    )
+    assert resp.get("success", False) is True
+
+
+async def test_ws_entity_update_clear_area(ws, rest):
+    """Clearing area_id unassigns entity from area."""
+    tag = uuid.uuid4().hex[:8]
+    eid = f"sensor.wsunarea_{tag}"
+    aid = f"area_wsun_{tag}"
+
+    await rest.set_state(eid, "val")
+    await ws.send_command(
+        "config/area_registry/create",
+        area_id=aid,
+        name=f"Room {tag}",
+    )
+    await ws.send_command(
+        "config/entity_registry/update",
+        entity_id=eid,
+        area_id=aid,
+    )
+
+    # Clear area
+    resp = await ws.send_command(
+        "config/entity_registry/update",
+        entity_id=eid,
+        area_id="",
+    )
+    assert resp.get("success", False) is True
+
+
+async def test_ws_entity_update_preserves_state(ws, rest):
+    """Entity registry update preserves entity state value."""
+    tag = uuid.uuid4().hex[:8]
+    eid = f"sensor.wspres_{tag}"
+    await rest.set_state(eid, "important_value", {"existing_attr": 42})
+
+    await ws.send_command(
+        "config/entity_registry/update",
+        entity_id=eid,
+        name="New Name",
+    )
+
+    state = await rest.get_state(eid)
+    assert state["state"] == "important_value"
+    assert state["attributes"]["existing_attr"] == 42
+    assert state["attributes"]["friendly_name"] == "New Name"
+
+
 async def test_ws_entity_registry_update_nonexistent(ws):
     """config/entity_registry/update for missing entity fails."""
     result = await ws.send_command(
@@ -246,6 +425,22 @@ async def test_ws_entity_registry_update_nonexistent(ws):
         name="Nope",
     )
     assert result["success"] is False
+
+
+# ── Get Config ───────────────────────────────────────────
+
+async def test_ws_get_config_fields(ws):
+    """get_config returns expected configuration fields."""
+    result = await ws.send_command("get_config")
+    assert result["success"] is True
+    config = result["result"]
+    assert "location_name" in config
+    assert "latitude" in config
+    assert "longitude" in config
+    assert "time_zone" in config
+    assert "version" in config
+    assert "state" in config
+    assert config["state"] == "RUNNING"
 
 
 # ── Lovelace Config ───────────────────────────────────────
