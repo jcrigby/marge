@@ -250,3 +250,71 @@ async def test_device_assign_entity(rest):
         headers=rest._headers(),
     )
     assert resp.status_code == 200
+
+
+# -- from test_extended_api.py --
+
+async def test_area_entity_listing_includes_state(rest):
+    """GET /api/areas/:id/entities returns full entity state objects."""
+    await rest.set_state("sensor.area_state_test", "55", {"unit_of_measurement": "W"})
+    await rest.client.post(
+        f"{rest.base_url}/api/areas",
+        headers=rest._headers(),
+        json={"area_id": "cts_state_room", "name": "State Room"},
+    )
+    await rest.client.post(
+        f"{rest.base_url}/api/areas/cts_state_room/entities/sensor.area_state_test",
+        headers=rest._headers(),
+    )
+
+    resp = await rest.client.get(
+        f"{rest.base_url}/api/areas/cts_state_room/entities",
+        headers=rest._headers(),
+    )
+    assert resp.status_code == 200
+    entities = resp.json()
+    found = next((e for e in entities if e.get("entity_id") == "sensor.area_state_test"), None)
+    assert found is not None
+    assert found["state"] == "55"
+
+    # Cleanup
+    await rest.client.delete(f"{rest.base_url}/api/areas/cts_state_room/entities/sensor.area_state_test",
+                              headers=rest._headers())
+    await rest.client.delete(f"{rest.base_url}/api/areas/cts_state_room", headers=rest._headers())
+
+
+# -- from test_extended_api.py --
+
+async def test_area_duplicate_entity_assignment(rest):
+    """Assigning same entity to area twice is idempotent."""
+    await rest.set_state("sensor.dup_area_test", "10")
+    await rest.client.post(
+        f"{rest.base_url}/api/areas",
+        headers=rest._headers(),
+        json={"area_id": "dup_test_room", "name": "Dup Room"},
+    )
+
+    # Assign twice
+    for _ in range(2):
+        resp = await rest.client.post(
+            f"{rest.base_url}/api/areas/dup_test_room/entities/sensor.dup_area_test",
+            headers=rest._headers(),
+        )
+        assert resp.status_code == 200
+
+    # Verify entity appears only once
+    resp = await rest.client.get(
+        f"{rest.base_url}/api/areas",
+        headers=rest._headers(),
+    )
+    areas = resp.json()
+    room = next((a for a in areas if a["area_id"] == "dup_test_room"), None)
+    assert room is not None
+    count = room["entities"].count("sensor.dup_area_test")
+    assert count == 1
+
+    # Cleanup
+    await rest.client.delete(
+        f"{rest.base_url}/api/areas/dup_test_room",
+        headers=rest._headers(),
+    )

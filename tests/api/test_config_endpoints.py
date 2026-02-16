@@ -380,3 +380,15 @@ async def test_ws_config_matches_rest(ws, rest):
     assert rest_config["latitude"] == ws_config["latitude"]
     assert rest_config["longitude"] == ws_config["longitude"]
     assert rest_config["version"] == ws_config["version"]
+
+
+# -- from test_extended_api.py --
+
+async def test_health_startup_under_5ms(rest):
+    """Marge starts up in under 5ms."""
+    resp = await rest.client.get(
+        f"{rest.base_url}/api/health",
+        headers=rest._headers(),
+    )
+    data = resp.json()
+    assert data["startup_ms"] < 5.0, f"Startup took {data['startup_ms']}ms"

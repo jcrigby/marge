@@ -160,4 +160,5 @@ Priority order (by install base and effort):
 - 2026-02-16: 63/63 Rust unit tests green, React build clean
 - 2026-02-16: Phase 7.3 Cast + 7.4 Sonos + 7.5 Matter (commit 5117f26) — all wired, 86/86 unit tests
 - 2026-02-16: Phase 7 COMPLETE — 10 integrations total, ~85% home coverage
-- 2026-02-16: CTS pruning — deleted 234 _depth files (39.5K lines), 4862->2401 tests, zero coverage loss (commit ad1ba50)
+- 2026-02-16: CTS pruning — deleted 234 _depth files (39.5K lines), 4862->2401 tests, zero coverage loss (commit 8519342)
+- 2026-02-16: Broke up test_extended_api.py monster (3787 lines) — 47 unique tests distributed, 170 dups deleted (commit 6957167)

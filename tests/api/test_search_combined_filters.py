@@ -173,3 +173,28 @@ async def test_search_all_three_filters(rest):
     for r in results:
         assert r["entity_id"].startswith("sensor.")
         assert r["state"] == "on"
+
+
+# -- from test_extended_api.py --
+
+async def test_search_by_area(rest):
+    """Search by area_id returns entities assigned to that area."""
+    # Create area and assign entity
+    area_resp = await rest.client.post(
+        f"{rest.base_url}/api/areas",
+        headers=rest._headers(),
+        json={"area_id": "search_area", "name": "Search Area"},
+    )
+    await rest.set_state("sensor.in_search_area", "42")
+    await rest.client.post(
+        f"{rest.base_url}/api/areas/search_area/entities/sensor.in_search_area",
+        headers=rest._headers(),
+    )
+    resp = await rest.client.get(
+        f"{rest.base_url}/api/states/search?area=search_area",
+        headers=rest._headers(),
+    )
+    assert resp.status_code == 200
+    results = resp.json()
+    entity_ids = [r["entity_id"] for r in results]
+    assert "sensor.in_search_area" in entity_ids
