@@ -292,6 +292,12 @@ async fn main() -> anyhow::Result<()> {
     let weather_config = integrations::weather::WeatherConfig::default();
     integrations::weather::start_weather_poller(app_state.clone(), weather_config);
 
+    // ── Shelly Integration (Phase 7 §7.1) ────────────────
+    let shelly_bridge = Arc::new(integrations::shelly::ShellyBridge::new(app_state.clone()));
+    integrations::shelly::start_shelly_poller(shelly_bridge.clone(), 10);
+    let shelly_bridge_api = shelly_bridge.clone();
+    tracing::info!("Shelly integration ready");
+
     // ── Plugin System (Phase 5 §5.1) ─────────────────────
     let mut plugin_mgr = plugins::PluginManager::new(app_state.clone());
     let plugin_dir = std::path::Path::new("/config/plugins");
@@ -318,6 +324,7 @@ async fn main() -> anyhow::Result<()> {
         zwave_bridge_api,
         tasmota_bridge_api,
         esphome_bridge_api,
+        shelly_bridge_api,
     )
     .merge(websocket::router(
         app_state.clone(), auth.clone(), service_registry_for_ws,

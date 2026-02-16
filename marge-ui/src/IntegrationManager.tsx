@@ -66,6 +66,22 @@ interface EsphomeDetail {
   devices: EsphomeDevice[];
 }
 
+interface ShellyDevice {
+  ip: string;
+  mac: string;
+  device_type: string;
+  name: string | null;
+  gen: number;
+  firmware: string | null;
+  online: boolean;
+  last_seen: string | null;
+}
+
+interface ShellyDetail {
+  device_count: number;
+  devices: ShellyDevice[];
+}
+
 function StatusDot({ online }: { online: boolean }) {
   return (
     <span
@@ -236,6 +252,86 @@ function EsphomeView({ detail }: { detail: EsphomeDetail }) {
   );
 }
 
+function ShellyView({ detail, onDiscover }: { detail: ShellyDetail; onDiscover: (ip: string) => void }) {
+  const [ip, setIp] = useState('');
+
+  const handleAdd = () => {
+    const trimmed = ip.trim();
+    if (trimmed) {
+      onDiscover(trimmed);
+      setIp('');
+    }
+  };
+
+  return (
+    <div className="integration-detail">
+      <div className="integration-badges">
+        <span className="integration-badge badge-inactive">
+          {detail.device_count} device{detail.device_count !== 1 ? 's' : ''}
+        </span>
+      </div>
+      <div style={{ display: 'flex', gap: '0.5rem', margin: '0.5rem 0' }}>
+        <input
+          type="text"
+          value={ip}
+          onChange={(e) => setIp(e.target.value)}
+          placeholder="IP address (e.g. 192.168.1.100)"
+          style={{
+            flex: 1,
+            padding: '0.35rem 0.5rem',
+            border: '1px solid var(--border)',
+            borderRadius: '4px',
+            background: 'var(--bg)',
+            color: 'var(--fg)',
+            fontSize: '0.85rem',
+          }}
+          onKeyDown={(e) => { if (e.key === 'Enter') handleAdd(); }}
+        />
+        <button
+          onClick={handleAdd}
+          className="integration-badge badge-active"
+          style={{ cursor: 'pointer', whiteSpace: 'nowrap' }}
+        >
+          Add Device
+        </button>
+      </div>
+      {detail.devices.length > 0 && (
+        <div className="integration-table-wrap">
+          <table className="integration-table">
+            <thead>
+              <tr>
+                <th>IP</th>
+                <th>MAC</th>
+                <th>Name</th>
+                <th>Type</th>
+                <th>Gen</th>
+                <th>Firmware</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {detail.devices.map((d) => (
+                <tr key={d.mac}>
+                  <td className="int-device-addr">{d.ip}</td>
+                  <td className="int-device-addr">{d.mac}</td>
+                  <td className="int-device-name">{d.name || '-'}</td>
+                  <td>{d.device_type}</td>
+                  <td className="int-device-id">{d.gen}</td>
+                  <td>{d.firmware || '-'}</td>
+                  <td>
+                    <StatusDot online={d.online} />
+                    <span className="int-status-label">{d.online ? 'Online' : 'Offline'}</span>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function IntegrationManager() {
   const [integrations, setIntegrations] = useState<IntegrationSummary[]>([]);
   const [expanded, setExpanded] = useState<string | null>(null);
@@ -243,6 +339,7 @@ export default function IntegrationManager() {
   const [zwave, setZwave] = useState<ZwaveDetail | null>(null);
   const [tasmota, setTasmota] = useState<TasmotaDetail | null>(null);
   const [esphome, setEsphome] = useState<EsphomeDetail | null>(null);
+  const [shellyDetail, setShellyDetail] = useState<ShellyDetail | null>(null);
   const [loading, setLoading] = useState<string | null>(null);
 
   const fetchIntegrations = useCallback(() => {
@@ -282,6 +379,9 @@ export default function IntegrationManager() {
           case 'esphome':
             setEsphome(data);
             break;
+          case 'shelly':
+            setShellyDetail(data);
+            break;
         }
       })
       .catch(() => {
@@ -289,6 +389,25 @@ export default function IntegrationManager() {
       })
       .finally(() => setLoading(null));
   }, [expanded]);
+
+  const handleShellyDiscover = useCallback((ip: string) => {
+    fetch('/api/integrations/shelly/discover', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ip }),
+    })
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.result === 'ok') {
+          toastSuccess(`Shelly device discovered: ${data.device?.device_type || ip}`);
+          // Refresh detail
+          return fetch('/api/integrations/shelly').then((r2) => r2.json()).then(setShellyDetail);
+        } else {
+          toastError(`Discovery failed: ${data.message || 'Unknown error'}`);
+        }
+      })
+      .catch(() => toastError('Failed to discover Shelly device'));
+  }, []);
 
   const handlePermitJoin = useCallback((enable: boolean) => {
     fetch('/api/integrations/zigbee2mqtt/permit_join', {
@@ -355,6 +474,9 @@ export default function IntegrationManager() {
                       )}
                       {int.id === 'esphome' && esphome && (
                         <EsphomeView detail={esphome} />
+                      )}
+                      {int.id === 'shelly' && shellyDetail && (
+                        <ShellyView detail={shellyDetail} onDiscover={handleShellyDiscover} />
                       )}
                     </>
                   )}

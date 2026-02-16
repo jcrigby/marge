@@ -13,7 +13,7 @@ use std::sync::Arc;
 
 use crate::auth::AuthConfig;
 use crate::automation::AutomationEngine;
-use crate::integrations::{zigbee2mqtt, zwave, tasmota, esphome};
+use crate::integrations::{zigbee2mqtt, zwave, tasmota, esphome, shelly};
 use crate::scene::SceneEngine;
 use crate::services::ServiceRegistry;
 use crate::state::{EntityState, StateMachine};
@@ -45,6 +45,7 @@ struct RouterState {
     zwave_bridge: Arc<zwave::ZwaveBridge>,
     tasmota_bridge: Arc<tasmota::TasmotaBridge>,
     esphome_bridge: Arc<esphome::ESPHomeBridge>,
+    shelly_bridge: Arc<shelly::ShellyBridge>,
 }
 
 /// POST /api/states/{entity_id} request body
@@ -109,6 +110,7 @@ pub fn router(
     zwave_bridge: Arc<zwave::ZwaveBridge>,
     tasmota_bridge: Arc<tasmota::TasmotaBridge>,
     esphome_bridge: Arc<esphome::ESPHomeBridge>,
+    shelly_bridge: Arc<shelly::ShellyBridge>,
 ) -> Router {
     let router_state = RouterState {
         app: state,
@@ -123,6 +125,7 @@ pub fn router(
         zwave_bridge,
         tasmota_bridge,
         esphome_bridge,
+        shelly_bridge,
     };
 
     Router::new()
@@ -187,6 +190,8 @@ pub fn router(
         .route("/api/integrations/zwave", get(get_zwave))
         .route("/api/integrations/tasmota", get(get_tasmota))
         .route("/api/integrations/esphome", get(get_esphome))
+        .route("/api/integrations/shelly", get(get_shelly))
+        .route("/api/integrations/shelly/discover", post(shelly_discover))
         .route("/api/integrations/zigbee2mqtt/permit_join", post(zigbee2mqtt_permit_join))
         // Long-lived access tokens
         .route("/api/auth/tokens", get(list_tokens))
@@ -1929,6 +1934,9 @@ async fn list_integrations(
     let esphome_count = rs.esphome_bridge.device_count();
     let esphome_status = if esphome_count > 0 { "active" } else { "inactive" };
 
+    let shelly_count = rs.shelly_bridge.device_count();
+    let shelly_status = if shelly_count > 0 { "active" } else { "inactive" };
+
     Ok(Json(vec![
         serde_json::json!({
             "id": "zigbee2mqtt",
@@ -1953,6 +1961,12 @@ async fn list_integrations(
             "name": "ESPHome",
             "status": esphome_status,
             "device_count": esphome_count,
+        }),
+        serde_json::json!({
+            "id": "shelly",
+            "name": "Shelly",
+            "status": shelly_status,
+            "device_count": shelly_count,
         }),
     ]))
 }
@@ -2010,6 +2024,54 @@ async fn get_esphome(
         "device_count": rs.esphome_bridge.device_count(),
         "devices": rs.esphome_bridge.devices(),
     })))
+}
+
+/// GET /api/integrations/shelly — Shelly bridge detail
+async fn get_shelly(
+    State(rs): State<RouterState>,
+    headers: HeaderMap,
+) -> Result<Json<serde_json::Value>, StatusCode> {
+    check_auth(&rs, &headers)?;
+
+    Ok(Json(serde_json::json!({
+        "device_count": rs.shelly_bridge.device_count(),
+        "devices": rs.shelly_bridge.devices(),
+    })))
+}
+
+/// POST /api/integrations/shelly/discover — manually add a Shelly device by IP
+async fn shelly_discover(
+    State(rs): State<RouterState>,
+    headers: HeaderMap,
+    Json(body): Json<serde_json::Value>,
+) -> Result<Json<serde_json::Value>, StatusCode> {
+    check_auth(&rs, &headers)?;
+
+    let ip = body.get("ip").and_then(|v| v.as_str())
+        .ok_or(StatusCode::BAD_REQUEST)?
+        .to_string();
+
+    match rs.shelly_bridge.add_device(&ip).await {
+        Ok(device) => {
+            Ok(Json(serde_json::json!({
+                "result": "ok",
+                "device": {
+                    "mac": device.mac,
+                    "ip": device.ip,
+                    "device_type": device.device_type,
+                    "name": device.name,
+                    "gen": device.gen,
+                    "firmware": device.firmware,
+                }
+            })))
+        }
+        Err(e) => {
+            Ok(Json(serde_json::json!({
+                "result": "error",
+                "message": e,
+            })))
+        }
+    }
 }
 
 /// POST /api/integrations/zigbee2mqtt/permit_join — enable/disable pairing mode
