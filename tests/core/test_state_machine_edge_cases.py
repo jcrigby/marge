@@ -13,45 +13,24 @@ import pytest
 pytestmark = pytest.mark.asyncio
 
 
-async def test_empty_state_string(rest):
-    """Entity can have empty string state."""
+# ── Edge State Values (parametrized) ────────────────────
+
+
+@pytest.mark.parametrize("state_val,label", [
+    ("", "empty"),
+    ("42.5", "numeric"),
+    ("x" * 1000, "long"),
+    ("23°C with wind", "unicode"),
+    ("on/off <test> & 'value'", "special_chars"),
+])
+async def test_state_value_edge_cases(rest, state_val, label):
+    """State machine correctly stores edge-case state values."""
     tag = uuid.uuid4().hex[:8]
-    eid = f"sensor.empty_{tag}"
-    await rest.set_state(eid, "")
+    eid = f"sensor.edge_{label}_{tag}"
+    await rest.set_state(eid, state_val)
 
     state = await rest.get_state(eid)
-    assert state["state"] == ""
-
-
-async def test_numeric_state_string(rest):
-    """Numeric state stored as string."""
-    tag = uuid.uuid4().hex[:8]
-    eid = f"sensor.num_{tag}"
-    await rest.set_state(eid, "42.5")
-
-    state = await rest.get_state(eid)
-    assert state["state"] == "42.5"
-
-
-async def test_long_state_value(rest):
-    """Very long state value stored correctly."""
-    tag = uuid.uuid4().hex[:8]
-    eid = f"sensor.long_{tag}"
-    long_val = "x" * 1000
-    await rest.set_state(eid, long_val)
-
-    state = await rest.get_state(eid)
-    assert state["state"] == long_val
-
-
-async def test_unicode_state_value(rest):
-    """Unicode state value stored correctly."""
-    tag = uuid.uuid4().hex[:8]
-    eid = f"sensor.uni_{tag}"
-    await rest.set_state(eid, "23°C with wind")
-
-    state = await rest.get_state(eid)
-    assert "23°C" in state["state"]
+    assert state["state"] == state_val
 
 
 async def test_unicode_attribute_value(rest):
@@ -63,16 +42,6 @@ async def test_unicode_attribute_value(rest):
     state = await rest.get_state(eid)
     assert state["attributes"]["unit"] == "°F"
     assert state["attributes"]["name"] == "Température"
-
-
-async def test_special_chars_in_state(rest):
-    """Special characters in state value."""
-    tag = uuid.uuid4().hex[:8]
-    eid = f"sensor.spec_{tag}"
-    await rest.set_state(eid, "on/off <test> & 'value'")
-
-    state = await rest.get_state(eid)
-    assert state["state"] == "on/off <test> & 'value'"
 
 
 async def test_nested_attribute_values(rest):
@@ -122,18 +91,6 @@ async def test_rapid_updates_last_wins(rest):
     assert state["state"] == "19"
 
 
-async def test_overwrite_attributes(rest):
-    """New attributes completely replace old ones."""
-    tag = uuid.uuid4().hex[:8]
-    eid = f"sensor.overwrite_{tag}"
-    await rest.set_state(eid, "val", {"key_a": 1, "key_b": 2})
-    await rest.set_state(eid, "val", {"key_c": 3})
-
-    state = await rest.get_state(eid)
-    assert "key_c" in state["attributes"]
-    # Note: depending on implementation, old keys may or may not persist
-
-
 async def test_many_attributes(rest):
     """Entity with many attributes."""
     tag = uuid.uuid4().hex[:8]
@@ -144,3 +101,80 @@ async def test_many_attributes(rest):
     state = await rest.get_state(eid)
     assert state["attributes"]["key_0"] == "val_0"
     assert state["attributes"]["key_49"] == "val_49"
+
+
+# ── Entity ID Variations (from depth) ──────────────────
+
+
+@pytest.mark.parametrize("suffix,label", [
+    ("123abc", "numbers_in_name"),
+    ("a_b_c_d", "underscores"),
+])
+async def test_entity_id_variations(rest, suffix, label):
+    """Entity IDs with numbers and underscores work."""
+    tag = uuid.uuid4().hex[:8]
+    eid = f"sensor.sme_{suffix}_{tag}"
+    await rest.set_state(eid, "ok")
+    state = await rest.get_state(eid)
+    assert state["entity_id"] == eid
+
+
+# ── Unicode in Attributes (from depth) ─────────────────
+
+
+async def test_unicode_cjk_attribute(rest):
+    """CJK characters preserved in attributes."""
+    tag = uuid.uuid4().hex[:8]
+    eid = f"sensor.sme_cjk_{tag}"
+    await rest.set_state(eid, "1", {"label": "temperature"})
+    state = await rest.get_state(eid)
+    assert state["attributes"]["label"] == "temperature"
+
+
+# ── Overwrite Semantics (from depth) ───────────────────
+
+
+async def test_overwrite_replaces_state(rest):
+    """Second set_state replaces state value."""
+    tag = uuid.uuid4().hex[:8]
+    eid = f"sensor.sme_ow_{tag}"
+    await rest.set_state(eid, "first")
+    await rest.set_state(eid, "second")
+    state = await rest.get_state(eid)
+    assert state["state"] == "second"
+
+
+async def test_overwrite_replaces_attributes(rest):
+    """Second set_state replaces all attributes."""
+    tag = uuid.uuid4().hex[:8]
+    eid = f"sensor.sme_owattr_{tag}"
+    await rest.set_state(eid, "1", {"a": 1, "b": 2})
+    await rest.set_state(eid, "1", {"c": 3})
+    state = await rest.get_state(eid)
+    assert "c" in state["attributes"]
+    assert "a" not in state["attributes"]
+    assert "b" not in state["attributes"]
+
+
+async def test_overwrite_empty_attrs_clears(rest):
+    """set_state with empty attrs clears previous attrs."""
+    tag = uuid.uuid4().hex[:8]
+    eid = f"sensor.sme_owclr_{tag}"
+    await rest.set_state(eid, "1", {"key": "val"})
+    await rest.set_state(eid, "1", {})
+    state = await rest.get_state(eid)
+    assert "key" not in state["attributes"]
+
+
+# ── States Listing (from depth) ────────────────────────
+
+
+async def test_get_all_contains_created_entity(rest):
+    """GET /api/states contains a newly created entity."""
+    tag = uuid.uuid4().hex[:8]
+    eid = f"sensor.sme_all_{tag}"
+    await rest.set_state(eid, "visible")
+
+    states = await rest.get_states()
+    eids = [s["entity_id"] for s in states]
+    assert eid in eids

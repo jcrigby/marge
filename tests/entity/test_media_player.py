@@ -2,7 +2,8 @@
 CTS -- Media Player Entity Tests
 
 Tests media_player domain services: turn_on, turn_off, play, pause, stop,
-volume_set, select_source, next/prev track.
+volume_set, select_source, next/prev track, mute, shuffle, repeat,
+play_media, select_sound_mode.
 """
 
 import pytest
@@ -10,87 +11,88 @@ import pytest
 pytestmark = pytest.mark.asyncio
 
 
-async def test_media_player_turn_on(rest):
-    """media_player.turn_on sets state to 'on'."""
-    entity_id = "media_player.test_on"
-    await rest.set_state(entity_id, "off")
-    await rest.call_service("media_player", "turn_on", {"entity_id": entity_id})
+# ── State-transition services (parametrized) ────────────────
 
+@pytest.mark.parametrize("initial_state,service,expected_state", [
+    ("off", "turn_on", "on"),
+    ("playing", "turn_off", "off"),
+    ("paused", "media_play", "playing"),
+    ("playing", "media_pause", "paused"),
+    ("playing", "media_stop", "idle"),
+])
+async def test_media_player_state_transition(rest, initial_state, service, expected_state):
+    """media_player service sets expected state."""
+    entity_id = f"media_player.test_{service}"
+    await rest.set_state(entity_id, initial_state)
+    await rest.call_service("media_player", service, {"entity_id": entity_id})
+
+    state = await rest.get_state(entity_id)
+    assert state["state"] == expected_state
+
+
+# ── Track navigation (preserves state, parametrized) ────────
+
+@pytest.mark.parametrize("service", [
+    "media_next_track",
+    "media_previous_track",
+])
+async def test_media_player_track_navigation(rest, service):
+    """media_player.media_next/previous_track preserves playing state."""
+    entity_id = f"media_player.test_{service}"
+    await rest.set_state(entity_id, "playing")
+    await rest.call_service("media_player", service, {"entity_id": entity_id})
+
+    state = await rest.get_state(entity_id)
+    assert state["state"] == "playing"
+
+
+# ── Attribute-setting services (parametrized) ────────────────
+
+@pytest.mark.parametrize("service,service_data,attr_key,expected_value", [
+    ("volume_set", {"volume_level": 0.8}, "volume_level", 0.8),
+    ("select_source", {"source": "Bluetooth"}, "source", "Bluetooth"),
+    ("volume_mute", {"is_volume_muted": True}, "is_volume_muted", True),
+    ("shuffle_set", {"shuffle": True}, "shuffle", True),
+    ("repeat_set", {"repeat": "all"}, "repeat", "all"),
+    ("select_sound_mode", {"sound_mode": "surround"}, "sound_mode", "surround"),
+])
+async def test_media_player_attribute_service(rest, service, service_data, attr_key, expected_value):
+    """media_player service stores expected attribute."""
+    entity_id = f"media_player.test_attr_{service}"
+    await rest.set_state(entity_id, "on")
+    await rest.call_service("media_player", service, {"entity_id": entity_id, **service_data})
+
+    state = await rest.get_state(entity_id)
+    assert state["attributes"][attr_key] == expected_value
+
+
+# ── play_media ───────────────────────────────────────────────
+
+async def test_media_player_play_media(rest):
+    """play_media sets state to playing with content attributes."""
+    entity_id = "media_player.test_play_media"
+    await rest.set_state(entity_id, "idle")
+    await rest.call_service("media_player", "play_media", {
+        "entity_id": entity_id,
+        "media_content_id": "spotify:track:123",
+        "media_content_type": "music",
+    })
+    state = await rest.get_state(entity_id)
+    assert state["state"] == "playing"
+    assert state["attributes"]["media_content_id"] == "spotify:track:123"
+    assert state["attributes"]["media_content_type"] == "music"
+
+
+# ── turn_on with source ─────────────────────────────────────
+
+async def test_media_player_turn_on_with_source(rest):
+    """turn_on with source attribute stores source."""
+    entity_id = "media_player.test_on_src"
+    await rest.set_state(entity_id, "off")
+    await rest.call_service("media_player", "turn_on", {
+        "entity_id": entity_id,
+        "source": "Radio",
+    })
     state = await rest.get_state(entity_id)
     assert state["state"] == "on"
-
-
-async def test_media_player_turn_off(rest):
-    """media_player.turn_off sets state to 'off'."""
-    entity_id = "media_player.test_off"
-    await rest.set_state(entity_id, "playing")
-    await rest.call_service("media_player", "turn_off", {"entity_id": entity_id})
-
-    state = await rest.get_state(entity_id)
-    assert state["state"] == "off"
-
-
-async def test_media_player_play(rest):
-    """media_player.media_play sets state to 'playing'."""
-    entity_id = "media_player.test_play"
-    await rest.set_state(entity_id, "paused")
-    await rest.call_service("media_player", "media_play", {"entity_id": entity_id})
-
-    state = await rest.get_state(entity_id)
-    assert state["state"] == "playing"
-
-
-async def test_media_player_pause(rest):
-    """media_player.media_pause sets state to 'paused'."""
-    entity_id = "media_player.test_pause"
-    await rest.set_state(entity_id, "playing")
-    await rest.call_service("media_player", "media_pause", {"entity_id": entity_id})
-
-    state = await rest.get_state(entity_id)
-    assert state["state"] == "paused"
-
-
-async def test_media_player_stop(rest):
-    """media_player.media_stop sets state to 'idle'."""
-    entity_id = "media_player.test_stop"
-    await rest.set_state(entity_id, "playing")
-    await rest.call_service("media_player", "media_stop", {"entity_id": entity_id})
-
-    state = await rest.get_state(entity_id)
-    assert state["state"] == "idle"
-
-
-async def test_media_player_volume(rest):
-    """media_player.volume_set updates volume_level attribute."""
-    entity_id = "media_player.test_vol"
-    await rest.set_state(entity_id, "on", {"volume_level": 0.5})
-    await rest.call_service("media_player", "volume_set", {
-        "entity_id": entity_id,
-        "volume_level": 0.8,
-    })
-
-    state = await rest.get_state(entity_id)
-    assert state["attributes"]["volume_level"] == 0.8
-
-
-async def test_media_player_select_source(rest):
-    """media_player.select_source updates source attribute."""
-    entity_id = "media_player.test_src"
-    await rest.set_state(entity_id, "on", {"source": "TV"})
-    await rest.call_service("media_player", "select_source", {
-        "entity_id": entity_id,
-        "source": "Bluetooth",
-    })
-
-    state = await rest.get_state(entity_id)
-    assert state["attributes"]["source"] == "Bluetooth"
-
-
-async def test_media_player_next_track(rest):
-    """media_player.media_next_track preserves playing state."""
-    entity_id = "media_player.test_next"
-    await rest.set_state(entity_id, "playing")
-    await rest.call_service("media_player", "media_next_track", {"entity_id": entity_id})
-
-    state = await rest.get_state(entity_id)
-    assert state["state"] == "playing"
+    assert state["attributes"]["source"] == "Radio"

@@ -1,5 +1,5 @@
 """
-CTS -- State Machine Timestamp Semantics (STATE-006)
+CTS -- State Machine Timestamp and Context Semantics (STATE-006)
 
 Tests last_changed vs last_updated vs last_reported behavior,
 context propagation, old_state on first set, and attribute-only updates.
@@ -200,3 +200,90 @@ async def test_timestamps_are_iso8601(rest):
         ts = state[field]
         assert "T" in ts, f"{field} should be ISO 8601"
         assert "20" in ts, f"{field} should contain year"
+
+
+# ── Context Presence (from depth) ──────────────────────
+
+
+async def test_state_has_context(rest):
+    """Entity state includes context object."""
+    tag = uuid.uuid4().hex[:8]
+    eid = f"sensor.ctx_{tag}"
+    await rest.set_state(eid, "1")
+    state = await rest.get_state(eid)
+    assert "context" in state
+    ctx = state["context"]
+    assert "id" in ctx
+
+
+# ── Entity Count and Remove (from depth) ───────────────
+
+
+async def test_entity_count_increases(rest):
+    """Creating entities increases total entity count."""
+    s1 = await rest.get_states()
+    tag = uuid.uuid4().hex[:8]
+    await rest.set_state(f"sensor.cnt_{tag}", "1")
+    s2 = await rest.get_states()
+    assert len(s2) >= len(s1) + 1
+
+
+async def test_delete_entity_decreases_count(rest):
+    """Deleting entity decreases count."""
+    tag = uuid.uuid4().hex[:8]
+    eid = f"sensor.del_cnt_{tag}"
+    await rest.set_state(eid, "1")
+    before = await rest.get_states()
+    resp = await rest.client.delete(
+        f"{rest.base_url}/api/states/{eid}",
+        headers=rest._headers(),
+    )
+    assert resp.status_code == 200
+    after = await rest.get_states()
+    assert len(after) < len(before)
+
+
+# ── State Object Fields (from depth) ──────────────────
+
+
+async def test_entity_id_in_state(rest):
+    """Returned state includes the entity_id field."""
+    tag = uuid.uuid4().hex[:8]
+    eid = f"sensor.eid_{tag}"
+    await rest.set_state(eid, "1")
+    state = await rest.get_state(eid)
+    assert state["entity_id"] == eid
+
+
+async def test_state_value_is_string(rest):
+    """State value is always a string."""
+    tag = uuid.uuid4().hex[:8]
+    eid = f"sensor.str_{tag}"
+    await rest.set_state(eid, "42")
+    state = await rest.get_state(eid)
+    assert isinstance(state["state"], str)
+    assert state["state"] == "42"
+
+
+# ── Attributes (from depth) ───────────────────────────
+
+
+async def test_attributes_default_empty(rest):
+    """Attributes default to empty dict when not provided."""
+    tag = uuid.uuid4().hex[:8]
+    eid = f"sensor.adef_{tag}"
+    await rest.set_state(eid, "1")
+    state = await rest.get_state(eid)
+    assert isinstance(state["attributes"], dict)
+
+
+async def test_attributes_preserved_on_state_change(rest):
+    """Setting state with same attributes preserves them."""
+    tag = uuid.uuid4().hex[:8]
+    eid = f"sensor.apres_{tag}"
+    await rest.set_state(eid, "1", {"unit": "W", "friendly_name": "Power"})
+    await rest.set_state(eid, "2", {"unit": "W", "friendly_name": "Power"})
+    state = await rest.get_state(eid)
+    assert state["state"] == "2"
+    assert state["attributes"]["unit"] == "W"
+    assert state["attributes"]["friendly_name"] == "Power"

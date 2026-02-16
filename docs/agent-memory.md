@@ -15,9 +15,9 @@
 
 ## Key Files
 - `marge-core/src/` — api.rs(~2100), auth.rs(~240), automation.rs(1220), discovery.rs(830), mqtt.rs(229), recorder.rs(~875), scene.rs(87), services.rs(851), state.rs(169), template.rs(506), websocket.rs(554), main.rs(~375), plugins.rs(~600)
-- `marge-core/src/integrations/` — zigbee2mqtt.rs(417), zwave.rs(302), tasmota.rs(344), esphome.rs(269), weather.rs(212), shelly.rs(470), hue.rs(676)
-- `marge-ui/src/` — App.tsx(~960), IntegrationManager.tsx(~690), AutomationEditor.tsx(487), LoginPage.tsx(74), EntityCard.tsx(836), EntityDetail.tsx(815), + 12 more
-- `tests/` — 3633 CTS tests across 120+ test files
+- `marge-core/src/integrations/` — zigbee2mqtt.rs(417), zwave.rs(302), tasmota.rs(344), esphome.rs(269), weather.rs(212), shelly.rs(470), hue.rs(676), cast.rs, sonos.rs, matter.rs(460)
+- `marge-ui/src/` — App.tsx(~960), IntegrationManager.tsx(~980), AutomationEditor.tsx(487), LoginPage.tsx(74), EntityCard.tsx(836), EntityDetail.tsx(815), + 12 more
+- `tests/` — 4854+ CTS tests across 120+ test files
 
 ## Phase Tracker
 See [phase-tracker.md](phase-tracker.md) for detailed status.
@@ -27,9 +27,9 @@ See [phase-tracker.md](phase-tracker.md) for detailed status.
 - **Phase 4 (Frontend + Auth)**: COMPLETE — 8-tab UI, login, automation editor, integrations
 - **Phase 5 (Plugin System)**: MOSTLY COMPLETE — WASM runtime, weather, webhooks
 - **Phase 6 (Production)**: MOSTLY COMPLETE — backup/restore, graceful shutdown, history
-- **Phase 7 (Local Network)**: IN PROGRESS — Shelly DONE, Hue DONE, WASM HTTP DONE; Cast, Sonos, Matter remaining
-- **Coverage**: ~80% now (Shelly+Hue done), ~85% after Cast+Sonos+Matter
-- CTS: 4818/4818 green (2026-02-16)
+- **Phase 7 (Local Network)**: COMPLETE — Shelly, Hue, Cast, Sonos, Matter + WASM HTTP host functions
+- **Coverage**: ~85% of homes (10 integrations)
+- CTS: 2401 tests / 177 files (pruned from 4854/411 on 2026-02-16), 86/86 Rust unit tests
 
 ## Critical Gotchas
 - **rumqttd 0.19**: No Default for ServerSettings, `broker.start()` is blocking (use spawn_blocking)

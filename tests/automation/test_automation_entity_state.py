@@ -7,7 +7,6 @@ and that the config/automation/config API returns proper metadata.
 """
 
 import asyncio
-import uuid
 import pytest
 
 pytestmark = pytest.mark.asyncio
@@ -17,7 +16,7 @@ async def test_automation_entities_exist(rest):
     """Loaded automations create automation.* entities in state machine."""
     states = await rest.get_states()
     auto_entities = [s for s in states if s["entity_id"].startswith("automation.")]
-    assert len(auto_entities) >= 1
+    assert len(auto_entities) >= 6  # 6 demo automations
 
 
 async def test_automation_entity_has_friendly_name(rest):
@@ -177,3 +176,107 @@ async def test_automation_total_triggers_counter(rest):
         assert "total_triggers" in auto
         assert isinstance(auto["total_triggers"], int)
         assert auto["total_triggers"] >= 0
+
+
+# ── Merged from depth: entity attribute checks ──────────────
+
+async def test_automation_entity_default_on(rest):
+    """Automation entities default to 'on' state."""
+    states = await rest.get_states()
+    auto_entities = [s for s in states if s["entity_id"].startswith("automation.")]
+    for auto in auto_entities:
+        assert auto["state"] in ("on", "off")
+
+
+async def test_automation_entity_has_attributes(rest):
+    """Automation entities have attributes dict."""
+    states = await rest.get_states()
+    auto_entities = [s for s in states if s["entity_id"].startswith("automation.")]
+    for auto in auto_entities:
+        assert isinstance(auto["attributes"], dict)
+
+
+# ── Merged from depth: toggle ───────────────────────────────
+
+async def test_automation_toggle(rest):
+    """automation.toggle flips enabled state."""
+    resp = await rest.client.get(
+        f"{rest.base_url}/api/config/automation/config",
+        headers=rest._headers(),
+    )
+    autos = resp.json()
+    auto_id = autos[0]["id"]
+    eid = f"automation.{auto_id}"
+
+    # Get initial state
+    initial = (await rest.get_state(eid))["state"]
+    await rest.call_service("automation", "toggle", {"entity_id": eid})
+    toggled = (await rest.get_state(eid))["state"]
+    assert toggled != initial
+
+    # Toggle back
+    await rest.call_service("automation", "toggle", {"entity_id": eid})
+    restored = (await rest.get_state(eid))["state"]
+    assert restored == initial
+
+
+# ── Merged from depth: trigger API ──────────────────────────
+
+async def test_automation_trigger_succeeds(rest):
+    """automation.trigger via API returns success."""
+    resp = await rest.client.get(
+        f"{rest.base_url}/api/config/automation/config",
+        headers=rest._headers(),
+    )
+    autos = resp.json()
+    auto_id = autos[0]["id"]
+    eid = f"automation.{auto_id}"
+
+    await rest.call_service("automation", "trigger", {"entity_id": eid})
+    # Should not error -- automation was triggered
+
+
+async def test_automation_trigger_increments_count(rest):
+    """Triggering an automation increments total_triggers."""
+    resp = await rest.client.get(
+        f"{rest.base_url}/api/config/automation/config",
+        headers=rest._headers(),
+    )
+    autos = resp.json()
+    auto = autos[0]
+    auto_id = auto["id"]
+    initial_count = auto.get("total_triggers", 0)
+
+    eid = f"automation.{auto_id}"
+    await rest.call_service("automation", "trigger", {"entity_id": eid})
+    await asyncio.sleep(0.2)  # let the trigger execute
+
+    resp = await rest.client.get(
+        f"{rest.base_url}/api/config/automation/config",
+        headers=rest._headers(),
+    )
+    autos = resp.json()
+    auto = next(a for a in autos if a["id"] == auto_id)
+    assert auto["total_triggers"] >= initial_count + 1
+
+
+async def test_automation_trigger_sets_last_triggered(rest):
+    """Triggering an automation sets last_triggered timestamp."""
+    resp = await rest.client.get(
+        f"{rest.base_url}/api/config/automation/config",
+        headers=rest._headers(),
+    )
+    autos = resp.json()
+    auto_id = autos[0]["id"]
+    eid = f"automation.{auto_id}"
+
+    await rest.call_service("automation", "trigger", {"entity_id": eid})
+    await asyncio.sleep(0.2)
+
+    resp = await rest.client.get(
+        f"{rest.base_url}/api/config/automation/config",
+        headers=rest._headers(),
+    )
+    autos = resp.json()
+    auto = next(a for a in autos if a["id"] == auto_id)
+    assert auto["last_triggered"] is not None

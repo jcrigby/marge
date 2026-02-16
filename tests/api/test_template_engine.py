@@ -23,20 +23,21 @@ async def _render(rest, template):
     return resp
 
 
-# ── Basic Arithmetic ──────────────────────────────────────
+# ── Basic Arithmetic (parametrized) ──────────────────────
 
-async def test_template_addition(rest):
-    """Template with addition."""
-    r = await _render(rest, "{{ 1 + 2 }}")
+@pytest.mark.parametrize("template,expected", [
+    ("{{ 1 + 2 }}", "3"),
+    ("{{ 5 + 3 }}", "8"),
+    ("{{ 7 * 6 }}", "42"),
+    ("{{ 100 / 4 }}", "25"),
+    ("{{ 17 % 5 }}", "2"),
+    ("{{ (10 + 20) * 2 }}", "60"),
+])
+async def test_template_arithmetic(rest, template, expected):
+    """Template arithmetic operations."""
+    r = await _render(rest, template)
     assert r.status_code == 200
-    assert "3" in r.text
-
-
-async def test_template_multiplication(rest):
-    """Template with multiplication."""
-    r = await _render(rest, "{{ 7 * 6 }}")
-    assert r.status_code == 200
-    assert "42" in r.text
+    assert expected in r.text.strip()
 
 
 async def test_template_float_division(rest):
@@ -52,7 +53,7 @@ async def test_filter_int(rest):
     """int filter converts string to integer."""
     r = await _render(rest, "{{ '42' | int }}")
     assert r.status_code == 200
-    assert "42" in r.text
+    assert r.text.strip() == "42"
 
 
 async def test_filter_int_from_float_string(rest):
@@ -87,49 +88,53 @@ async def test_filter_default(rest):
     """default filter provides fallback for undefined."""
     r = await _render(rest, "{{ undefined_var | default('fallback') }}")
     assert r.status_code == 200
-    assert "fallback" in r.text
+    assert r.text.strip() == "fallback"
 
 
-async def test_filter_iif_truthy(rest):
-    """iif filter returns true-value for truthy input."""
-    r = await _render(rest, "{{ 1 | iif('yes', 'no') }}")
+@pytest.mark.parametrize("template,expected", [
+    ("{{ 1 | iif('yes', 'no') }}", "yes"),
+    ("{{ 0 | iif('yes', 'no') }}", "no"),
+    ("{{ true | iif('on', 'off') }}", "on"),
+    ("{{ false | iif('on', 'off') }}", "off"),
+])
+async def test_filter_iif(rest, template, expected):
+    """iif filter returns correct branch for truthy/falsy input."""
+    r = await _render(rest, template)
     assert r.status_code == 200
-    assert "yes" in r.text
+    assert r.text.strip() == expected
 
 
-async def test_filter_iif_falsy(rest):
-    """iif filter returns false-value for falsy input."""
-    r = await _render(rest, "{{ 0 | iif('yes', 'no') }}")
+@pytest.mark.parametrize("template,expected", [
+    ("{{ 'HELLO' | lower }}", "hello"),
+    ("{{ 'WORLD' | lower }}", "world"),
+    ("{{ 'hello' | upper }}", "HELLO"),
+])
+async def test_filter_case(rest, template, expected):
+    """lower/upper filters convert case."""
+    r = await _render(rest, template)
     assert r.status_code == 200
-    assert "no" in r.text
+    assert r.text.strip() == expected
 
 
-async def test_filter_lower(rest):
-    """lower filter converts to lowercase."""
-    r = await _render(rest, "{{ 'HELLO' | lower }}")
+async def test_filter_title(rest):
+    """title filter capitalizes words."""
+    r = await _render(rest, "{{ 'hello world' | title }}")
     assert r.status_code == 200
-    assert "hello" in r.text
-
-
-async def test_filter_upper(rest):
-    """upper filter converts to uppercase."""
-    r = await _render(rest, "{{ 'hello' | upper }}")
-    assert r.status_code == 200
-    assert "HELLO" in r.text
+    assert r.text.strip() == "Hello World"
 
 
 async def test_filter_trim(rest):
     """trim filter removes whitespace."""
-    r = await _render(rest, "{{ '  hello  ' | trim }}")
+    r = await _render(rest, "{{ '  spaced  ' | trim }}")
     assert r.status_code == 200
-    assert r.text.strip() == "hello"
+    assert r.text.strip() == "spaced"
 
 
 async def test_filter_replace(rest):
     """replace filter substitutes text."""
     r = await _render(rest, "{{ 'hello world' | replace('world', 'marge') }}")
     assert r.status_code == 200
-    assert "marge" in r.text
+    assert r.text.strip() == "hello marge"
 
 
 async def test_filter_abs(rest):
@@ -158,6 +163,13 @@ async def test_filter_log_natural(rest):
     r = await _render(rest, "{{ 1 | log }}")
     assert r.status_code == 200
     assert "0" in r.text  # ln(1) = 0
+
+
+async def test_filter_length(rest):
+    """length filter returns string length."""
+    r = await _render(rest, "{{ 'hello' | length }}")
+    assert r.status_code == 200
+    assert r.text.strip() == "5"
 
 
 # ── State-Aware Functions ─────────────────────────────────
@@ -292,3 +304,66 @@ async def test_states_with_float_filter(rest):
     # 72.5 rounded = 72 or 73 depending on rounding strategy
     text = r.text.strip()
     assert text in ("72", "72.0", "73", "73.0")
+
+
+# ── Merged from depth: Conditionals ──────────────────────
+
+@pytest.mark.parametrize("template,expected", [
+    ("{{ 'yes' if 2 > 1 else 'no' }}", "yes"),
+    ("{{ 'yes' if 1 > 2 else 'no' }}", "no"),
+])
+async def test_template_conditional(rest, template, expected):
+    """Template if/else evaluates correct branch."""
+    r = await _render(rest, template)
+    assert r.status_code == 200
+    assert r.text.strip() == expected
+
+
+# ── Merged from depth: Concatenation ─────────────────────
+
+async def test_template_tilde_concat(rest):
+    """Template ~ operator concatenates strings."""
+    r = await _render(rest, "{{ 'a' ~ 'b' ~ 'c' }}")
+    assert r.status_code == 200
+    assert r.text.strip() == "abc"
+
+
+# ── Merged from depth: iif with state ────────────────────
+
+async def test_template_iif_with_is_state(rest):
+    """iif returns false branch for falsy is_state result."""
+    await rest.set_state("light.iif_test_off", "off")
+    r = await _render(rest, "{{ is_state('light.iif_test_off', 'on') | iif('yes', 'no') }}")
+    assert r.status_code == 200
+    assert r.text.strip() == "no"
+
+
+# ── Merged from depth: state_attr missing ────────────────
+
+async def test_template_state_attr_missing(rest):
+    """state_attr for missing attribute returns empty with default."""
+    await rest.set_state("sensor.attr_miss", "42")
+    r = await _render(rest, "{{ state_attr('sensor.attr_miss', 'nonexistent') | default('none') }}")
+    assert r.status_code == 200
+    assert r.text.strip() == "none"
+
+
+# ── Merged from depth: For Loop ──────────────────────────
+
+async def test_template_for_loop(rest):
+    """Template for loop iteration works."""
+    r = await _render(rest, "{% for i in range(3) %}{{ i }}{% endfor %}")
+    assert r.status_code == 200
+    assert r.text.strip() == "012"
+
+
+# ── Merged from depth: Multi-line Templates ──────────────
+
+async def test_template_multiline(rest):
+    """Multi-line template renders correctly."""
+    tmpl = "line1\n{{ 2 + 3 }}\nline3"
+    r = await _render(rest, tmpl)
+    assert r.status_code == 200
+    assert "5" in r.text
+    assert "line1" in r.text
+    assert "line3" in r.text

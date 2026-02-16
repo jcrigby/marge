@@ -23,8 +23,8 @@ async def test_ws_area_create(ws, rest):
     assert "ws_test_area" in area_ids
 
 
-async def test_ws_area_create_missing_fields(ws):
-    """WS config/area_registry/create with missing fields fails."""
+async def test_ws_area_create_missing_id(ws):
+    """WS config/area_registry/create with missing area_id fails."""
     resp = await ws.send_command("config/area_registry/create",
         name="No ID")
     assert resp["success"] is False
@@ -141,3 +141,77 @@ async def test_ws_subscribe_trigger(ws):
     resp = await ws.send_command("subscribe_trigger",
         trigger={"platform": "state", "entity_id": "light.test"})
     assert resp["success"] is True
+
+
+# ── Merged from test_ws_registry_depth.py ────────────────
+
+
+async def test_ws_area_list(ws):
+    """WS config/area_registry/list returns area list."""
+    await ws.send_command(
+        "config/area_registry/create",
+        area_id="ws_depth_area4",
+        name="Listed Area",
+    )
+    resp = await ws.send_command("config/area_registry/list")
+    assert resp["success"] is True
+    areas = resp["result"]
+    assert isinstance(areas, list)
+    ids = [a["area_id"] for a in areas]
+    assert "ws_depth_area4" in ids
+
+
+async def test_ws_area_create_empty_fields(ws):
+    """WS area create with empty fields fails."""
+    resp = await ws.send_command(
+        "config/area_registry/create",
+        area_id="",
+        name="",
+    )
+    assert resp["success"] is False
+
+
+async def test_ws_entity_registry_list(ws):
+    """WS config/entity_registry/list returns entity list."""
+    resp = await ws.send_command("config/entity_registry/list")
+    assert resp["success"] is True
+    entries = resp["result"]
+    assert isinstance(entries, list)
+    if len(entries) > 0:
+        assert "entity_id" in entries[0]
+        assert "name" in entries[0]
+
+
+async def test_ws_label_list(ws):
+    """WS config/label_registry/list returns labels."""
+    await ws.send_command(
+        "config/label_registry/create",
+        label_id="ws_depth_lbl3",
+        name="Listed Label",
+        color="#0000ff",
+    )
+    resp = await ws.send_command("config/label_registry/list")
+    assert resp["success"] is True
+    labels = resp["result"]
+    assert isinstance(labels, list)
+
+
+async def test_ws_ping_pong(ws):
+    """WS ping returns pong response."""
+    resp = await ws.send_command("ping")
+    # The response format for ping is special: type=pong, no success field
+    # OR it might be wrapped as a result. Accept either format.
+    assert resp is not None
+
+
+async def test_ws_unknown_command(ws):
+    """WS unknown command returns failure."""
+    resp = await ws.send_command("nonexistent_command_xyz")
+    assert resp["success"] is False
+
+
+async def test_ws_get_notifications(ws):
+    """WS get_notifications returns notification list."""
+    resp = await ws.send_command("get_notifications")
+    assert resp["success"] is True
+    assert isinstance(resp["result"], list)

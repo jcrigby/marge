@@ -119,3 +119,69 @@ async def test_evening_scene_applies_rgb_color():
     accent = await get_state("light.living_room_accent")
     assert accent["state"] == "on"
     assert accent["attributes"]["rgb_color"] == [255, 147, 41]
+
+
+# -- merged from test_scene_engine_depth.py --
+
+@pytest.mark.asyncio
+async def test_scene_config_has_evening():
+    """Scene config includes evening scene."""
+    async with httpx.AsyncClient() as c:
+        resp = await c.get(f"{BASE}/api/config/scene/config", headers=HEADERS)
+    data = resp.json()
+    ids = [s["id"] for s in data]
+    assert "evening" in ids
+
+
+@pytest.mark.asyncio
+async def test_scene_config_has_goodnight():
+    """Scene config includes goodnight scene."""
+    async with httpx.AsyncClient() as c:
+        resp = await c.get(f"{BASE}/api/config/scene/config", headers=HEADERS)
+    data = resp.json()
+    ids = [s["id"] for s in data]
+    assert "goodnight" in ids
+
+
+@pytest.mark.asyncio
+async def test_evening_has_5_entities():
+    """Evening scene controls 5 entities."""
+    async with httpx.AsyncClient() as c:
+        resp = await c.get(f"{BASE}/api/config/scene/config", headers=HEADERS)
+    data = resp.json()
+    evening = next(s for s in data if s["id"] == "evening")
+    assert evening["entity_count"] == 5
+
+
+@pytest.mark.asyncio
+async def test_goodnight_has_9_entities():
+    """Goodnight scene controls 9 entities (all lights)."""
+    async with httpx.AsyncClient() as c:
+        resp = await c.get(f"{BASE}/api/config/scene/config", headers=HEADERS)
+    data = resp.json()
+    goodnight = next(s for s in data if s["id"] == "goodnight")
+    assert goodnight["entity_count"] == 9
+
+
+@pytest.mark.asyncio
+async def test_evening_scene_sets_media_player():
+    """Evening scene sets media_player to on with source."""
+    await set_state("media_player.living_room", "off")
+    await call_service("scene", "turn_on", {"entity_id": "scene.evening"})
+    await asyncio.sleep(0.3)
+    state = await get_state("media_player.living_room")
+    assert state["state"] == "on"
+    assert state["attributes"].get("source") == "Music"
+
+
+@pytest.mark.asyncio
+async def test_scene_preserves_friendly_name():
+    """Scene activation preserves existing friendly_name attribute."""
+    await set_state("light.living_room_main", "off", {
+        "friendly_name": "Main Light",
+        "icon": "mdi:ceiling-light",
+    })
+    await call_service("scene", "turn_on", {"entity_id": "scene.evening"})
+    await asyncio.sleep(0.3)
+    state = await get_state("light.living_room_main")
+    assert state["attributes"].get("friendly_name") == "Main Light"

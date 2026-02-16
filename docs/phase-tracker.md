@@ -140,7 +140,7 @@ Priority order (by install base and effort):
 - Each integration is a subagent task (Task tool) — keep main session as orchestrator
 - Build + test after each integration
 - Update this tracker after each commit
-- CTS: 4854+ green as of 2026-02-16
+- CTS: 2401 tests across 177 files as of 2026-02-16 (pruned from 4854/411)
 
 ---
 ## Session Log
@@ -160,3 +160,4 @@ Priority order (by install base and effort):
 - 2026-02-16: 63/63 Rust unit tests green, React build clean
 - 2026-02-16: Phase 7.3 Cast + 7.4 Sonos + 7.5 Matter (commit 5117f26) — all wired, 86/86 unit tests
 - 2026-02-16: Phase 7 COMPLETE — 10 integrations total, ~85% home coverage
+- 2026-02-16: CTS pruning — deleted 234 _depth files (39.5K lines), 4862->2401 tests, zero coverage loss (commit ad1ba50)

@@ -1,9 +1,11 @@
-"""CTS — MQTT bridge tests.
+"""CTS -- MQTT bridge tests.
 
 Tests that MQTT publishes to Marge's embedded broker
 are bridged into the state machine and trigger automations.
 """
 import asyncio
+import time
+
 import pytest
 import httpx
 import paho.mqtt.client as mqtt
@@ -29,12 +31,12 @@ async def set_state(entity_id: str, state: str, attrs: dict | None = None):
         assert r.status_code == 200
 
 
-def mqtt_publish(topic: str, payload: str):
-    c = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2, client_id=f"cts-{topic.replace('/', '-')}")
+def mqtt_publish(topic: str, payload: str, retain: bool = True):
+    c = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2, client_id=f"cts-{topic.replace('/', '-')[:18]}")
     c.connect(MQTT_HOST, MQTT_PORT, keepalive=10)
     c.loop_start()
-    c.publish(topic, payload, retain=True)
-    import time; time.sleep(0.3)
+    c.publish(topic, payload, retain=retain)
+    time.sleep(0.3)
     c.loop_stop()
     c.disconnect()
 
@@ -90,3 +92,78 @@ async def test_mqtt_triggers_automation():
     # Automation should have fired: locks unlocked
     front = await get_state("lock.front_door")
     assert front["state"] == "unlocked", "Smoke emergency should unlock front door via MQTT trigger"
+
+
+# ── Merged from test_mqtt_bridge_depth.py ────────────────
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("domain,entity_name,payload,expected_state", [
+    ("alarm_control_panel", "test_bdep_alarm", "armed_home", "armed_home"),
+    ("fan", "test_bdep_fan", "on", "on"),
+    ("media_player", "test_bdep_mp", "playing", "playing"),
+    ("vacuum", "test_bdep_vac", "cleaning", "cleaning"),
+    ("input_boolean", "test_bdep_ib", "on", "on"),
+], ids=["alarm-panel", "fan", "media-player", "vacuum", "input-boolean"])
+async def test_mqtt_domain_bridge(domain, entity_name, payload, expected_state):
+    """MQTT state bridge works for various domains."""
+    mqtt_publish(f"home/{domain}/{entity_name}/state", payload)
+    await asyncio.sleep(0.3)
+    s = await get_state(f"{domain}.{entity_name}")
+    assert s is not None
+    assert s["state"] == expected_state
+
+
+@pytest.mark.asyncio
+async def test_mqtt_state_overwrite():
+    """MQTT message overwrites existing state."""
+    mqtt_publish("home/sensor/test_bdep_overwrite/state", "first")
+    await asyncio.sleep(0.3)
+    mqtt_publish("home/sensor/test_bdep_overwrite/state", "second")
+    await asyncio.sleep(0.3)
+    s = await get_state("sensor.test_bdep_overwrite")
+    assert s["state"] == "second"
+
+
+@pytest.mark.asyncio
+async def test_mqtt_state_preserves_multiple_rest_attrs():
+    """MQTT state update preserves multiple attributes set via REST."""
+    await set_state("sensor.test_bdep_preserve", "10", {"location": "kitchen", "type": "temp"})
+    await asyncio.sleep(0.1)
+    mqtt_publish("home/sensor/test_bdep_preserve/state", "20")
+    await asyncio.sleep(0.3)
+    s = await get_state("sensor.test_bdep_preserve")
+    assert s["state"] == "20"
+    assert s["attributes"]["location"] == "kitchen"
+    assert s["attributes"]["type"] == "temp"
+
+
+@pytest.mark.asyncio
+async def test_mqtt_unicode_payload():
+    """MQTT bridge handles unicode payloads."""
+    mqtt_publish("home/sensor/test_bdep_unicode/state", "23.5\u00b0C")
+    await asyncio.sleep(0.3)
+    s = await get_state("sensor.test_bdep_unicode")
+    assert s["state"] == "23.5\u00b0C"
+
+
+@pytest.mark.asyncio
+async def test_mqtt_empty_payload():
+    """MQTT empty payload sets empty string state."""
+    mqtt_publish("home/sensor/test_bdep_empty/state", "")
+    await asyncio.sleep(0.3)
+    s = await get_state("sensor.test_bdep_empty")
+    assert s is not None
+    assert s["state"] == ""
+
+
+@pytest.mark.asyncio
+async def test_mqtt_sets_timestamps():
+    """MQTT state change sets last_changed and last_updated."""
+    mqtt_publish("home/sensor/test_bdep_ts/state", "with_timestamps")
+    await asyncio.sleep(0.3)
+    s = await get_state("sensor.test_bdep_ts")
+    assert s is not None
+    assert "last_changed" in s
+    assert "last_updated" in s
+    assert len(s["last_changed"]) > 0

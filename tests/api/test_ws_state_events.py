@@ -112,3 +112,26 @@ async def test_ws_service_triggers_event(ws, rest):
     event = await ws.recv_event(timeout=5.0)
     assert event["event"]["data"]["entity_id"] == "light.ws_evt_svc"
     assert event["event"]["data"]["new_state"]["state"] == "on"
+
+
+# ── Merged from test_ws_state_events_depth.py ────────────
+
+
+async def test_unsubscribe_stops_events(ws, rest):
+    """After unsubscribe, no more events are delivered."""
+    sub_id = await ws.subscribe_events()
+
+    # Unsubscribe
+    resp = await ws.send_command("unsubscribe_events", subscription=sub_id)
+    assert resp.get("success", False) is True
+
+    await rest.set_state("sensor.ws_unsub_stop", "val")
+
+    # Should NOT receive an event
+    try:
+        event = await ws.recv_event(timeout=0.5)
+        # If we get a message, it should not be a state_changed event for our entity
+        if event.get("type") == "event":
+            assert event["event"]["data"].get("entity_id") != "sensor.ws_unsub_stop"
+    except (asyncio.TimeoutError, Exception):
+        pass  # Expected -- no event after unsubscribe

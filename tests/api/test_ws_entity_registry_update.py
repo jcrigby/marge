@@ -186,3 +186,58 @@ async def test_ws_entity_registry_platform_mqtt(ws, rest):
     found = [e for e in entries if e["entity_id"] == eid]
     assert len(found) == 1
     assert found[0]["platform"] == "mqtt"
+
+
+# ── Merged from test_ws_entity_registry_update_depth.py ──────
+
+
+async def test_entity_registry_update_nonexistent_fails(ws):
+    """config/entity_registry/update on non-existent entity returns failure."""
+    resp = await ws.send_command(
+        "config/entity_registry/update",
+        entity_id="sensor.nonexistent_xyz_99",
+        name="Nope",
+    )
+    assert resp["success"] is False
+
+
+async def test_lovelace_config_returns_stub(ws):
+    """lovelace/config returns a minimal config with views and title."""
+    resp = await ws.send_command("lovelace/config")
+    assert resp["success"] is True
+    config = resp["result"]
+    assert "views" in config
+    assert isinstance(config["views"], list)
+    assert config["title"] == "Marge"
+
+
+async def test_subscribe_trigger(ws):
+    """subscribe_trigger returns success."""
+    resp = await ws.send_command("subscribe_trigger")
+    assert resp["success"] is True
+
+
+async def test_unsubscribe_events(ws):
+    """unsubscribe_events returns success."""
+    # First subscribe to get a subscription ID
+    sub_id = await ws.subscribe_events()
+    resp = await ws.send_command("unsubscribe_events", subscription=sub_id)
+    assert resp["success"] is True
+
+
+async def test_unknown_command_returns_failure(ws):
+    """Unknown WS command returns success=false."""
+    resp = await ws.send_command("totally_unknown_command_xyz")
+    assert resp["success"] is False
+
+
+async def test_entity_registry_list(rest, ws):
+    """config/entity_registry/list returns entity entries."""
+    tag = uuid.uuid4().hex[:8]
+    eid = f"sensor.rl_{tag}"
+    await rest.set_state(eid, "1")
+    resp = await ws.send_command("config/entity_registry/list")
+    assert resp["success"] is True
+    entries = resp["result"]
+    assert isinstance(entries, list)
+    assert any(e["entity_id"] == eid for e in entries)

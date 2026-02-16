@@ -10,42 +10,21 @@ import pytest
 pytestmark = pytest.mark.asyncio
 
 
-# ── Timer ─────────────────────────────────────────────────
+# ── Timer state transitions (parametrized) ───────────────────
 
-async def test_timer_start(rest):
-    """timer.start sets state to 'active'."""
-    entity_id = "timer.test_start"
-    await rest.set_state(entity_id, "idle")
-    await rest.call_service("timer", "start", {"entity_id": entity_id})
+@pytest.mark.parametrize("initial_state,service,expected_state", [
+    ("idle", "start", "active"),
+    ("active", "pause", "paused"),
+    ("active", "cancel", "idle"),
+    ("active", "finish", "idle"),
+])
+async def test_timer_service(rest, initial_state, service, expected_state):
+    """Timer service sets expected state."""
+    entity_id = f"timer.test_{service}"
+    await rest.set_state(entity_id, initial_state)
+    await rest.call_service("timer", service, {"entity_id": entity_id})
     state = await rest.get_state(entity_id)
-    assert state["state"] == "active"
-
-
-async def test_timer_pause(rest):
-    """timer.pause sets state to 'paused'."""
-    entity_id = "timer.test_pause"
-    await rest.set_state(entity_id, "active")
-    await rest.call_service("timer", "pause", {"entity_id": entity_id})
-    state = await rest.get_state(entity_id)
-    assert state["state"] == "paused"
-
-
-async def test_timer_cancel(rest):
-    """timer.cancel sets state to 'idle'."""
-    entity_id = "timer.test_cancel"
-    await rest.set_state(entity_id, "active")
-    await rest.call_service("timer", "cancel", {"entity_id": entity_id})
-    state = await rest.get_state(entity_id)
-    assert state["state"] == "idle"
-
-
-async def test_timer_finish(rest):
-    """timer.finish sets state to 'idle'."""
-    entity_id = "timer.test_finish"
-    await rest.set_state(entity_id, "active")
-    await rest.call_service("timer", "finish", {"entity_id": entity_id})
-    state = await rest.get_state(entity_id)
-    assert state["state"] == "idle"
+    assert state["state"] == expected_state
 
 
 async def test_timer_lifecycle(rest):
@@ -70,7 +49,7 @@ async def test_timer_lifecycle(rest):
     assert state["state"] == "idle"
 
 
-# ── Counter ───────────────────────────────────────────────
+# ── Counter ──────────────────────────────────────────────────
 
 async def test_counter_increment(rest):
     """counter.increment increases counter by 1."""
@@ -90,22 +69,18 @@ async def test_counter_decrement(rest):
     assert state["state"] == "4"
 
 
-async def test_counter_reset(rest):
-    """counter.reset returns counter to initial (default 0)."""
-    entity_id = "counter.test_reset"
-    await rest.set_state(entity_id, "42")
+@pytest.mark.parametrize("initial_value,initial_attr,expected", [
+    ("42", {}, "0"),
+    ("99", {"initial": 10}, "10"),
+    ("10", {"initial": 5}, "5"),
+])
+async def test_counter_reset(rest, initial_value, initial_attr, expected):
+    """counter.reset returns counter to initial value (default 0)."""
+    entity_id = f"counter.test_reset_{initial_value}_{expected}"
+    await rest.set_state(entity_id, initial_value, initial_attr if initial_attr else None)
     await rest.call_service("counter", "reset", {"entity_id": entity_id})
     state = await rest.get_state(entity_id)
-    assert state["state"] == "0"
-
-
-async def test_counter_reset_with_initial(rest):
-    """counter.reset returns counter to initial attribute value."""
-    entity_id = "counter.test_reset_initial"
-    await rest.set_state(entity_id, "99", {"initial": 10})
-    await rest.call_service("counter", "reset", {"entity_id": entity_id})
-    state = await rest.get_state(entity_id)
-    assert state["state"] == "10"
+    assert state["state"] == expected
 
 
 async def test_counter_multiple_increments(rest):
@@ -125,3 +100,14 @@ async def test_counter_negative(rest):
     await rest.call_service("counter", "decrement", {"entity_id": entity_id})
     state = await rest.get_state(entity_id)
     assert state["state"] == "-1"
+
+
+# ── Merged from depth: counter preserves attributes ──────────
+
+async def test_counter_preserves_attrs(rest):
+    """Counter operations preserve attributes."""
+    await rest.set_state("counter.depth_c7", "0", {"step": 1, "minimum": 0})
+    await rest.call_service("counter", "increment", {"entity_id": "counter.depth_c7"})
+    state = await rest.get_state("counter.depth_c7")
+    assert state["state"] == "1"
+    assert state["attributes"]["step"] == 1

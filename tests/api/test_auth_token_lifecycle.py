@@ -2,24 +2,46 @@
 CTS -- Auth Token Lifecycle Tests
 
 Tests long-lived access token CRUD via REST API:
-create, list, delete, and token format validation.
+create, list, delete, token format validation, and full lifecycle.
 """
 
+import uuid
 import pytest
 
 pytestmark = pytest.mark.asyncio
 
 
-async def test_create_token(rest):
-    """POST /api/auth/tokens creates a token with name."""
+async def _create_token(rest, name):
     resp = await rest.client.post(
         f"{rest.base_url}/api/auth/tokens",
-        json={"name": "CTS Test Token"},
+        json={"name": name},
         headers=rest._headers(),
     )
     assert resp.status_code == 200
-    data = resp.json()
-    assert data["name"] == "CTS Test Token"
+    return resp.json()
+
+
+async def _list_tokens(rest):
+    resp = await rest.client.get(
+        f"{rest.base_url}/api/auth/tokens",
+        headers=rest._headers(),
+    )
+    assert resp.status_code == 200
+    return resp.json()
+
+
+async def _delete_token(rest, token_id):
+    return await rest.client.delete(
+        f"{rest.base_url}/api/auth/tokens/{token_id}",
+        headers=rest._headers(),
+    )
+
+
+async def test_create_token(rest):
+    """POST /api/auth/tokens creates a token with name."""
+    tag = uuid.uuid4().hex[:8]
+    data = await _create_token(rest, f"CTS Test Token {tag}")
+    assert data["name"] == f"CTS Test Token {tag}"
     assert "id" in data
     assert data["id"].startswith("tok_")
     assert "token" in data
@@ -28,21 +50,11 @@ async def test_create_token(rest):
 
 
 async def test_list_tokens(rest):
-    """GET /api/auth/tokens returns token list."""
-    # Create a token first
-    create_resp = await rest.client.post(
-        f"{rest.base_url}/api/auth/tokens",
-        json={"name": "List Test Token"},
-        headers=rest._headers(),
-    )
-    created = create_resp.json()
+    """GET /api/auth/tokens returns token list containing created token."""
+    tag = uuid.uuid4().hex[:8]
+    created = await _create_token(rest, f"List Test Token {tag}")
 
-    resp = await rest.client.get(
-        f"{rest.base_url}/api/auth/tokens",
-        headers=rest._headers(),
-    )
-    assert resp.status_code == 200
-    tokens = resp.json()
+    tokens = await _list_tokens(rest)
     assert isinstance(tokens, list)
     # Token should appear in listing
     ids = [t["id"] for t in tokens]
@@ -51,52 +63,33 @@ async def test_list_tokens(rest):
 
 async def test_list_tokens_hides_value(rest):
     """Token listing does not expose token values."""
-    await rest.client.post(
-        f"{rest.base_url}/api/auth/tokens",
-        json={"name": "Hidden Value Token"},
-        headers=rest._headers(),
-    )
+    tag = uuid.uuid4().hex[:8]
+    await _create_token(rest, f"Hidden Value Token {tag}")
 
-    resp = await rest.client.get(
-        f"{rest.base_url}/api/auth/tokens",
-        headers=rest._headers(),
-    )
-    tokens = resp.json()
+    tokens = await _list_tokens(rest)
     for tok in tokens:
         assert tok.get("token") is None, "Token value should not be exposed in listing"
 
 
 async def test_delete_token(rest):
     """DELETE /api/auth/tokens/{id} removes a token."""
-    create_resp = await rest.client.post(
-        f"{rest.base_url}/api/auth/tokens",
-        json={"name": "Delete Me Token"},
-        headers=rest._headers(),
-    )
-    token_id = create_resp.json()["id"]
+    tag = uuid.uuid4().hex[:8]
+    created = await _create_token(rest, f"Delete Me Token {tag}")
+    token_id = created["id"]
 
-    resp = await rest.client.delete(
-        f"{rest.base_url}/api/auth/tokens/{token_id}",
-        headers=rest._headers(),
-    )
+    resp = await _delete_token(rest, token_id)
     assert resp.status_code == 200
     assert resp.json()["result"] == "ok"
 
     # Verify it's gone from listing
-    list_resp = await rest.client.get(
-        f"{rest.base_url}/api/auth/tokens",
-        headers=rest._headers(),
-    )
-    ids = [t["id"] for t in list_resp.json()]
+    tokens = await _list_tokens(rest)
+    ids = [t["id"] for t in tokens]
     assert token_id not in ids
 
 
 async def test_delete_nonexistent_token_404(rest):
     """DELETE /api/auth/tokens/{bad_id} returns 404."""
-    resp = await rest.client.delete(
-        f"{rest.base_url}/api/auth/tokens/tok_nonexistent",
-        headers=rest._headers(),
-    )
+    resp = await _delete_token(rest, "tok_nonexistent_xyz_99")
     assert resp.status_code == 404
 
 
@@ -110,40 +103,25 @@ async def test_create_token_missing_name_400(rest):
     assert resp.status_code == 400
 
 
-async def test_token_id_format(rest):
-    """Token IDs follow tok_ prefix format."""
-    resp = await rest.client.post(
-        f"{rest.base_url}/api/auth/tokens",
-        json={"name": "Format Check"},
-        headers=rest._headers(),
-    )
-    data = resp.json()
-    assert data["id"].startswith("tok_")
-    assert len(data["id"]) > 10  # tok_ + uuid
-
-
-async def test_token_value_format(rest):
-    """Token values follow marge_ prefix format."""
-    resp = await rest.client.post(
-        f"{rest.base_url}/api/auth/tokens",
-        json={"name": "Value Format"},
-        headers=rest._headers(),
-    )
-    data = resp.json()
-    assert data["token"].startswith("marge_")
-    assert len(data["token"]) > 10
+@pytest.mark.parametrize("field,prefix,min_len", [
+    ("id", "tok_", 10),
+    ("token", "marge_", 10),
+])
+async def test_token_field_format(rest, field, prefix, min_len):
+    """Token fields follow expected prefix format."""
+    tag = uuid.uuid4().hex[:8]
+    data = await _create_token(rest, f"Format Check {tag}")
+    assert data[field].startswith(prefix)
+    assert len(data[field]) > min_len
 
 
 async def test_multiple_tokens_unique_ids(rest):
     """Multiple tokens have unique IDs and values."""
     tokens = []
     for i in range(3):
-        resp = await rest.client.post(
-            f"{rest.base_url}/api/auth/tokens",
-            json={"name": f"Multi Token {i}"},
-            headers=rest._headers(),
-        )
-        tokens.append(resp.json())
+        tag = uuid.uuid4().hex[:8]
+        data = await _create_token(rest, f"Multi Token {i} {tag}")
+        tokens.append(data)
 
     ids = [t["id"] for t in tokens]
     values = [t["token"] for t in tokens]
@@ -153,11 +131,38 @@ async def test_multiple_tokens_unique_ids(rest):
 
 async def test_token_has_created_at(rest):
     """Token created_at is an ISO timestamp."""
-    resp = await rest.client.post(
-        f"{rest.base_url}/api/auth/tokens",
-        json={"name": "Timestamp Token"},
-        headers=rest._headers(),
-    )
-    data = resp.json()
+    tag = uuid.uuid4().hex[:8]
+    data = await _create_token(rest, f"Timestamp Token {tag}")
     assert "T" in data["created_at"]
     assert "20" in data["created_at"]
+
+
+# ── Listed Token Fields (from depth) ──────────────────
+
+
+async def test_listed_token_has_name(rest):
+    """Listed tokens have name field matching creation name."""
+    tag = uuid.uuid4().hex[:8]
+    name = f"named_{tag}"
+    created = await _create_token(rest, name)
+    tokens = await _list_tokens(rest)
+    token = next(t for t in tokens if t["id"] == created["id"])
+    assert token["name"] == name
+
+
+# ── Full Lifecycle (from depth) ────────────────────────
+
+
+async def test_token_full_lifecycle(rest):
+    """Token: create -> list -> verify -> delete -> confirm gone."""
+    tag = uuid.uuid4().hex[:8]
+    created = await _create_token(rest, f"life_{tag}")
+
+    tokens = await _list_tokens(rest)
+    assert any(t["id"] == created["id"] for t in tokens)
+
+    resp = await _delete_token(rest, created["id"])
+    assert resp.status_code == 200
+
+    tokens = await _list_tokens(rest)
+    assert not any(t["id"] == created["id"] for t in tokens)

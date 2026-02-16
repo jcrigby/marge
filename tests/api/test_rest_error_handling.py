@@ -31,7 +31,7 @@ async def test_call_service_unknown_domain(rest):
         json={"entity_id": eid},
         headers=rest._headers(),
     )
-    # Should not crash — generic fallback handles it
+    # Should not crash -- generic fallback handles it
     assert resp.status_code == 200
 
 
@@ -42,7 +42,7 @@ async def test_fire_event_empty_type(rest):
         json={"data": {}},
         headers=rest._headers(),
     )
-    # Empty path segment — might be 404 or 405
+    # Empty path segment -- might be 404 or 405
     assert resp.status_code in [404, 405, 200]
 
 
@@ -159,3 +159,109 @@ async def test_set_state_preserves_entity_id_case(rest):
     await rest.set_state(eid, "on")
     state = await rest.get_state(eid)
     assert state["entity_id"] == eid
+
+
+# ── Merged from depth: 404 Responses ────────────────────
+
+async def test_get_nonexistent_state_404(rest):
+    """GET /api/states/<nonexistent> returns 404."""
+    tag = uuid.uuid4().hex[:8]
+    resp = await rest.client.get(
+        f"{rest.base_url}/api/states/sensor.no_exist_{tag}",
+        headers=rest._headers(),
+    )
+    assert resp.status_code == 404
+
+
+async def test_delete_nonexistent_state_404(rest):
+    """DELETE /api/states/<nonexistent> returns 404."""
+    tag = uuid.uuid4().hex[:8]
+    resp = await rest.client.delete(
+        f"{rest.base_url}/api/states/sensor.no_del_{tag}",
+        headers=rest._headers(),
+    )
+    assert resp.status_code == 404
+
+
+async def test_logbook_nonexistent_entity_empty(rest):
+    """GET /api/logbook/<nonexistent> returns empty array."""
+    tag = uuid.uuid4().hex[:8]
+    resp = await rest.client.get(
+        f"{rest.base_url}/api/logbook/sensor.no_log_{tag}",
+        headers=rest._headers(),
+    )
+    assert resp.status_code == 200
+    assert resp.json() == []
+
+
+# ── Merged from depth: Set State Responses ───────────────
+
+async def test_set_state_returns_entity_id(rest):
+    """POST /api/states/<eid> response includes entity_id."""
+    tag = uuid.uuid4().hex[:8]
+    eid = f"sensor.err_{tag}"
+    resp = await rest.client.post(
+        f"{rest.base_url}/api/states/{eid}",
+        headers=rest._headers(),
+        json={"state": "val"},
+    )
+    assert resp.status_code == 200 or resp.status_code == 201
+    data = resp.json()
+    assert data["entity_id"] == eid
+
+
+async def test_set_state_returns_state(rest):
+    """POST /api/states/<eid> response includes state."""
+    tag = uuid.uuid4().hex[:8]
+    eid = f"sensor.err_st_{tag}"
+    resp = await rest.client.post(
+        f"{rest.base_url}/api/states/{eid}",
+        headers=rest._headers(),
+        json={"state": "abc"},
+    )
+    data = resp.json()
+    assert data["state"] == "abc"
+
+
+async def test_set_state_returns_attributes(rest):
+    """POST /api/states/<eid> response includes attributes."""
+    tag = uuid.uuid4().hex[:8]
+    eid = f"sensor.err_attr_{tag}"
+    resp = await rest.client.post(
+        f"{rest.base_url}/api/states/{eid}",
+        headers=rest._headers(),
+        json={"state": "v", "attributes": {"key": "val"}},
+    )
+    data = resp.json()
+    assert data["attributes"]["key"] == "val"
+
+
+# ── Merged from depth: Service Call Responses ────────────
+
+async def test_service_call_returns_200(rest):
+    """POST /api/services/<domain>/<service> returns 200."""
+    tag = uuid.uuid4().hex[:8]
+    eid = f"switch.err_svc_{tag}"
+    await rest.set_state(eid, "off")
+    resp = await rest.client.post(
+        f"{rest.base_url}/api/services/switch/turn_on",
+        headers=rest._headers(),
+        json={"entity_id": eid},
+    )
+    assert resp.status_code == 200
+
+
+async def test_service_call_returns_changed_states(rest):
+    """Service call response includes changed_states when state changed."""
+    tag = uuid.uuid4().hex[:8]
+    eid = f"switch.err_chg_{tag}"
+    await rest.set_state(eid, "off")
+    resp = await rest.client.post(
+        f"{rest.base_url}/api/services/switch/turn_on",
+        headers=rest._headers(),
+        json={"entity_id": eid},
+    )
+    data = resp.json()
+    # changed_states is present when entities changed
+    if "changed_states" in data:
+        assert isinstance(data["changed_states"], list)
