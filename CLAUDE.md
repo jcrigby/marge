@@ -45,4 +45,5 @@ Two docs files serve as cross-machine breadcrumbs for session continuity:
 2. After each commit: update `docs/phase-tracker.md` (check items, add session log entry)
 3. After significant changes: update `docs/agent-memory.md` (file sizes, phase status, new gotchas)
 4. Sync both files into the commit whenever other code is being committed (no separate "docs only" commits unless nothing else changed)
-5. The `.claude/projects/` memory files should mirror `docs/agent-memory.md` content
+
+**Source of truth:** The repo docs files are canonical. Do NOT depend on `.claude/projects/` memory — it may not exist on a fresh clone. Everything needed to resume work must be in the repo.
