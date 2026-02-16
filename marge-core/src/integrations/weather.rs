@@ -85,7 +85,7 @@ struct MetNoSummary {
 pub fn start_weather_poller(app_state: Arc<AppState>, config: WeatherConfig) {
     tokio::spawn(async move {
         let client = reqwest::Client::builder()
-            .user_agent("Marge/0.1 github.com/jcrigby/marge")
+            .user_agent("Marge/0.1 github.com/sangerburgwich/marge")
             .build()
             .expect("failed to build reqwest client");
 
