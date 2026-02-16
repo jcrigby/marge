@@ -13,7 +13,7 @@ use std::sync::Arc;
 
 use crate::auth::AuthConfig;
 use crate::automation::AutomationEngine;
-use crate::integrations::{zigbee2mqtt, zwave, tasmota, esphome, shelly, hue};
+use crate::integrations::{zigbee2mqtt, zwave, tasmota, esphome, shelly, hue, cast, sonos, matter};
 use crate::scene::SceneEngine;
 use crate::services::ServiceRegistry;
 use crate::state::{EntityState, StateMachine};
@@ -47,6 +47,9 @@ struct RouterState {
     esphome_bridge: Arc<esphome::ESPHomeBridge>,
     shelly_bridge: Arc<shelly::ShellyBridge>,
     hue_integration: Arc<hue::HueIntegration>,
+    cast_integration: Arc<cast::CastIntegration>,
+    sonos_integration: Arc<sonos::SonosIntegration>,
+    matter_integration: Arc<matter::MatterIntegration>,
 }
 
 /// POST /api/states/{entity_id} request body
@@ -113,6 +116,9 @@ pub fn router(
     esphome_bridge: Arc<esphome::ESPHomeBridge>,
     shelly_bridge: Arc<shelly::ShellyBridge>,
     hue_integration: Arc<hue::HueIntegration>,
+    cast_integration: Arc<cast::CastIntegration>,
+    sonos_integration: Arc<sonos::SonosIntegration>,
+    matter_integration: Arc<matter::MatterIntegration>,
 ) -> Router {
     let router_state = RouterState {
         app: state,
@@ -129,6 +135,9 @@ pub fn router(
         esphome_bridge,
         shelly_bridge,
         hue_integration,
+        cast_integration,
+        sonos_integration,
+        matter_integration,
     };
 
     Router::new()
@@ -199,6 +208,14 @@ pub fn router(
         .route("/api/integrations/hue/status", get(get_hue))
         .route("/api/integrations/hue/pair", post(hue_pair))
         .route("/api/integrations/hue/add", post(hue_add))
+        .route("/api/integrations/cast", get(get_cast))
+        .route("/api/integrations/cast/status", get(get_cast))
+        .route("/api/integrations/cast/discover", post(cast_discover))
+        .route("/api/integrations/sonos", get(get_sonos))
+        .route("/api/integrations/sonos/status", get(get_sonos))
+        .route("/api/integrations/sonos/discover", post(sonos_discover))
+        .route("/api/integrations/matter", get(get_matter))
+        .route("/api/integrations/matter/status", get(get_matter))
         .route("/api/integrations/zigbee2mqtt/permit_join", post(zigbee2mqtt_permit_join))
         // Long-lived access tokens
         .route("/api/auth/tokens", get(list_tokens))
@@ -1948,6 +1965,21 @@ async fn list_integrations(
     let hue_device_count = rs.hue_integration.device_count();
     let hue_status = if hue_count > 0 { "active" } else { "inactive" };
 
+    let cast_count = rs.cast_integration.device_count();
+    let cast_status = if cast_count > 0 { "active" } else { "inactive" };
+
+    let sonos_count = rs.sonos_integration.device_count();
+    let sonos_status = if sonos_count > 0 { "active" } else { "inactive" };
+
+    let matter_count = rs.matter_integration.device_count();
+    let matter_status = match rs.matter_integration.get_status() {
+        matter::SidecarStatus::Connected => "active",
+        matter::SidecarStatus::Connecting => "connecting",
+        matter::SidecarStatus::Disconnected => "disconnected",
+        matter::SidecarStatus::NotRunning => "inactive",
+        matter::SidecarStatus::NotConfigured => "inactive",
+    };
+
     Ok(Json(vec![
         serde_json::json!({
             "id": "zigbee2mqtt",
@@ -1984,6 +2016,24 @@ async fn list_integrations(
             "name": "Philips Hue",
             "status": hue_status,
             "device_count": hue_device_count,
+        }),
+        serde_json::json!({
+            "id": "cast",
+            "name": "Google Cast",
+            "status": cast_status,
+            "device_count": cast_count,
+        }),
+        serde_json::json!({
+            "id": "sonos",
+            "name": "Sonos",
+            "status": sonos_status,
+            "device_count": sonos_count,
+        }),
+        serde_json::json!({
+            "id": "matter",
+            "name": "Matter",
+            "status": matter_status,
+            "device_count": matter_count,
         }),
     ]))
 }
@@ -2186,6 +2236,128 @@ async fn hue_add(
             })))
         }
     }
+}
+
+/// GET /api/integrations/cast — Cast integration detail
+async fn get_cast(
+    State(rs): State<RouterState>,
+    headers: HeaderMap,
+) -> Result<Json<serde_json::Value>, StatusCode> {
+    check_auth(&rs, &headers)?;
+
+    Ok(Json(serde_json::json!({
+        "device_count": rs.cast_integration.device_count(),
+        "devices": rs.cast_integration.devices(),
+    })))
+}
+
+/// POST /api/integrations/cast/discover — manually add a Cast device by IP
+async fn cast_discover(
+    State(rs): State<RouterState>,
+    headers: HeaderMap,
+    Json(body): Json<serde_json::Value>,
+) -> Result<Json<serde_json::Value>, StatusCode> {
+    check_auth(&rs, &headers)?;
+
+    let ip = body.get("ip").and_then(|v| v.as_str())
+        .ok_or(StatusCode::BAD_REQUEST)?
+        .to_string();
+
+    match rs.cast_integration.add_device(&ip).await {
+        Ok(device) => {
+            Ok(Json(serde_json::json!({
+                "result": "ok",
+                "device": {
+                    "uuid": device.uuid,
+                    "ip": device.ip,
+                    "name": device.name,
+                    "model_name": device.model_name,
+                    "mac": device.mac,
+                    "firmware": device.firmware,
+                }
+            })))
+        }
+        Err(e) => {
+            Ok(Json(serde_json::json!({
+                "result": "error",
+                "message": e,
+            })))
+        }
+    }
+}
+
+/// GET /api/integrations/sonos — Sonos integration detail
+async fn get_sonos(
+    State(rs): State<RouterState>,
+    headers: HeaderMap,
+) -> Result<Json<serde_json::Value>, StatusCode> {
+    check_auth(&rs, &headers)?;
+
+    Ok(Json(serde_json::json!({
+        "device_count": rs.sonos_integration.device_count(),
+        "devices": rs.sonos_integration.devices(),
+    })))
+}
+
+/// POST /api/integrations/sonos/discover — manually add a Sonos device by IP
+async fn sonos_discover(
+    State(rs): State<RouterState>,
+    headers: HeaderMap,
+    Json(body): Json<serde_json::Value>,
+) -> Result<Json<serde_json::Value>, StatusCode> {
+    check_auth(&rs, &headers)?;
+
+    let ip = body.get("ip").and_then(|v| v.as_str())
+        .ok_or(StatusCode::BAD_REQUEST)?
+        .to_string();
+
+    match rs.sonos_integration.add_device(&ip).await {
+        Ok(device) => {
+            Ok(Json(serde_json::json!({
+                "result": "ok",
+                "device": {
+                    "uuid": device.uuid,
+                    "ip": device.ip,
+                    "name": device.name,
+                    "zone_name": device.zone_name,
+                    "model": device.model,
+                    "serial": device.serial,
+                    "software_version": device.software_version,
+                    "is_coordinator": device.is_coordinator,
+                }
+            })))
+        }
+        Err(e) => {
+            Ok(Json(serde_json::json!({
+                "result": "error",
+                "message": e,
+            })))
+        }
+    }
+}
+
+/// GET /api/integrations/matter — Matter sidecar integration detail
+async fn get_matter(
+    State(rs): State<RouterState>,
+    headers: HeaderMap,
+) -> Result<Json<serde_json::Value>, StatusCode> {
+    check_auth(&rs, &headers)?;
+
+    let status = rs.matter_integration.get_status();
+    let status_str = match status {
+        matter::SidecarStatus::Connected => "connected",
+        matter::SidecarStatus::Connecting => "connecting",
+        matter::SidecarStatus::Disconnected => "disconnected",
+        matter::SidecarStatus::NotRunning => "not_running",
+        matter::SidecarStatus::NotConfigured => "not_configured",
+    };
+
+    Ok(Json(serde_json::json!({
+        "status": status_str,
+        "device_count": rs.matter_integration.device_count(),
+        "devices": rs.matter_integration.device_list(),
+        "server_version": rs.matter_integration.get_server_version(),
+    })))
 }
 
 /// POST /api/integrations/zigbee2mqtt/permit_join — enable/disable pairing mode

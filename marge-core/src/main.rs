@@ -304,6 +304,27 @@ async fn main() -> anyhow::Result<()> {
     let hue_integration_api = hue_integration.clone();
     tracing::info!("Philips Hue integration ready");
 
+    // ── Google Cast Integration (Phase 7 §7.3) ──────
+    let cast_integration = Arc::new(integrations::cast::CastIntegration::new(app_state.clone()));
+    integrations::cast::start_cast_poller(cast_integration.clone(), 10);
+    let cast_integration_api = cast_integration.clone();
+    tracing::info!("Google Cast integration ready");
+
+    // ── Sonos Integration (Phase 7 §7.4) ─────────────────
+    let sonos_integration = Arc::new(integrations::sonos::SonosIntegration::new(app_state.clone()));
+    integrations::sonos::start_sonos_poller(sonos_integration.clone(), 10);
+    let sonos_integration_api = sonos_integration.clone();
+    tracing::info!("Sonos integration ready");
+
+    // ── Matter Sidecar Integration (Phase 7 §7.5) ──────
+    let matter_config = integrations::matter::MatterConfig::default();
+    let matter_integration = Arc::new(integrations::matter::MatterIntegration::new(
+        app_state.clone(), matter_config,
+    ));
+    integrations::matter::start_matter_poller(matter_integration.clone(), 10);
+    let matter_integration_api = matter_integration.clone();
+    tracing::info!("Matter sidecar integration ready");
+
     // ── Plugin System (Phase 5 §5.1) ─────────────────────
     let mut plugin_mgr = plugins::PluginManager::new(app_state.clone());
     let plugin_dir = std::path::Path::new("/config/plugins");
@@ -332,6 +353,9 @@ async fn main() -> anyhow::Result<()> {
         esphome_bridge_api,
         shelly_bridge_api,
         hue_integration_api,
+        cast_integration_api,
+        sonos_integration_api,
+        matter_integration_api,
     )
     .merge(websocket::router(
         app_state.clone(), auth.clone(), service_registry_for_ws,
