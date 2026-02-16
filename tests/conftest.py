@@ -138,7 +138,7 @@ class WSClient:
         self._msg_id = 0
 
     async def connect(self):
-        self.ws = await websockets.connect(self.ws_url)
+        self.ws = await websockets.connect(self.ws_url, max_size=16 * 1024 * 1024)
         # Receive auth_required
         msg = json.loads(await self.ws.recv())
         assert msg["type"] == "auth_required"
