@@ -13,6 +13,18 @@ import pytest
 pytestmark = pytest.mark.asyncio
 
 
+# ── Backup ───────────────────────────────────────────────
+
+
+async def test_backup_returns_200(rest):
+    """GET /api/backup returns 200."""
+    resp = await rest.client.get(
+        f"{rest.base_url}/api/backup",
+        headers=rest._headers(),
+    )
+    assert resp.status_code == 200
+
+
 async def test_backup_returns_gzip(rest):
     """GET /api/backup returns gzip content-type."""
     resp = await rest.client.get(
@@ -53,8 +65,13 @@ async def test_backup_is_valid_targz(rest):
         assert len(decompressed) > 0
 
 
-async def test_backup_contains_db(rest):
-    """Backup archive contains marge.db."""
+@pytest.mark.parametrize("expected_file", [
+    "marge.db",
+    "automations.yaml",
+    "scenes.yaml",
+])
+async def test_backup_contains_file(rest, expected_file):
+    """Backup archive contains expected file."""
     resp = await rest.client.get(
         f"{rest.base_url}/api/backup",
         headers=rest._headers(),
@@ -62,7 +79,7 @@ async def test_backup_contains_db(rest):
     data = resp.content
     with tarfile.open(fileobj=io.BytesIO(data), mode="r:gz") as tar:
         names = tar.getnames()
-        assert "marge.db" in names
+        assert expected_file in names
 
 
 async def test_backup_nonzero_size(rest):
@@ -73,6 +90,9 @@ async def test_backup_nonzero_size(rest):
     )
     # DB should have tables and data, so > 1KB
     assert len(resp.content) > 1024
+
+
+# ── Error Log ────────────────────────────────────────────
 
 
 async def test_error_log_returns_200(rest):

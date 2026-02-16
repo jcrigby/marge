@@ -140,7 +140,7 @@ Priority order (by install base and effort):
 - Each integration is a subagent task (Task tool) — keep main session as orchestrator
 - Build + test after each integration
 - Update this tracker after each commit
-- CTS: 1845 tests across 157 files as of 2026-02-16 (pruned from 4854/411)
+- CTS: 1798 tests across 151 files as of 2026-02-16 (pruned from 4854/411)
 
 ---
 ## Session Log
@@ -164,4 +164,5 @@ Priority order (by install base and effort):
 - 2026-02-16: Broke up test_extended_api.py monster (3787 lines) — 47 unique tests distributed, 170 dups deleted (commit 60df79e)
 - 2026-02-16: Cross-file name dedup — 282 tests removed, 4 files deleted, ~48 files stripped (commit dc52950)
 - 2026-02-16: Final CTS: 1922 tests / 172 files (60% reduction from original 4854/411)
-- 2026-02-16: WS file consolidation — 21 files → 6 thematic files, 15 deleted (commit pending)
+- 2026-02-16: WS file consolidation — 21 files → 6 thematic files, 15 deleted (commit 9e9c7bd)
+- 2026-02-16: Error handling consolidation — 8 files → 2, 6 deleted, 47 dups eliminated (commit pending)
