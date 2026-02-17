@@ -226,6 +226,40 @@ impl PluginManager {
         }
     }
 
+    /// Call the `poll()` export on each loaded plugin, if it exists.
+    /// Replenishes fuel before each call.
+    pub fn poll_all(&mut self) {
+        for plugin in &mut self.plugins {
+            let poll_fn = plugin
+                .instance
+                .get_typed_func::<(), ()>(&mut plugin.store, "poll");
+
+            if let Ok(func) = poll_fn {
+                if let Err(e) = plugin.store.set_fuel(FUEL_PER_INVOCATION) {
+                    tracing::warn!(
+                        plugin = %plugin.name,
+                        error = %e,
+                        "Failed to set fuel for poll()"
+                    );
+                    continue;
+                }
+
+                match func.call(&mut plugin.store, ()) {
+                    Ok(()) => {
+                        tracing::debug!(plugin = %plugin.name, "poll() completed");
+                    }
+                    Err(e) => {
+                        tracing::warn!(
+                            plugin = %plugin.name,
+                            error = %e,
+                            "poll() trapped"
+                        );
+                    }
+                }
+            }
+        }
+    }
+
     /// Number of successfully loaded plugins.
     pub fn plugin_count(&self) -> usize {
         self.plugins.len()

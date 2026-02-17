@@ -57,6 +57,12 @@ reqwest = { version = "0.12", features = ["json"] }
 # WASM plugin runtime (Phase 5 §5.1)
 wasmtime = "29"
 
+# Lua plugin runtime (Phase 8 — Lua scripting)
+mlua = { version = "0.10", features = ["lua54", "vendored", "serialize", "send"] }
+
+[dev-dependencies]
+tempfile = "3"
+
 [profile.release]
 opt-level = 3
 lto = true

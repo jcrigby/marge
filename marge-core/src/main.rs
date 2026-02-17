@@ -5,6 +5,8 @@ mod discovery;
 mod integrations;
 mod mqtt;
 mod plugins;
+mod lua_plugins;
+mod plugin_orchestrator;
 mod recorder;
 mod scene;
 mod services;
@@ -325,15 +327,22 @@ async fn main() -> anyhow::Result<()> {
     let matter_integration_api = matter_integration.clone();
     tracing::info!("Matter sidecar integration ready");
 
-    // ── Plugin System (Phase 5 §5.1) ─────────────────────
-    let mut plugin_mgr = plugins::PluginManager::new(app_state.clone());
+    // ── Plugin System (Phase 5 + Phase 8: WASM + Lua) ─────
+    let mut orchestrator = plugin_orchestrator::PluginOrchestrator::new(
+        app_state.clone(),
+        service_registry.clone(),
+    );
     let plugin_dir = std::path::Path::new("/config/plugins");
     if plugin_dir.exists() {
-        plugin_mgr.scan_and_load(plugin_dir);
+        orchestrator.scan_and_load(plugin_dir);
     }
-    let plugin_count = plugin_mgr.plugin_count();
+    let plugin_count = orchestrator.plugin_count();
     app_state.plugin_count.store(plugin_count, std::sync::atomic::Ordering::Relaxed);
-    tracing::info!("Plugin system ready ({} plugins loaded)", plugin_count);
+    tracing::info!("Plugin system ready ({} plugins loaded: WASM + Lua)", plugin_count);
+
+    // Wrap in Arc<Mutex<>> and spawn background tasks
+    let orchestrator = std::sync::Arc::new(tokio::sync::Mutex::new(orchestrator));
+    plugin_orchestrator::spawn_plugin_tasks(orchestrator, app_state.clone());
 
     // Build combined router: REST API + WebSocket
     let service_registry_for_ws = service_registry.clone();
