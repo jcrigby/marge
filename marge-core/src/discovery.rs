@@ -407,6 +407,9 @@ impl DiscoveryEngine {
                     self.extract_state_from_payload(&entity, &payload_str)
                 };
 
+                // Normalize state to HA conventions (lowercase on/off/locked/etc.)
+                let state_value = self.normalize_state(&entity.component, &state_value);
+
                 // Update entity state
                 let mut attrs = self
                     .app.state_machine
@@ -524,14 +527,20 @@ impl DiscoveryEngine {
         if let Ok(json) = serde_json::from_str::<Value>(payload) {
             // Common JSON state fields by component
             match entity.component.as_str() {
-                "light" => {
+                "light" | "switch" | "fan" | "siren" => {
                     if let Some(state) = json.get("state").and_then(|v| v.as_str()) {
-                        return state.to_string();
+                        // Normalize ON/OFF to lowercase (HA convention)
+                        return self.normalize_on_off(state);
                     }
                 }
-                "switch" | "binary_sensor" => {
+                "binary_sensor" => {
                     if let Some(state) = json.get("state").and_then(|v| v.as_str()) {
-                        return state.to_string();
+                        return self.normalize_on_off(state);
+                    }
+                }
+                "lock" => {
+                    if let Some(state) = json.get("state").and_then(|v| v.as_str()) {
+                        return self.normalize_lock_state(state);
                     }
                 }
                 "sensor" => {
@@ -549,6 +558,11 @@ impl DiscoveryEngine {
                 "climate" => {
                     if let Some(mode) = json.get("mode").and_then(|v| v.as_str()) {
                         return mode.to_string();
+                    }
+                }
+                "alarm_control_panel" => {
+                    if let Some(state) = json.get("state").and_then(|v| v.as_str()) {
+                        return self.normalize_alarm_state(state);
                     }
                 }
                 _ => {}
@@ -582,6 +596,54 @@ impl DiscoveryEngine {
                 }
             }
             _ => trimmed.to_string(),
+        }
+    }
+
+    /// Normalize a state value based on component type (HA convention).
+    /// Called after ALL state extraction paths (template + JSON + raw).
+    fn normalize_state(&self, component: &str, state: &str) -> String {
+        match component {
+            "light" | "switch" | "fan" | "siren" | "binary_sensor" => {
+                self.normalize_on_off(state)
+            }
+            "lock" => self.normalize_lock_state(state),
+            "alarm_control_panel" => self.normalize_alarm_state(state),
+            _ => state.to_string(),
+        }
+    }
+
+    /// Normalize ON/OFF/TRUE/FALSE to lowercase on/off (HA convention).
+    fn normalize_on_off(&self, state: &str) -> String {
+        match state.to_uppercase().as_str() {
+            "ON" | "TRUE" | "1" => "on".to_string(),
+            "OFF" | "FALSE" | "0" => "off".to_string(),
+            _ => state.to_string(),
+        }
+    }
+
+    /// Normalize lock states to lowercase (HA convention).
+    fn normalize_lock_state(&self, state: &str) -> String {
+        match state.to_uppercase().as_str() {
+            "LOCK" | "LOCKED" => "locked".to_string(),
+            "UNLOCK" | "UNLOCKED" => "unlocked".to_string(),
+            "LOCKING" => "locking".to_string(),
+            "UNLOCKING" => "unlocking".to_string(),
+            "JAMMED" => "jammed".to_string(),
+            _ => state.to_string(),
+        }
+    }
+
+    /// Normalize alarm_control_panel states to lowercase with underscores (HA convention).
+    fn normalize_alarm_state(&self, state: &str) -> String {
+        match state.to_uppercase().as_str() {
+            "ARM_HOME" | "ARMED_HOME" => "armed_home".to_string(),
+            "ARM_AWAY" | "ARMED_AWAY" => "armed_away".to_string(),
+            "ARM_NIGHT" | "ARMED_NIGHT" => "armed_night".to_string(),
+            "DISARM" | "DISARMED" => "disarmed".to_string(),
+            "PENDING" => "pending".to_string(),
+            "TRIGGERED" => "triggered".to_string(),
+            "ARMING" => "arming".to_string(),
+            _ => state.to_string(),
         }
     }
 
