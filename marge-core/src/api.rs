@@ -7,6 +7,7 @@ use axum::{
 };
 use axum::body::Body;
 use axum::extract::Query;
+use tower_http::cors::{CorsLayer, Any};
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -233,6 +234,10 @@ pub fn router(
         // Prometheus metrics
         .route("/metrics", get(prometheus_metrics))
         .with_state(router_state)
+        .layer(CorsLayer::new()
+            .allow_origin(Any)
+            .allow_methods(Any)
+            .allow_headers(Any))
 }
 
 /// Validate authorization from request headers. Returns Err(401) if auth is

@@ -8,35 +8,35 @@
 * { margin: 0; padding: 0; box-sizing: border-box; }
 body {
   font-family: 'SF Mono', 'Cascadia Code', 'Fira Code', monospace;
-  background: #0d1117; color: #c9d1d9;
+  background: #ffffff; color: #24292f;
   overflow: hidden; height: 100vh;
 }
 
 /* ── Header ────────────────────────────────── */
 .header {
-  background: #161b22; border-bottom: 1px solid #30363d;
+  background: #f6f8fa; border-bottom: 1px solid #d0d7de;
   padding: 8px 20px; display: flex; align-items: center; gap: 16px;
   height: 44px;
 }
-.header h1 { font-size: 16px; font-weight: 700; color: #e6edf3; }
-.sim-time { font-size: 20px; font-weight: 700; color: #58a6ff; letter-spacing: 1px; }
+.header h1 { font-size: 16px; font-weight: 700; color: #1f2328; }
+.sim-time { font-size: 20px; font-weight: 700; color: #0969da; letter-spacing: 1px; }
 .speed-badge {
   font-size: 11px; padding: 2px 8px; border-radius: 10px;
-  background: #1f6feb33; color: #58a6ff; font-weight: 600;
+  background: #0550ae33; color: #0969da; font-weight: 600;
 }
 .chapter-badge {
   font-size: 11px; padding: 2px 10px; border-radius: 10px;
-  background: #238636; color: #fff; font-weight: 600;
+  background: #1a7f37; color: #fff; font-weight: 600;
   text-transform: uppercase; letter-spacing: 1px;
 }
 .status { font-size: 11px; padding: 2px 8px; border-radius: 10px; }
-.status.connected { background: #1b4332; color: #2dd4bf; }
-.status.disconnected { background: #3b1c1c; color: #f87171; }
+.status.connected { background: #dafbe1; color: #0e8a8a; }
+.status.disconnected { background: #ffebe9; color: #cf222e; }
 
 /* ── Annotation Banner ────────────────────── */
 .annotation-banner {
-  background: #1f6feb22; border-bottom: 1px solid #1f6feb44;
-  padding: 6px 20px; font-size: 14px; color: #e6edf3;
+  background: #0550ae22; border-bottom: 1px solid #0550ae44;
+  padding: 6px 20px; font-size: 14px; color: #1f2328;
   text-align: center; font-weight: 600; letter-spacing: 0.5px;
   height: 32px; line-height: 20px; overflow: hidden;
   transition: opacity 0.5s;
@@ -46,150 +46,150 @@ body {
 /* ── Main Layout ─────────────────────────── */
 .main { display: flex; height: calc(100vh - 44px - 32px - 100px); }
 .house-area { flex: 1; padding: 12px 16px; overflow: hidden; }
-.sidebar { width: 320px; background: #161b22; border-left: 1px solid #30363d; overflow-y: auto; padding: 12px; }
+.sidebar { width: 320px; background: #f6f8fa; border-left: 1px solid #d0d7de; overflow-y: auto; padding: 12px; }
 
 /* ── ASCII House ─────────────────────────── */
 .house {
   font-size: 13px; line-height: 1.5; white-space: pre;
   font-family: 'SF Mono', 'Cascadia Code', monospace;
 }
-.dim { color: #484f58; }
-.bright { color: #ffd700; }
-.green { color: #3fb950; }
-.red { color: #f85149; }
-.cyan { color: #2dd4bf; }
-.blue { color: #58a6ff; }
-.purple { color: #bc8cff; }
-.white { color: #e6edf3; }
-.gray { color: #484f58; }
-.orange { color: #f0883e; }
+.dim { color: #8c959f; }
+.bright { color: #9a6700; }
+.green { color: #1a7f37; }
+.red { color: #cf222e; }
+.cyan { color: #0e8a8a; }
+.blue { color: #0969da; }
+.purple { color: #8250df; }
+.white { color: #1f2328; }
+.gray { color: #8c959f; }
+.orange { color: #bc4c00; }
 .flash { animation: flash 0.8s infinite; }
 @keyframes flash { 0%,100% { opacity: 1; } 50% { opacity: 0.3; } }
 
-.room-label { color: #8b949e; font-weight: 700; font-size: 11px; }
-.border-char { color: #30363d; }
+.room-label { color: #656d76; font-weight: 700; }
+.border-char { color: #afb8c1; }
 
 /* ── Metrics Panel ───────────────────────── */
 .metrics-section { margin-bottom: 16px; }
 .metrics-section h3 {
   font-size: 10px; text-transform: uppercase; letter-spacing: 1.5px;
-  color: #8b949e; margin-bottom: 8px; font-weight: 600;
+  color: #656d76; margin-bottom: 8px; font-weight: 600;
 }
 .metric-row {
   display: flex; align-items: center; margin-bottom: 6px; font-size: 12px;
 }
-.metric-label { width: 80px; color: #8b949e; flex-shrink: 0; }
+.metric-label { width: 80px; color: #656d76; flex-shrink: 0; }
 .metric-bars { flex: 1; display: flex; gap: 4px; align-items: center; }
 .bar-group { flex: 1; }
-.bar-label { font-size: 10px; color: #8b949e; margin-bottom: 1px; }
-.bar-track { height: 14px; background: #21262d; border-radius: 3px; position: relative; overflow: hidden; }
+.bar-label { font-size: 10px; color: #656d76; margin-bottom: 1px; }
+.bar-track { height: 14px; background: #eaeef2; border-radius: 3px; position: relative; overflow: hidden; }
 .bar-fill { height: 100%; border-radius: 3px; transition: width 0.5s; }
-.bar-fill.ha { background: #f0883e; }
-.bar-fill.marge { background: #58a6ff; }
+.bar-fill.ha { background: #bc4c00; }
+.bar-fill.marge { background: #0969da; }
 .bar-value {
   position: absolute; right: 4px; top: 0; line-height: 14px;
-  font-size: 10px; color: #e6edf3; font-weight: 600;
+  font-size: 10px; color: #1f2328; font-weight: 600;
 }
 
 /* ── Event Log ───────────────────────────── */
 .event-log { font-size: 11px; max-height: 200px; overflow-y: auto; }
-.log-entry { padding: 2px 0; border-bottom: 1px solid #21262d; display: flex; gap: 4px; align-items: baseline; }
-.log-time { color: #484f58; flex-shrink: 0; }
-.log-auto { color: #bc8cff; }
-.log-state { color: #58a6ff; }
-.log-verify { color: #3fb950; }
+.log-entry { padding: 2px 0; border-bottom: 1px solid #eaeef2; display: flex; gap: 4px; align-items: baseline; }
+.log-time { color: #8c959f; flex-shrink: 0; }
+.log-auto { color: #8250df; }
+.log-state { color: #0969da; }
+.log-verify { color: #1a7f37; }
 .log-source { font-size: 9px; padding: 0 3px; border-radius: 2px; font-weight: 700; flex-shrink: 0; }
-.log-source.ha { background: #f0883e22; color: #f0883e; }
-.log-source.marge { background: #58a6ff22; color: #58a6ff; }
-.log-source.sys { background: #f8514922; color: #f85149; }
+.log-source.ha { background: #bc4c0022; color: #bc4c00; }
+.log-source.marge { background: #0969da22; color: #0969da; }
+.log-source.sys { background: #cf222e22; color: #cf222e; }
 .log-domain-icon { flex-shrink: 0; width: 14px; text-align: center; }
 .log-msg { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.log-entry.automation { border-left: 2px solid #bc8cff; padding-left: 4px; }
-.log-entry.outage { border-left: 2px solid #f85149; padding-left: 4px; background: #f8514908; }
-.event-rate { font-size: 11px; color: #3fb950; float: right; font-weight: 600; }
+.log-entry.automation { border-left: 2px solid #8250df; padding-left: 4px; }
+.log-entry.outage { border-left: 2px solid #cf222e; padding-left: 4px; background: #cf222e08; }
+.event-rate { font-size: 11px; color: #1a7f37; float: right; font-weight: 600; }
 
 /* ── Timeline ────────────────────────────── */
 .timeline {
-  height: 100px; background: #161b22; border-top: 1px solid #30363d;
+  height: 100px; background: #f6f8fa; border-top: 1px solid #d0d7de;
   padding: 10px 20px;
 }
 .timeline h3 {
   font-size: 10px; text-transform: uppercase; letter-spacing: 1.5px;
-  color: #8b949e; margin-bottom: 6px;
+  color: #656d76; margin-bottom: 6px;
 }
 .timeline-track {
-  position: relative; height: 24px; background: #21262d;
+  position: relative; height: 24px; background: #eaeef2;
   border-radius: 4px; margin-bottom: 6px;
 }
 .timeline-fill {
-  height: 100%; background: linear-gradient(90deg, #1f6feb, #58a6ff);
+  height: 100%; background: linear-gradient(90deg, #0550ae, #0969da);
   border-radius: 4px; transition: width 0.5s;
 }
 .timeline-marker {
   position: absolute; top: -4px; width: 2px; height: 32px;
-  background: #30363d;
+  background: #d0d7de;
 }
 .timeline-marker-label {
-  position: absolute; top: 28px; font-size: 9px; color: #8b949e;
+  position: absolute; top: 28px; font-size: 9px; color: #656d76;
   transform: translateX(-50%); white-space: nowrap;
 }
 .timeline-labels {
-  display: flex; justify-content: space-between; font-size: 10px; color: #484f58;
+  display: flex; justify-content: space-between; font-size: 10px; color: #8c959f;
 }
 .timeline-chapters {
   display: flex; gap: 4px; margin-top: 4px;
 }
 .timeline-chapter {
   font-size: 9px; padding: 1px 6px; border-radius: 3px;
-  background: #21262d; color: #8b949e; cursor: pointer;
+  background: #eaeef2; color: #656d76; cursor: pointer;
 }
-.timeline-chapter.active { background: #1f6feb; color: #fff; }
+.timeline-chapter.active { background: #0550ae; color: #fff; }
 
 /* ── Score Card Overlay ─────────────── */
 .scorecard-overlay {
   display: none; position: fixed; inset: 0; z-index: 1000;
-  background: rgba(0,0,0,0.85); justify-content: center; align-items: center;
+  background: rgba(0,0,0,0.5); justify-content: center; align-items: center;
 }
 .scorecard-overlay.visible { display: flex; }
 .scorecard {
-  background: #161b22; border: 2px solid #30363d; border-radius: 12px;
+  background: #f6f8fa; border: 2px solid #d0d7de; border-radius: 12px;
   padding: 32px 48px; max-width: 880px; width: 90%;
 }
 .scorecard h2 {
-  font-size: 22px; color: #e6edf3; text-align: center;
+  font-size: 22px; color: #1f2328; text-align: center;
   margin-bottom: 6px; font-weight: 700; letter-spacing: 1px;
 }
 .scorecard .subtitle {
-  font-size: 12px; color: #8b949e; text-align: center; margin-bottom: 24px;
+  font-size: 12px; color: #656d76; text-align: center; margin-bottom: 24px;
 }
 .sc-table { width: 100%; border-collapse: collapse; }
 .sc-table th {
   font-size: 11px; text-transform: uppercase; letter-spacing: 1px;
-  color: #8b949e; padding: 6px 12px; text-align: right;
-  border-bottom: 1px solid #30363d;
+  color: #656d76; padding: 6px 12px; text-align: right;
+  border-bottom: 1px solid #d0d7de;
 }
 .sc-table th:first-child { text-align: left; }
 .sc-table td { padding: 10px 12px; text-align: right; font-size: 15px; }
 .sc-table td:first-child {
-  text-align: left; color: #8b949e; font-size: 13px; font-weight: 600;
+  text-align: left; color: #656d76; font-size: 13px; font-weight: 600;
 }
-.sc-table .ha-col { color: #f0883e; }
-.sc-table .slim-col { color: #d29922; }
-.sc-table .marge-col { color: #58a6ff; }
-.sc-table .ratio-col { color: #3fb950; font-weight: 700; font-size: 13px; }
-.sc-table tr { border-bottom: 1px solid #21262d; }
+.sc-table .ha-col { color: #bc4c00; }
+.sc-table .slim-col { color: #9a6700; }
+.sc-table .marge-col { color: #0969da; }
+.sc-table .ratio-col { color: #1a7f37; font-weight: 700; font-size: 13px; }
+.sc-table tr { border-bottom: 1px solid #eaeef2; }
 .sc-table tr:last-child { border-bottom: none; }
 .sc-footer {
-  margin-top: 20px; text-align: center; font-size: 11px; color: #484f58;
+  margin-top: 20px; text-align: center; font-size: 11px; color: #8c959f;
 }
 .sc-dismiss {
-  margin-top: 12px; text-align: center; font-size: 10px; color: #484f58;
+  margin-top: 12px; text-align: center; font-size: 10px; color: #8c959f;
 }
 
 /* ── Outage Overlay ──────────────────── */
 .outage-overlay {
   display: none; position: fixed; inset: 0; z-index: 900;
-  background: rgba(0,0,0,0.92); justify-content: center; align-items: center;
+  background: rgba(0,0,0,0.7); justify-content: center; align-items: center;
   flex-direction: column;
 }
 .outage-overlay.visible { display: flex; }
@@ -201,11 +201,11 @@ body {
   0%,100% { opacity: 0.3; } 50% { opacity: 1; }
 }
 .outage-title {
-  font-size: 36px; font-weight: 900; color: #f85149;
+  font-size: 36px; font-weight: 900; color: #cf222e;
   letter-spacing: 4px; margin-bottom: 8px;
 }
 .outage-sub {
-  font-size: 14px; color: #8b949e; margin-bottom: 32px;
+  font-size: 14px; color: #656d76; margin-bottom: 32px;
 }
 .recovery-race {
   display: flex; gap: 48px; align-items: flex-start;
@@ -216,19 +216,19 @@ body {
 .recovery-lane h3 {
   font-size: 14px; font-weight: 700; letter-spacing: 1px; margin-bottom: 12px;
 }
-.recovery-lane.ha h3 { color: #f0883e; }
-.recovery-lane.marge h3 { color: #58a6ff; }
+.recovery-lane.ha h3 { color: #bc4c00; }
+.recovery-lane.marge h3 { color: #0969da; }
 .recovery-timer {
   font-size: 48px; font-weight: 900; font-variant-numeric: tabular-nums;
 }
-.recovery-timer.waiting { color: #484f58; }
-.recovery-timer.recovering { color: #ffd700; }
-.recovery-timer.recovered { color: #3fb950; }
+.recovery-timer.waiting { color: #8c959f; }
+.recovery-timer.recovering { color: #9a6700; }
+.recovery-timer.recovered { color: #1a7f37; }
 .recovery-label {
-  font-size: 12px; color: #8b949e; margin-top: 8px; min-height: 20px;
+  font-size: 12px; color: #656d76; margin-top: 8px; min-height: 20px;
 }
 .recovery-vs {
-  font-size: 28px; color: #30363d; align-self: center; font-weight: 900;
+  font-size: 28px; color: #d0d7de; align-self: center; font-weight: 900;
 }
 </style>
 </head>
@@ -308,14 +308,14 @@ body {
         <div class="metric-bars">
           <div class="bar-group">
             <div class="bar-track" style="background:transparent;height:auto">
-              <span style="font-size:18px;color:#f0883e;font-weight:700" id="ha-events">0</span>
-              <span style="font-size:10px;color:#8b949e"> HA</span>
+              <span style="font-size:18px;color:#bc4c00;font-weight:700" id="ha-events">0</span>
+              <span style="font-size:10px;color:#656d76"> HA</span>
             </div>
           </div>
           <div class="bar-group">
             <div class="bar-track" style="background:transparent;height:auto">
-              <span style="font-size:18px;color:#58a6ff;font-weight:700" id="marge-events">0</span>
-              <span style="font-size:10px;color:#8b949e"> Marge</span>
+              <span style="font-size:18px;color:#0969da;font-weight:700" id="marge-events">0</span>
+              <span style="font-size:10px;color:#656d76"> Marge</span>
             </div>
           </div>
         </div>
@@ -326,12 +326,12 @@ body {
         <div class="metric-bars">
           <div class="bar-group">
             <div class="bar-track" style="background:transparent;height:auto">
-              <span style="font-size:14px;color:#f0883e;font-weight:700" id="ha-verify">--</span>
+              <span style="font-size:14px;color:#bc4c00;font-weight:700" id="ha-verify">--</span>
             </div>
           </div>
           <div class="bar-group">
             <div class="bar-track" style="background:transparent;height:auto">
-              <span style="font-size:14px;color:#58a6ff;font-weight:700" id="marge-verify">--</span>
+              <span style="font-size:14px;color:#0969da;font-weight:700" id="marge-verify">--</span>
             </div>
           </div>
         </div>
@@ -342,12 +342,12 @@ body {
         <div class="metric-bars">
           <div class="bar-group">
             <div class="bar-track" style="background:transparent;height:auto">
-              <span style="font-size:12px;color:#f0883e" id="ha-uptime">--</span>
+              <span style="font-size:12px;color:#bc4c00" id="ha-uptime">--</span>
             </div>
           </div>
           <div class="bar-group">
             <div class="bar-track" style="background:transparent;height:auto">
-              <span style="font-size:12px;color:#58a6ff" id="marge-uptime">--</span>
+              <span style="font-size:12px;color:#0969da" id="marge-uptime">--</span>
             </div>
           </div>
         </div>
@@ -356,7 +356,7 @@ body {
 
     <!-- State Diffs -->
     <div class="metrics-section">
-      <h3>State Diffs <span id="diff-summary" style="color:#58a6ff"></span></h3>
+      <h3>State Diffs <span id="diff-summary" style="color:#0969da"></span></h3>
       <div id="diff-list" style="max-height:120px;overflow-y:auto"></div>
     </div>
 
@@ -422,15 +422,15 @@ body {
     <h2>KEYBOARD SHORTCUTS</h2>
     <table class="sc-table" style="text-align:left">
       <tbody>
-        <tr><td style="padding:6px 16px;color:#58a6ff;font-weight:700">S</td><td style="padding:6px 16px">Toggle score card</td></tr>
-        <tr><td style="padding:6px 16px;color:#58a6ff;font-weight:700">?</td><td style="padding:6px 16px">Toggle this help</td></tr>
-        <tr><td style="padding:6px 16px;color:#58a6ff;font-weight:700">Esc</td><td style="padding:6px 16px">Dismiss overlay</td></tr>
+        <tr><td style="padding:6px 16px;color:#0969da;font-weight:700">S</td><td style="padding:6px 16px">Toggle score card</td></tr>
+        <tr><td style="padding:6px 16px;color:#0969da;font-weight:700">?</td><td style="padding:6px 16px">Toggle this help</td></tr>
+        <tr><td style="padding:6px 16px;color:#0969da;font-weight:700">Esc</td><td style="padding:6px 16px">Dismiss overlay</td></tr>
       </tbody>
     </table>
     <div class="sc-footer" style="margin-top:12px">
-      Dashboard: <span style="color:#58a6ff">http://localhost:3000</span><br>
-      HA: <span style="color:#f0883e">http://localhost:8123</span><br>
-      Marge: <span style="color:#3fb950">http://localhost:8124</span>
+      Dashboard: <span style="color:#0969da">http://localhost:3000</span><br>
+      HA: <span style="color:#bc4c00">http://localhost:8123</span><br>
+      Marge: <span style="color:#1a7f37">http://localhost:8124</span>
     </div>
     <div class="sc-dismiss">Press ? or click to dismiss</div>
   </div>
@@ -468,14 +468,14 @@ let recoveryTimerInterval = null;
 
 // Chapter definitions for timeline
 const CHAPTERS = [
-  { name: 'dawn',      start: '05:25', color: '#f0883e' },
-  { name: 'morning',   start: '06:10', color: '#ffd700' },
-  { name: 'daytime',   start: '06:20', color: '#58a6ff' },
-  { name: 'sunset',    start: '17:25', color: '#f0883e' },
-  { name: 'evening',   start: '17:40', color: '#bc8cff' },
-  { name: 'goodnight', start: '21:55', color: '#484f58' },
-  { name: 'night',     start: '22:05', color: '#30363d' },
-  { name: 'outage',    start: '03:45', color: '#f85149' },
+  { name: 'dawn',      start: '05:25', color: '#bc4c00' },
+  { name: 'morning',   start: '06:10', color: '#9a6700' },
+  { name: 'daytime',   start: '06:20', color: '#0969da' },
+  { name: 'sunset',    start: '17:25', color: '#bc4c00' },
+  { name: 'evening',   start: '17:40', color: '#8250df' },
+  { name: 'goodnight', start: '21:55', color: '#8c959f' },
+  { name: 'night',     start: '22:05', color: '#d0d7de' },
+  { name: 'outage',    start: '03:45', color: '#cf222e' },
 ];
 
 // ── Entity Renderers ────────────────────────
@@ -516,8 +516,8 @@ function switchIcon(eid) {
 function lockIcon(eid) {
   const s = getState(eid);
   return s.state === 'locked'
-    ? '<span class="green">\uD83D\uDD12 LOCKED</span>'
-    : '<span class="red">\uD83D\uDD13 UNLOCKED</span>';
+    ? '<span class="green">\u25CF LOCKED</span>'
+    : '<span class="red">\u25C6 UNLOCKED</span>';
 }
 
 function motionIcon(eid) {
@@ -569,7 +569,7 @@ function mediaIcon(eid) {
 function coffeeIcon(eid) {
   const s = getState(eid);
   return s.state === 'on'
-    ? '<span class="orange">\u2615 BREWING</span>'
+    ? '<span class="orange">\u25CF BREWING</span>'
     : '<span class="dim">\u25CB OFF</span>';
 }
 
@@ -577,10 +577,10 @@ function climateIcon(eid) {
   const s = getState(eid);
   const temp = s.attrs?.temperature;
   const setpoint = temp !== undefined ? `${temp}\u00B0F` : '--';
-  if (s.state === 'heat') return `<span class="orange">\u2668 ${setpoint}</span>`;
-  if (s.state === 'cool') return `<span class="cyan">\u2744 ${setpoint}</span>`;
-  if (s.state === 'off') return `<span class="dim">\u2668 OFF</span>`;
-  return `<span class="white">\u2668 ${setpoint}</span>`;
+  if (s.state === 'heat') return `<span class="orange">\u25B2 ${setpoint}</span>`;
+  if (s.state === 'cool') return `<span class="cyan">\u25BC ${setpoint}</span>`;
+  if (s.state === 'off') return '<span class="dim">\u25B7 OFF</span>';
+  return `<span class="white">\u25B7 ${setpoint}</span>`;
 }
 
 function smokeIcon(eid) {
@@ -596,7 +596,7 @@ function sunIcon() {
   const set = s.attrs?.next_setting || '--';
   const riseT = rise.includes('T') ? rise.split('T')[1]?.substring(0,5) : '--';
   const setT = set.includes('T') ? set.split('T')[1]?.substring(0,5) : '--';
-  const icon = s.state === 'above_horizon' ? '\u2600\uFE0F' : '\uD83C\uDF19';
+  const icon = s.state === 'above_horizon' ? '\u25CF' : '\u25CB';
   return `<span class="white">${icon} Rise ${riseT} Set ${setT}</span>`;
 }
 
@@ -607,45 +607,104 @@ function weatherIcon() {
 }
 
 function powerIcon() {
-  const p = getState('sensor.power_consumption');
-  const v = getState('sensor.voltage');
-  const a = getState('sensor.current');
-  return `<span class="white">\u26A1 ${p.state}W  ${v.state}V  ${a.state}A</span>`;
+  const p = parseFloat(getState('sensor.power_consumption').state) || 0;
+  const v = parseFloat(getState('sensor.voltage').state) || 0;
+  const a = parseFloat(getState('sensor.current').state) || 0;
+  return `<span class="white">\u25B6 ${p}W ${v}V ${a}A</span>`;
 }
 
 function trackerIcon() {
   const s = getState('device_tracker.phone');
   return s.state === 'home'
-    ? '<span class="green">\uD83C\uDFE0 home</span>'
-    : '<span class="gray">\uD83D\uDCF1 away</span>';
+    ? '<span class="green">\u25CF home</span>'
+    : '<span class="gray">\u25CB away</span>';
 }
 
 // ── House Renderer ──────────────────────────
 
+// Strip HTML tags to get visible character count
+function visLen(html) { return html.replace(/<[^>]+>/g, '').length; }
+// Pad HTML string to exact visible width
+function pad(html, w) { return html + ' '.repeat(Math.max(0, w - visLen(html))); }
+
 function renderHouse() {
   const B = '<span class="border-char">';
   const E = '</span>';
-  // Build the ASCII house line by line
+  const W = 22;           // room total width (including walls)
+  const I = W - 2;        // room interior width
+  const EW = W * 3 + 2;   // exterior total (3 rooms + 2 gaps)
+  const EI = EW - 2;      // exterior interior
+  const GAP = ' ';
+  const MGAP = ' '.repeat(W + 2); // middle gap after bathroom closes
+
+  function hdr(label, tw) {
+    const d = tw - 5 - label.length; // ┌─ LABEL ─...─┐ = 5 fixed chars
+    return B + '\u250C\u2500 ' + label + ' ' + '\u2500'.repeat(d) + '\u2510' + E;
+  }
+  function bar(tw) { return B + '\u251C' + '\u2500'.repeat(tw - 2) + '\u2524' + E; }
+  function bot(tw) { return B + '\u2514' + '\u2500'.repeat(tw - 2) + '\u2518' + E; }
+  function row(content) {
+    return B + '\u2502' + E + pad(' ' + content, I) + B + '\u2502' + E;
+  }
+  function erow(content) {
+    return B + '\u2502' + E + pad(' ' + content, EI) + B + '\u2502' + E;
+  }
+
   const lines = [
-    `${B}\u250C\u2500 BEDROOM \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2510${E} ${B}\u250C\u2500 BATHROOM \u2500\u2500\u2500\u2500\u2500\u2510${E} ${B}\u250C\u2500 KITCHEN \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2510${E}`,
-    `${B}\u2502${E} ${lightIcon('light.bedroom')}      ${B}\u2502${E} ${B}\u2502${E} ${lightSimple('light.bathroom')}              ${B}\u2502${E} ${B}\u2502${E} ${lightSimple('light.kitchen')}                  ${B}\u2502${E}`,
-    `${B}\u2502${E} ${tempIcon('sensor.bedroom_temperature')}  ${humidIcon('sensor.bedroom_humidity')}    ${B}\u2502${E} ${B}\u2502${E} ${tempIcon('sensor.bathroom_temperature')}        ${B}\u2502${E} ${B}\u2502${E} ${tempIcon('sensor.kitchen_temperature')}  ${humidIcon('sensor.kitchen_humidity')}     ${B}\u2502${E}`,
-    `${B}\u2502${E} ${motionIcon('binary_sensor.bedroom_motion')}    ${B}\u2502${E} ${B}\u2502${E} ${humidIcon('sensor.bathroom_humidity')}            ${B}\u2502${E} ${B}\u2502${E} ${coffeeIcon('switch.coffee_maker')}            ${B}\u2502${E}`,
-    `${B}\u2502${E}                      ${B}\u2502${E} ${B}\u2502${E}                    ${B}\u2502${E} ${B}\u2502${E} ${motionIcon('binary_sensor.kitchen_motion')}    ${B}\u2502${E}`,
-    `${B}\u251C\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2524${E} ${B}\u2502${E}                    ${B}\u2502${E} ${B}\u251C\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2524${E}`,
-    `${B}\u2502${E} <span class="room-label">ENTRYWAY</span>             ${B}\u2502${E} ${B}\u2514\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2518${E} ${B}\u2502${E} <span class="room-label">LIVING ROOM</span>          ${B}\u2502${E}`,
-    `${B}\u2502${E} ${lockIcon('lock.front_door')}    ${B}\u2502${E}                      ${B}\u2502${E} ${lightSimple('light.living_room_main')} Main  ${lightSimple('light.living_room_accent')} Accent ${B}\u2502${E}`,
-    `${B}\u2502${E} ${lockIcon('lock.back_door')}     ${B}\u2502${E}                      ${B}\u2502${E} ${lightSimple('light.living_room_lamp')} Lamp  ${lightSimple('light.living_room_floor')} Floor  ${B}\u2502${E}`,
-    `${B}\u2502${E} ${motionIcon('binary_sensor.entryway_motion')}    ${B}\u2502${E}                      ${B}\u2502${E} ${mediaIcon('media_player.living_room')}          ${B}\u2502${E}`,
-    `${B}\u2502${E} ${doorIcon('binary_sensor.front_door_contact')}       ${B}\u2502${E}                      ${B}\u2502${E} ${tempIcon('sensor.living_room_temperature')}  ${humidIcon('sensor.living_room_humidity')}     ${B}\u2502${E}`,
-    `${B}\u2502${E} ${doorIcon('binary_sensor.back_door_contact')}        ${B}\u2502${E}                      ${B}\u2502${E} ${motionIcon('binary_sensor.living_room_motion')}${B}\u2502${E}`,
-    `${B}\u2502${E} ${doorIcon('binary_sensor.garage_door_contact')} garage ${B}\u2502${E}                      ${B}\u2502${E}                      ${B}\u2502${E}`,
-    `${B}\u2502${E} ${tempIcon('sensor.entryway_temperature')}           ${B}\u2502${E}                      ${B}\u2502${E}                      ${B}\u2502${E}`,
-    `${B}\u2514\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2518${E}                      ${B}\u2514\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2518${E}`,
-    `${B}\u250C\u2500 EXTERIOR \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2510${E}`,
-    `${B}\u2502${E} ${lightSimple('light.porch')} Porch  ${lightSimple('light.pathway')} Path   ${climateIcon('climate.thermostat')}   ${alarmIcon('alarm_control_panel.home')}   ${sunIcon()}   ${B}\u2502${E}`,
-    `${B}\u2502${E} ${tempIcon('sensor.exterior_temperature')} ${humidIcon('sensor.exterior_humidity')}   ${powerIcon()}   ${smokeIcon('binary_sensor.smoke_detector')}\uD83D\uDD25 ${smokeIcon('binary_sensor.co_detector')}CO  ${trackerIcon()} ${weatherIcon()} ${B}\u2502${E}`,
-    `${B}\u2514\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2518${E}`,
+    // ── Row 1: BEDROOM | BATHROOM | KITCHEN ──
+    hdr('BEDROOM', W) + GAP + hdr('BATHROOM', W) + GAP + hdr('KITCHEN', W),
+    row(lightIcon('light.bedroom')) + GAP +
+      row(lightSimple('light.bathroom')) + GAP +
+      row(lightSimple('light.kitchen')),
+    row(tempIcon('sensor.bedroom_temperature') + '  ' + humidIcon('sensor.bedroom_humidity')) + GAP +
+      row(tempIcon('sensor.bathroom_temperature')) + GAP +
+      row(tempIcon('sensor.kitchen_temperature') + '  ' + humidIcon('sensor.kitchen_humidity')),
+    row(motionIcon('binary_sensor.bedroom_motion')) + GAP +
+      row(humidIcon('sensor.bathroom_humidity')) + GAP +
+      row(coffeeIcon('switch.coffee_maker')),
+    row('') + GAP + row('') + GAP +
+      row(motionIcon('binary_sensor.kitchen_motion')),
+
+    // ── Transition ──
+    bar(W) + GAP + row('') + GAP + bar(W),
+    row('<span class="room-label">ENTRYWAY</span>') + GAP +
+      bot(W) + GAP +
+      row('<span class="room-label">LIVING ROOM</span>'),
+
+    // ── Row 2: ENTRYWAY | (gap) | LIVING ROOM ──
+    row(lockIcon('lock.front_door')) + MGAP +
+      row(lightSimple('light.living_room_main') + ' Main  ' + lightSimple('light.living_room_accent') + ' Accent'),
+    row(lockIcon('lock.back_door')) + MGAP +
+      row(lightSimple('light.living_room_lamp') + ' Lamp  ' + lightSimple('light.living_room_floor') + ' Floor'),
+    row(motionIcon('binary_sensor.entryway_motion')) + MGAP +
+      row(mediaIcon('media_player.living_room')),
+    row(doorIcon('binary_sensor.front_door_contact')) + MGAP +
+      row(tempIcon('sensor.living_room_temperature') + '  ' + humidIcon('sensor.living_room_humidity')),
+    row(doorIcon('binary_sensor.back_door_contact')) + MGAP +
+      row(motionIcon('binary_sensor.living_room_motion')),
+    row(doorIcon('binary_sensor.garage_door_contact') + ' garage') + MGAP +
+      row(''),
+    row(tempIcon('sensor.entryway_temperature')) + MGAP +
+      row(''),
+    bot(W) + MGAP + bot(W),
+
+    // ── Row 3: EXTERIOR ──
+    hdr('EXTERIOR', EW),
+    erow(
+      lightSimple('light.porch') + ' Porch  ' +
+      lightSimple('light.pathway') + ' Path   ' +
+      climateIcon('climate.thermostat') + '   ' +
+      alarmIcon('alarm_control_panel.home') + '   ' +
+      sunIcon()),
+    erow(
+      tempIcon('sensor.exterior_temperature') + ' ' +
+      humidIcon('sensor.exterior_humidity') + '  ' +
+      powerIcon() + '  ' +
+      smokeIcon('binary_sensor.smoke_detector') + '! ' +
+      smokeIcon('binary_sensor.co_detector') + 'CO  ' +
+      trackerIcon() + ' ' +
+      weatherIcon()),
+    bot(EW),
   ];
 
   document.getElementById('house').innerHTML = lines.join('\n');
@@ -835,7 +894,7 @@ function renderDiffs() {
     if (ha.state === marge.state) { matches++; }
     else {
       mismatches++;
-      html += `<div style="font-size:11px;padding:2px 0;border-left:3px solid #f85149;padding-left:6px;margin-bottom:3px">
+      html += `<div style="font-size:11px;padding:2px 0;border-left:3px solid #cf222e;padding-left:6px;margin-bottom:3px">
         <span class="blue">${eid}</span><br>
         <span class="gray">HA:</span> ${ha.state} <span class="gray">Marge:</span> ${marge.state}
       </div>`;
@@ -908,7 +967,7 @@ async function pollMargeHealth() {
       document.getElementById('speed-badge').textContent = margeHealth.sim_speed + 'x';
     }
     renderMetrics();
-  } catch(e) {}
+  } catch(e) { console.warn('Marge health poll failed:', e.message || e); }
 }
 
 async function pollHALatency() {
@@ -919,7 +978,7 @@ async function pollHALatency() {
       headers: haToken ? { 'Authorization': `Bearer ${haToken}` } : {}
     });
     if (r.ok) haLatencyMs = performance.now() - t0;
-  } catch(e) {}
+  } catch(e) { console.warn('HA latency poll failed:', e.message || e); }
 }
 
 // ── Event Log ───────────────────────────────
@@ -1100,8 +1159,8 @@ async function loadHAToken() {
     const badge = document.getElementById('chapter-badge');
     badge.textContent = currentChapter.toUpperCase() || 'IDLE';
     const chap = CHAPTERS.find(c => c.name === currentChapter);
-    badge.style.background = chap ? chap.color : '#238636';
-    badge.style.color = ['night', 'goodnight', 'daytime'].includes(currentChapter) ? '#c9d1d9' : '#fff';
+    badge.style.background = chap ? chap.color : '#1a7f37';
+    badge.style.color = ['night', 'goodnight'].includes(currentChapter) ? '#24292f' : '#fff';
     renderTimeline();
     // Update event rate
     const rate = getEventRate();
