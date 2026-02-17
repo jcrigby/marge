@@ -48,3 +48,6 @@ See [phase-tracker.md](phase-tracker.md) for detailed status.
 - **AppState test constructors**: Must include all fields (ws_connections, plugin_count) — 5 files have test constructors
 - **mlua "send" feature**: Required for `Lua` to be `Send` (uses `Arc<ReentrantMutex>` internally). Without it, `Lua` uses `Rc` and can't cross `.await` points
 - **mlua::Error -> anyhow**: `mlua::Error` contains `Arc<dyn StdError>` which isn't `Send+Sync`; must convert via `.map_err(|e| anyhow::anyhow!("{}", e))` — not `?` directly
+- **State casing**: MQTT devices (zigbee2mqtt) use uppercase ON/OFF/LOCKED/ARMED_HOME. Discovery's `normalize_state()` converts to HA lowercase. Must apply AFTER template rendering AND JSON extraction, not just in `extract_state_from_payload`
+- **Alarm MQTT service names**: Service names are "arm_night" not "alarm_arm_night" — match on both for safety
+- **Docker restart vs recreate**: `docker compose restart` reuses same container image. Need `docker compose up -d --force-recreate` to pick up rebuilt images

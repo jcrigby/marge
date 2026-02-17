@@ -196,11 +196,11 @@ impl ServiceRegistry {
                     .payload_unlock
                     .clone()
                     .unwrap_or_else(|| "UNLOCK".to_string()),
-                // Alarm control panel commands
-                "alarm_disarm" => "DISARM".to_string(),
-                "alarm_arm_home" => "ARM_HOME".to_string(),
-                "alarm_arm_away" => "ARM_AWAY".to_string(),
-                "alarm_arm_night" => "ARM_NIGHT".to_string(),
+                // Alarm control panel commands (service names without domain prefix)
+                "disarm" | "alarm_disarm" => "DISARM".to_string(),
+                "arm_home" | "alarm_arm_home" => "ARM_HOME".to_string(),
+                "arm_away" | "alarm_arm_away" => "ARM_AWAY".to_string(),
+                "arm_night" | "alarm_arm_night" => "ARM_NIGHT".to_string(),
                 _ => serde_json::to_string(&call.data).unwrap_or_default(),
             };
 
