@@ -31,6 +31,59 @@ from typing import Optional
 import httpx
 import paho.mqtt.client as mqtt
 
+# ── Entity-to-zigbee2mqtt mapping (matches virtual-devices/zigbee2mqtt/devices.py) ─
+Z2M_ENTITY_MAP = {
+    # Lights: command via /set, state on state_topic
+    "light.bedroom": ("Bedroom", "light", None),
+    "light.bathroom": ("Bathroom", "light", None),
+    "light.kitchen": ("Kitchen", "light", None),
+    "light.living_room_main": ("Living Room Main", "light", None),
+    "light.living_room_accent": ("Living Room Accent", "light", None),
+    "light.living_room_lamp": ("Living Room Lamp", "light", None),
+    "light.living_room_floor": ("Living Room Floor", "light", None),
+    "light.porch": ("Porch", "light", None),
+    "light.pathway": ("Pathway", "light", None),
+    # Switch
+    "switch.coffee_maker": ("Coffee Maker", "switch", None),
+    # Climate
+    "climate.thermostat": ("Thermostat", "climate", None),
+    # Locks
+    "lock.front_door": ("Front Door Lock", "lock", None),
+    "lock.back_door": ("Back Door Lock", "lock", None),
+    # Alarm
+    "alarm_control_panel.home": ("Home Alarm", "alarm_control_panel", None),
+    # Binary sensors
+    "binary_sensor.entryway_motion": ("Entryway Motion", "binary_sensor", "occupancy"),
+    "binary_sensor.kitchen_motion": ("Kitchen Motion", "binary_sensor", "occupancy"),
+    "binary_sensor.living_room_motion": ("Living Room Motion", "binary_sensor", "occupancy"),
+    "binary_sensor.bedroom_motion": ("Bedroom Motion", "binary_sensor", "occupancy"),
+    "binary_sensor.front_door_contact": ("Front Door Contact", "binary_sensor", "contact"),
+    "binary_sensor.back_door_contact": ("Back Door Contact", "binary_sensor", "contact"),
+    "binary_sensor.garage_door_contact": ("Garage Door", "binary_sensor", "contact"),
+    "binary_sensor.smoke_detector": ("Smoke Detector", "binary_sensor", "smoke"),
+    "binary_sensor.co_detector": ("CO Detector", "binary_sensor", "gas"),
+    # Sensors — temperature
+    "sensor.bedroom_temperature": ("Bedroom Sensor", "sensor", "temperature"),
+    "sensor.kitchen_temperature": ("Kitchen Sensor", "sensor", "temperature"),
+    "sensor.living_room_temperature": ("Living Room Sensor", "sensor", "temperature"),
+    "sensor.bathroom_temperature": ("Bathroom Sensor", "sensor", "temperature"),
+    "sensor.entryway_temperature": ("Entryway Sensor", "sensor", "temperature"),
+    "sensor.exterior_temperature": ("Exterior Sensor", "sensor", "temperature"),
+    # Sensors — humidity
+    "sensor.bedroom_humidity": ("Bedroom Humidity Sensor", "sensor", "humidity"),
+    "sensor.kitchen_humidity": ("Kitchen Humidity Sensor", "sensor", "humidity"),
+    "sensor.living_room_humidity": ("Living Room Humidity Sensor", "sensor", "humidity"),
+    "sensor.bathroom_humidity": ("Bathroom Humidity Sensor", "sensor", "humidity"),
+    "sensor.exterior_humidity": ("Exterior Humidity Sensor", "sensor", "humidity"),
+    # Sensors — power
+    "sensor.power_consumption": ("Power Monitor", "sensor", "power"),
+    "sensor.voltage": ("Voltage Monitor", "sensor", "voltage"),
+    "sensor.current": ("Current Monitor", "sensor", "current"),
+}
+
+# Device mode: "manual" = legacy home/+/+/state topics, "virtual" = zigbee2mqtt topics
+DEVICE_MODE = os.environ.get("DEVICE_MODE", "manual")
+
 
 @dataclass
 class SUTConnection:
@@ -148,6 +201,10 @@ async def push_state_mqtt(sut: SUTConnection, entity_id: str, state: str,
                           attributes: Optional[dict] = None):
     """Push sensor/binary_sensor state via MQTT (the correct way).
     Falls back to REST if MQTT not available."""
+    if DEVICE_MODE == "virtual":
+        await push_state_z2m(sut, entity_id, state, attributes)
+        return
+
     if sut.mqtt_client:
         topic = entity_to_mqtt_topic(entity_id)
         mqtt_state = state
@@ -177,6 +234,92 @@ async def push_state_rest(sut: SUTConnection, entity_id: str, state: str,
     except Exception as e:
         if not silent:
             print(f"  [{sut.name}] REST push failed for {entity_id}: {e}")
+
+
+async def push_state_z2m(sut: SUTConnection, entity_id: str, state: str,
+                          attributes: Optional[dict] = None):
+    """Push state via zigbee2mqtt MQTT topics (virtual device mode)."""
+    if not sut.mqtt_client:
+        await push_state_rest(sut, entity_id, state, attributes)
+        return
+
+    mapping = Z2M_ENTITY_MAP.get(entity_id)
+    if not mapping:
+        # Not a zigbee2mqtt entity — fall back to REST
+        await push_state_rest(sut, entity_id, state, attributes)
+        return
+
+    friendly_name, component, value_key = mapping
+
+    if component == "light":
+        # Publish command to set topic
+        z2m_state = "ON" if state.lower() in ("on", "true", "1") else "OFF"
+        payload = {"state": z2m_state}
+        if attributes:
+            if "brightness" in attributes:
+                payload["brightness"] = int(attributes["brightness"])
+            if "color_temp" in attributes:
+                payload["color_temp"] = int(attributes["color_temp"])
+        topic = f"zigbee2mqtt/{friendly_name}/set"
+        sut.mqtt_client.publish(topic, json.dumps(payload), retain=False)
+
+    elif component == "switch":
+        z2m_state = "ON" if state.lower() in ("on", "true", "1") else "OFF"
+        topic = f"zigbee2mqtt/{friendly_name}/set"
+        sut.mqtt_client.publish(topic, json.dumps({"state": z2m_state}), retain=False)
+
+    elif component == "lock":
+        cmd = "LOCK" if state.lower() in ("locked", "lock") else "UNLOCK"
+        topic = f"zigbee2mqtt/{friendly_name}/set"
+        sut.mqtt_client.publish(topic, json.dumps({"state": cmd}), retain=False)
+
+    elif component == "climate":
+        # Push state directly to state topic (climate has complex state)
+        topic = f"zigbee2mqtt/{friendly_name}"
+        # Try to interpret the state as a mode or temperature
+        current = {"system_mode": "heat", "current_heating_setpoint": 70, "local_temperature": 68.0}
+        if state in ("heat", "cool", "off", "heat_cool"):
+            current["system_mode"] = state
+        else:
+            try:
+                current["current_heating_setpoint"] = float(state)
+            except ValueError:
+                pass
+        if attributes and "temperature" in attributes:
+            current["current_heating_setpoint"] = float(attributes["temperature"])
+        if attributes and "current_temperature" in attributes:
+            current["local_temperature"] = float(attributes["current_temperature"])
+        sut.mqtt_client.publish(topic, json.dumps(current), retain=True)
+
+    elif component == "alarm_control_panel":
+        cmd_map = {
+            "armed_home": "ARM_HOME", "armed_away": "ARM_AWAY",
+            "armed_night": "ARM_NIGHT", "disarmed": "DISARM",
+        }
+        cmd = cmd_map.get(state.lower(), state.upper())
+        topic = f"zigbee2mqtt/{friendly_name}/set"
+        sut.mqtt_client.publish(topic, json.dumps({"state": cmd}), retain=False)
+
+    elif component == "binary_sensor":
+        topic = f"zigbee2mqtt/{friendly_name}"
+        if value_key == "occupancy":
+            val = state.lower() in ("on", "true", "1")
+            sut.mqtt_client.publish(topic, json.dumps({value_key: val}), retain=True)
+        elif value_key == "contact":
+            # contact=true means CLOSED (off), contact=false means OPEN (on)
+            val = state.lower() not in ("on", "true", "1")
+            sut.mqtt_client.publish(topic, json.dumps({value_key: val}), retain=True)
+        elif value_key in ("smoke", "gas"):
+            val = state.lower() in ("on", "true", "1")
+            sut.mqtt_client.publish(topic, json.dumps({value_key: val}), retain=True)
+
+    elif component == "sensor":
+        topic = f"zigbee2mqtt/{friendly_name}"
+        try:
+            numeric_val = float(state)
+            sut.mqtt_client.publish(topic, json.dumps({value_key: numeric_val}), retain=True)
+        except (ValueError, TypeError):
+            sut.mqtt_client.publish(topic, json.dumps({value_key: state}), retain=True)
 
 
 async def call_service(sut: SUTConnection, domain: str, service: str,
@@ -735,6 +878,7 @@ async def main():
     print(f"Loaded scenario: {scenario['metadata']['description']}")
     print(f"  Entities: {scenario['metadata']['entity_count']}")
     print(f"  Chapters: {', '.join(scenario['chapters'].keys())}")
+    print(f"  Device mode: {DEVICE_MODE}")
 
     # Set up SUT connections
     suts = []
@@ -762,8 +906,11 @@ async def main():
         ha.http_client = httpx.AsyncClient()
         try:
             ha.mqtt_client = connect_mqtt(ha_mqtt_host, ha_mqtt_port, "marge-driver-ha")
-            start_command_bridge(ha.mqtt_client)
-            print("  Command bridge active for HA MQTT")
+            if DEVICE_MODE == "manual":
+                start_command_bridge(ha.mqtt_client)
+                print("  Command bridge active for HA MQTT")
+            else:
+                print("  Virtual mode: command bridge skipped (virtual devices handle echo)")
         except Exception as e:
             print(f"WARNING: Could not connect to HA MQTT: {e}")
         suts.append(ha)

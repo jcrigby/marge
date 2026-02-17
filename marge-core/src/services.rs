@@ -47,6 +47,8 @@ pub struct MqttCommandTarget {
     /// None means publish the service call data as JSON.
     pub payload_on: Option<String>,
     pub payload_off: Option<String>,
+    pub payload_lock: Option<String>,
+    pub payload_unlock: Option<String>,
 }
 
 /// The service registry.
@@ -186,6 +188,19 @@ impl ServiceRegistry {
                     .payload_off
                     .clone()
                     .unwrap_or_else(|| "OFF".to_string()),
+                "lock" => target
+                    .payload_lock
+                    .clone()
+                    .unwrap_or_else(|| "LOCK".to_string()),
+                "unlock" => target
+                    .payload_unlock
+                    .clone()
+                    .unwrap_or_else(|| "UNLOCK".to_string()),
+                // Alarm control panel commands
+                "alarm_disarm" => "DISARM".to_string(),
+                "alarm_arm_home" => "ARM_HOME".to_string(),
+                "alarm_arm_away" => "ARM_AWAY".to_string(),
+                "alarm_arm_night" => "ARM_NIGHT".to_string(),
                 _ => serde_json::to_string(&call.data).unwrap_or_default(),
             };
 

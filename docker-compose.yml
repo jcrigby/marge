@@ -97,11 +97,13 @@ services:
       - MARGE_MQTT_PORT=1884
       - SPEED=10
       - CHAPTER=dawn
+      - DEVICE_MODE=manual
     depends_on:
       - ha-legacy
       - marge
       - mosquitto
     # Override with: docker compose run scenario-driver --speed 10 --chapter dawn
+    # Virtual mode: docker compose run -e DEVICE_MODE=virtual -e CHAPTERS=dawn,morning,sunset,goodnight scenario-driver
 
   # ─── Dashboard ───────────────────────────────────────────
   dashboard:

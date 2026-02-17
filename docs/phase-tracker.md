@@ -192,3 +192,4 @@ the same entity fleet without physical hardware. Enables all-virtual Innovation 
 - 2026-02-16: Three-tier consolidation — 26 files merged into neighbors, 144 dups eliminated (commit 65a2060)
 - 2026-02-16: Phase 8 — Lua plugin runtime: lua_plugins.rs (680 LOC, 8 tests), plugin_orchestrator.rs (116 LOC), 2 example Lua plugins, WASM poll_all fix. 94/94 Rust tests (commit 45082f0)
 - 2026-02-17: Virtual device simulators — zigbee2mqtt (37 devices, paho-mqtt v2), Shelly (2 Gen2 devices, FastAPI), Hue (3 lights + 2 sensors, FastAPI), docker compose virtual profile, HA virtual config. All 37 entities discovered by Marge end-to-end (commit 5135547)
+- 2026-02-17: MQTT command dispatch + virtual scenario driver — wired service→MQTT publish pipeline (second broker link, lock/alarm commands), adapted driver.py for DEVICE_MODE=virtual (zigbee2mqtt JSON payloads). All device types verified: light, switch, lock, alarm

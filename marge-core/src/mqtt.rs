@@ -8,6 +8,7 @@ use tokio::task::JoinHandle;
 use crate::api::AppState;
 use crate::discovery::DiscoveryEngine;
 use crate::integrations::{zigbee2mqtt, zwave, tasmota, esphome};
+use crate::services::MqttPublish;
 
 /// Device bridge managers passed to the MQTT subscriber.
 #[allow(dead_code)]
@@ -30,13 +31,13 @@ pub struct DeviceBridges {
 /// Device bridge topics (Phase 2 §2.1-2.3):
 ///   zigbee2mqtt/#, zwave/#, stat/#, tele/#
 ///
-/// Returns handles for the broker and subscriber tasks.
+/// Returns handles for the broker and subscriber tasks, plus the MQTT command sender.
 pub fn start_mqtt(
     app: Arc<AppState>,
     port: u16,
     discovery: Arc<DiscoveryEngine>,
     bridges: DeviceBridges,
-) -> anyhow::Result<(JoinHandle<()>, JoinHandle<()>)> {
+) -> anyhow::Result<(JoinHandle<()>, JoinHandle<()>, tokio::sync::mpsc::UnboundedSender<MqttPublish>)> {
     let addr: SocketAddr = format!("0.0.0.0:{}", port).parse()?;
 
     let server_settings = ServerSettings {
@@ -82,6 +83,9 @@ pub fn start_mqtt(
 
     // Create an internal link for subscribing (must happen before start)
     let (mut link_tx, mut link_rx) = broker.link("marge-internal")?;
+
+    // Create a second broker link for publishing commands
+    let (mut link_tx_pub, _link_rx_pub) = broker.link("marge-command")?;
 
     // broker.start() is blocking — run it in a dedicated thread
     let broker_handle = tokio::spawn(async move {
@@ -180,7 +184,19 @@ pub fn start_mqtt(
         }).await.ok();
     });
 
-    Ok((broker_handle, subscriber_handle))
+    // Spawn MQTT command publisher (bridges service registry -> broker)
+    let (mqtt_cmd_tx, mut mqtt_cmd_rx) = tokio::sync::mpsc::unbounded_channel::<MqttPublish>();
+    let _publisher_handle = tokio::spawn(async move {
+        tokio::task::spawn_blocking(move || {
+            while let Some(msg) = mqtt_cmd_rx.blocking_recv() {
+                if let Err(e) = link_tx_pub.publish(msg.topic, msg.payload.into_bytes()) {
+                    tracing::warn!("MQTT command publish failed: {:?}", e);
+                }
+            }
+        }).await.ok();
+    });
+
+    Ok((broker_handle, subscriber_handle, mqtt_cmd_tx))
 }
 
 /// Extract topic and payload from a rumqttd notification.

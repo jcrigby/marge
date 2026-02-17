@@ -282,8 +282,11 @@ async fn main() -> anyhow::Result<()> {
         esphome: esphome_bridge,
     };
     match mqtt::start_mqtt(app_state.clone(), mqtt_port, discovery_engine.clone(), bridges) {
-        Ok((_broker_handle, _subscriber_handle)) => {
+        Ok((_broker_handle, _subscriber_handle, mqtt_cmd_tx)) => {
             tracing::info!("Embedded MQTT broker on port {}", mqtt_port);
+            // Wire MQTT command dispatch: service calls -> broker publish
+            service_registry.write().unwrap_or_else(|e| e.into_inner()).set_mqtt_tx(mqtt_cmd_tx);
+            tracing::info!("MQTT command dispatch wired");
         }
         Err(e) => {
             tracing::warn!("Failed to start MQTT broker: {} — running without MQTT", e);

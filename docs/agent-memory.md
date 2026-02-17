@@ -37,6 +37,7 @@ See [phase-tracker.md](phase-tracker.md) for detailed status.
 - CTS: 1654 tests / 125 files (pruned from 4854/411 on 2026-02-16), 94/94 Rust unit tests
 
 ## Critical Gotchas
+- **MQTT command dispatch**: `set_mqtt_tx()` must be called after `start_mqtt()` to wire service→broker publish. Uses a second broker link (`marge-command`) and `spawn_blocking` + `blocking_recv()` for the publisher task. Without this, service calls silently drop outbound MQTT commands
 - **rumqttd 0.19**: No Default for ServerSettings, `broker.start()` is blocking (use spawn_blocking)
 - **Entity count inflation**: CTS performance tests create 1000 test entities. Force-recreate for clean metrics
 - **Cargo build**: Must run from `marge-core/` directory, not project root

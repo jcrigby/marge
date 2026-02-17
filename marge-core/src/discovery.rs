@@ -324,6 +324,8 @@ impl DiscoveryEngine {
                     command_topic: cmd_topic.clone(),
                     payload_on: disc.payload_on,
                     payload_off: disc.payload_off,
+                    payload_lock: disc.payload_lock,
+                    payload_unlock: disc.payload_unlock,
                 },
             );
         }
