@@ -46,8 +46,10 @@ All four bridges implemented with unit tests + CTS integration tests.
 - [x] Zigbee2mqtt pairing flow (permit_join toggle wired in IntegrationManager)
 - [x] Visual automation editor (AutomationEditor.tsx, form-based triggers/conditions/actions, YAML preview)
 
-## Phase 5: Plugin System — MOSTLY COMPLETE (2026-02-14)
-- [x] WASM plugin runtime (plugins.rs, 374 LOC, wasmtime v29, fuel metering, host functions)
+## Phase 5: Plugin System — COMPLETE (2026-02-16)
+- [x] WASM plugin runtime (plugins.rs, 630 LOC, wasmtime v29, fuel metering, host functions, poll_all)
+- [x] Lua plugin runtime (lua_plugins.rs, 680 LOC, mlua/Lua 5.4, sandboxed, instruction-limited, marge.* API)
+- [x] Plugin orchestrator (plugin_orchestrator.rs, 116 LOC, unified WASM+Lua, background poll + state-change dispatch)
 - [x] Weather integration (integrations/weather.rs, 212 LOC, Met.no API poller, 5 entities)
 - [x] Webhook receiver (api.rs, already existed — state set + event fire)
 - [ ] Subprocess/sidecar manager (for Matter, cameras) — deferred
@@ -141,6 +143,7 @@ Priority order (by install base and effort):
 - Build + test after each integration
 - Update this tracker after each commit
 - CTS: 1654 tests across 125 files as of 2026-02-16 (pruned from 4854/411)
+- Rust unit tests: 94 (86 existing + 8 Lua plugin tests)
 
 ---
 ## Session Log
@@ -166,4 +169,5 @@ Priority order (by install base and effort):
 - 2026-02-16: Final CTS: 1922 tests / 172 files (60% reduction from original 4854/411)
 - 2026-02-16: WS file consolidation — 21 files → 6 thematic files, 15 deleted (commit 9e9c7bd)
 - 2026-02-16: Error handling consolidation — 8 files → 2, 6 deleted, 47 dups eliminated (commit 8df3eda)
-- 2026-02-16: Three-tier consolidation — 26 files merged into neighbors, 144 dups eliminated (commit pending)
+- 2026-02-16: Three-tier consolidation — 26 files merged into neighbors, 144 dups eliminated (commit 65a2060)
+- 2026-02-16: Phase 8 — Lua plugin runtime: lua_plugins.rs (680 LOC, 8 tests), plugin_orchestrator.rs (116 LOC), 2 example Lua plugins, WASM poll_all fix. 94/94 Rust tests (commit 45082f0)
