@@ -19,6 +19,9 @@
 - `marge-ui/src/` — App.tsx(~960), IntegrationManager.tsx(~980), AutomationEditor.tsx(487), LoginPage.tsx(74), EntityCard.tsx(836), EntityDetail.tsx(815), + 12 more
 - `tests/` — 1654 CTS tests across 125 test files (pruned from 4854/411)
 - `examples/plugins/` — joke-sensor/ (WASM, 353 LOC Rust), joke-sensor.lua (35 LOC), motion-light.lua (26 LOC)
+- `virtual-devices/zigbee2mqtt/` — devices.py(485), simulator.py(500) — 37 device z2m simulator (paho-mqtt v2)
+- `virtual-devices/shelly/` — simulator.py(225) — 2 Gen2 Shelly devices (FastAPI, port 8180)
+- `virtual-devices/hue/` — simulator.py(280) — Hue bridge with 3 lights + 2 sensors (FastAPI, port 8181)
 
 ## Phase Tracker
 See [phase-tracker.md](phase-tracker.md) for detailed status.
@@ -29,6 +32,7 @@ See [phase-tracker.md](phase-tracker.md) for detailed status.
 - **Phase 5 (Plugin System)**: COMPLETE — WASM + Lua runtimes, unified orchestrator, weather, webhooks
 - **Phase 6 (Production)**: MOSTLY COMPLETE — backup/restore, graceful shutdown, history
 - **Phase 7 (Local Network)**: COMPLETE — Shelly, Hue, Cast, Sonos, Matter + WASM HTTP host functions
+- **Phase 8 (Virtual Devices)**: COMPLETE — zigbee2mqtt (37 devices), Shelly (2 Gen2), Hue (3 lights + 2 sensors) simulators
 - **Coverage**: ~85% of homes (10 integrations)
 - CTS: 1654 tests / 125 files (pruned from 4854/411 on 2026-02-16), 94/94 Rust unit tests
 

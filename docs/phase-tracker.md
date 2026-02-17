@@ -132,6 +132,26 @@ Priority order (by install base and effort):
 - Enables the entire Tier 3 cloud plugin ecosystem (Tuya, TP-Link, Spotify, etc.)
 - **File**: `plugins.rs` (+224 LOC)
 
+## Phase 8: Virtual Device Simulators — COMPLETE (2026-02-17)
+**Goal**: Protocol-accurate virtual devices so both HA and Marge auto-discover
+the same entity fleet without physical hardware. Enables all-virtual Innovation Week demo.
+
+- [x] zigbee2mqtt simulator (devices.py 485 LOC + simulator.py 500 LOC, paho-mqtt v2)
+  - 37 devices: 9 lights, 1 switch, 1 climate, 2 locks, 1 alarm, 9 binary sensors, 14 sensors
+  - HA MQTT Discovery configs (retained), bridge/state, bridge/devices, availability
+  - Command handling (zigbee2mqtt/+/set), state echo, periodic sensor drift
+- [x] Shelly simulator (simulator.py 225 LOC, FastAPI on port 8180)
+  - 2 Gen2 devices: relay+power (shellyplus1pm), dimmer (shellydimmer2)
+  - /shelly, /rpc/Shelly.GetStatus, /rpc/Switch.Set, /rpc/Light.Set
+  - Background power/voltage/temperature drift
+- [x] Hue bridge simulator (simulator.py 280 LOC, FastAPI on port 8181)
+  - 3 lights (Extended color, Dimmable, Color) + 2 sensors (ZLLPresence, ZLLTemperature)
+  - Auto-pairing POST /api, GET lights/sensors/config, PUT state
+  - Background temperature drift + motion triggers
+- [x] Docker compose: 4 services under `virtual` profile (z2m-ha, z2m-marge, shelly, hue)
+- [x] HA virtual config (configuration-virtual.yaml — no mqtt: block, discovery only)
+- [x] Verified: Marge discovers all 37 z2m entities via embedded MQTT broker
+
 ## Coverage Milestones
 - **Current (Phases 1-6)**: ~70% of homes (MQTT Discovery + 4 bridges)
 - **After 7.1-7.2 (Shelly + Hue)**: ~80% of homes
@@ -171,3 +191,4 @@ Priority order (by install base and effort):
 - 2026-02-16: Error handling consolidation — 8 files → 2, 6 deleted, 47 dups eliminated (commit 8df3eda)
 - 2026-02-16: Three-tier consolidation — 26 files merged into neighbors, 144 dups eliminated (commit 65a2060)
 - 2026-02-16: Phase 8 — Lua plugin runtime: lua_plugins.rs (680 LOC, 8 tests), plugin_orchestrator.rs (116 LOC), 2 example Lua plugins, WASM poll_all fix. 94/94 Rust tests (commit 45082f0)
+- 2026-02-17: Virtual device simulators — zigbee2mqtt (37 devices, paho-mqtt v2), Shelly (2 Gen2 devices, FastAPI), Hue (3 lights + 2 sensors, FastAPI), docker compose virtual profile, HA virtual config. All 37 entities discovered by Marge end-to-end (commit 5135547)
