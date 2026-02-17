@@ -1,0 +1,31 @@
+# MARGE Demo — Home Assistant Configuration (Virtual Devices Mode)
+#
+# Use this instead of configuration.yaml when running with virtual device
+# simulators. Entities are discovered via MQTT Discovery from virtual-z2m-ha,
+# not manually defined.
+#
+# Usage:
+#   1. Copy this file to configuration.yaml (or mount it)
+#   2. docker compose --profile virtual up -d
+#   3. Entities auto-discovered from virtual zigbee2mqtt bridge
+
+homeassistant:
+  name: "Marge Demo Home"
+  latitude: 40.3916
+  longitude: -111.8508
+  elevation: 1387
+  unit_system: us_customary
+  time_zone: "America/Denver"
+  currency: USD
+
+# REST API — required for scenario driver, CTS, and dashboard
+api:
+
+logger:
+  default: warning
+  logs:
+    homeassistant.components.automation: info
+    homeassistant.components.mqtt: info
+
+automation: !include automations.yaml
+scene: !include scenes.yaml

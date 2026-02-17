@@ -117,3 +117,56 @@ services:
     depends_on:
       - ha-legacy
       - marge
+
+  # ─── Virtual Device Simulators ──────────────────────────
+  # Start with: docker compose --profile virtual up -d
+  virtual-z2m-ha:
+    build:
+      context: ./virtual-devices/zigbee2mqtt
+    container_name: marge-demo-virtual-z2m-ha
+    environment:
+      - MQTT_HOST=mosquitto
+      - MQTT_PORT=1883
+      - BRIDGE_NAME=zigbee2mqtt
+      - TICK_INTERVAL=5
+    depends_on:
+      mosquitto:
+        condition: service_healthy
+    restart: unless-stopped
+    profiles:
+      - virtual
+
+  virtual-z2m-marge:
+    build:
+      context: ./virtual-devices/zigbee2mqtt
+    container_name: marge-demo-virtual-z2m-marge
+    environment:
+      - MQTT_HOST=marge
+      - MQTT_PORT=1884
+      - BRIDGE_NAME=zigbee2mqtt
+      - TICK_INTERVAL=5
+    depends_on:
+      - marge
+    restart: unless-stopped
+    profiles:
+      - virtual
+
+  virtual-shelly:
+    build:
+      context: ./virtual-devices/shelly
+    container_name: marge-demo-virtual-shelly
+    ports:
+      - "8180:8180"
+    restart: unless-stopped
+    profiles:
+      - virtual
+
+  virtual-hue:
+    build:
+      context: ./virtual-devices/hue
+    container_name: marge-demo-virtual-hue
+    ports:
+      - "8181:8181"
+    restart: unless-stopped
+    profiles:
+      - virtual
