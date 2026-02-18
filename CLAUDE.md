@@ -4,11 +4,28 @@
 Marge: clean-room reimplementation of Home Assistant's core automation engine in Rust. Innovation Week demo. Built in one sitting (9.5 hours, 47 commits).
 
 ## Architecture
-- **marge-core/**: Rust binary — axum 0.7 + tokio + DashMap + rumqttd 0.19
+- **marge-core/**: Rust binary — axum 0.7 + tokio + DashMap + rumqttd 0.19 + wasmtime 29 + mlua 0.10 (Lua 5.4)
 - **scenario-driver/**: Python async — plays Day-in-the-Life scenario against HA and Marge
 - **dashboard/**: Single-file HTML/CSS/JS — ASCII house + live metrics + score card
 - **tests/**: 77 pytest conformance tests (CTS)
 - **ha-config/**: Home Assistant MQTT entity config + 6 automations + 2 scenes
+- **examples/plugins/**: Example Lua + WASM plugins (joke-sensor, motion-light)
+
+## Plugin System (WASM + Lua)
+Marge has a dual-runtime plugin system managed by a unified orchestrator (`plugin_orchestrator.rs`):
+- **WASM runtime** (`plugins.rs`, ~630 LOC): wasmtime 29 with fuel metering, host functions for state/service/HTTP
+- **Lua runtime** (`lua_plugins.rs`, 680 LOC): mlua 0.10 embedding Lua 5.4, sandboxed (no os/io/debug/package), instruction-limited (1M VM instructions per invocation)
+- **Orchestrator** (`plugin_orchestrator.rs`, 116 LOC): scans `/config/plugins/` for `.wasm` and `.lua` files, dispatches state-change events, runs 60s poll loop
+
+Lua plugin contract — define any of these functions:
+- `init()` — called once at load time
+- `poll()` — called every 60 seconds
+- `on_state_changed(entity_id, old_state, new_state)` — called on any state change
+
+Host API available to Lua plugins via `marge.*` namespace:
+- `marge.get_state(entity_id)`, `marge.set_state(entity_id, state, attrs?)`
+- `marge.call_service(domain, service, data?)`, `marge.log(level, msg)`
+- `marge.http_get(url)`, `marge.http_post(url, body)`
 
 ## Docker Stack
 ```
@@ -27,6 +44,10 @@ mosquitto (1883) — ha-legacy (8123) — marge (8124/1884) — dashboard (3000)
 - HA MQTT entities expect uppercase ON/OFF payloads for binary sensors/lights/switches
 - Cargo build must run from `marge-core/` directory, not project root
 - Driver uses ENV vars (SPEED, CHAPTER, CHAPTERS, TARGET), not CLI args
+- mlua **"send" feature** is required for `Lua` to be `Send` (uses `Arc<ReentrantMutex>` internally); without it, `Lua` uses `Rc` and can't cross `.await` points
+- mlua::Error contains `Arc<dyn StdError>` which isn't `Send+Sync`; convert via `.map_err(|e| anyhow::anyhow!("{}", e))` — can't use `?` directly with anyhow
+- Lua plugins are sandboxed: no `os`, `io`, `debug`, `package`, `load`, `require`, `dofile`, `loadfile`
+- Plugin orchestrator is `Arc<Mutex<>>` because Lua is `Send` but not `Sync`
 
 ## Working Preferences
 - Autonomous execution preferred — don't ask, just go
