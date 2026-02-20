@@ -11,6 +11,7 @@
 //! Empty payload = entity removal.
 //! Device grouping via `device.identifiers`.
 
+use std::collections::HashSet;
 use std::sync::Arc;
 
 use dashmap::DashMap;
@@ -163,7 +164,7 @@ pub struct DiscoveryEngine {
     devices: Arc<DashMap<String, DiscoveredDevice>>,
     /// Topics we need to subscribe to (state_topic, availability_topic)
     /// Keyed by topic, value is list of entity_ids interested in this topic
-    topic_subscriptions: Arc<DashMap<String, Vec<String>>>,
+    topic_subscriptions: Arc<DashMap<String, HashSet<String>>>,
     /// Reference to app state (owns the state machine)
     app: Arc<AppState>,
     /// MQTT command targets (shared with service registry)
@@ -462,7 +463,7 @@ impl DiscoveryEngine {
         self.topic_subscriptions
             .entry(topic.to_string())
             .or_default()
-            .push(entity_id.to_string());
+            .insert(entity_id.to_string());
     }
 
     fn remove_entity(
@@ -497,7 +498,7 @@ impl DiscoveryEngine {
 
     fn remove_topic_subscription(&self, topic: &str, entity_id: &str) {
         if let Some(mut ids) = self.topic_subscriptions.get_mut(topic) {
-            ids.retain(|id| id != entity_id);
+            ids.remove(entity_id);
             if ids.is_empty() {
                 drop(ids);
                 self.topic_subscriptions.remove(topic);

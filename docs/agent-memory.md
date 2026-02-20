@@ -51,3 +51,9 @@ See [phase-tracker.md](phase-tracker.md) for detailed status.
 - **State casing**: MQTT devices (zigbee2mqtt) use uppercase ON/OFF/LOCKED/ARMED_HOME. Discovery's `normalize_state()` converts to HA lowercase. Must apply AFTER template rendering AND JSON extraction, not just in `extract_state_from_payload`
 - **Alarm MQTT service names**: Service names are "arm_night" not "alarm_arm_night" — match on both for safety
 - **Docker restart vs recreate**: `docker compose restart` reuses same container image. Need `docker compose up -d --force-recreate` to pick up rebuilt images
+- **HA token expiry**: Default tokens expire ~30 min. Run `./scripts/ha-refresh-token.sh` before each demo session. For walkaway resilience, create a long-lived token via HA UI (Profile > Long-Lived Access Tokens)
+
+## Known Issues (Not Yet Fixed)
+- **Memory leak — topic_subscriptions**: `discovery.rs:462` `add_topic_subscription()` pushes entity_ids into `Vec<String>` without dedup. Each MQTT message re-appends the same IDs. Over 3 days with 37 devices @ 5s intervals = millions of duplicate strings (~50-100 MB). **Fix**: Change `Vec<String>` to `HashSet<String>` or add dedup check before push.
+- **Memory leak — last_time_triggers**: `automation.rs:661` stores `"automation_id:HH:MM"` keys to prevent duplicate time-trigger fires, but only clears on automation reload. Grows ~10-20 MB over days. **Fix**: Add TTL cleanup (remove entries older than 24h) or clear daily.
+- **Possible — SQLite WAL growth**: `recorder.rs` uses WAL mode. Over days of continuous writes, WAL segments could accumulate if checkpoint lags. Monitor `.db-wal` file size.
