@@ -11,6 +11,8 @@ import time
 import pytest
 import httpx
 
+pytestmark = [pytest.mark.asyncio, pytest.mark.marge_only]
+
 BASE = "http://localhost:8124"
 HEADERS = {"Authorization": "Bearer test-token", "Content-Type": "application/json"}
 

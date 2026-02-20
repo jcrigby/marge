@@ -341,7 +341,7 @@ async def test_service_call_returns_200(rest):
 
 
 async def test_service_call_returns_changed_states(rest):
-    """Service call response includes changed_states when state changed."""
+    """Service call response is a flat list of changed entity states."""
     tag = uuid.uuid4().hex[:8]
     eid = f"switch.err_chg_{tag}"
     await rest.set_state(eid, "off")
@@ -351,9 +351,9 @@ async def test_service_call_returns_changed_states(rest):
         json={"entity_id": eid},
     )
     data = resp.json()
-    # changed_states is present when entities changed
-    if "changed_states" in data:
-        assert isinstance(data["changed_states"], list)
+    # Response is a flat list of changed entity states
+    if isinstance(data, list):
+        assert all(isinstance(e, dict) for e in data)
 
 
 async def test_service_call_returns_json(rest):
@@ -368,7 +368,7 @@ async def test_service_call_returns_json(rest):
     )
     assert resp.status_code == 200
     data = resp.json()
-    assert isinstance(data, (dict, list))
+    assert isinstance(data, list)
 
 
 # --- Fire event edge cases ---

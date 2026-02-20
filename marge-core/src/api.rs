@@ -94,12 +94,6 @@ struct EventResponse {
     message: String,
 }
 
-/// POST /api/services/{domain}/{service} response
-#[derive(Serialize)]
-struct ServiceResponse {
-    #[serde(skip_serializing_if = "Vec::is_empty")]
-    changed_states: Vec<EntityState>,
-}
 
 #[allow(clippy::too_many_arguments)]
 pub fn router(
@@ -447,7 +441,7 @@ async fn call_service(
     headers: HeaderMap,
     Path((domain, service)): Path<(String, String)>,
     Json(body): Json<serde_json::Value>,
-) -> Result<Json<ServiceResponse>, StatusCode> {
+) -> Result<Json<Vec<EntityState>>, StatusCode> {
     check_auth(&rs, &headers)?;
     tracing::info!(domain = %domain, service = %service, "Service called");
 
@@ -470,7 +464,7 @@ async fn call_service(
                 _ => {}
             }
         }
-        return Ok(Json(ServiceResponse { changed_states: vec![] }));
+        return Ok(Json(vec![]));
     }
 
     // Handle persistent_notification services
@@ -509,7 +503,7 @@ async fn call_service(
             }
             _ => {}
         }
-        return Ok(Json(ServiceResponse { changed_states: vec![] }));
+        return Ok(Json(vec![]));
     }
 
     // Handle scene.turn_on
@@ -520,7 +514,7 @@ async fn call_service(
                 .unwrap_or("");
             scenes.turn_on(entity_id);
         }
-        return Ok(Json(ServiceResponse { changed_states: vec![] }));
+        return Ok(Json(vec![]));
     }
 
     // Extract entity_id from body (can be string or array)
@@ -547,9 +541,7 @@ async fn call_service(
         registry.call(&domain, &service, &entity_ids, &body, &rs.app.state_machine)
     };
 
-    Ok(Json(ServiceResponse {
-        changed_states: changed,
-    }))
+    Ok(Json(changed))
 }
 
 /// POST /api/sim/time — update sim-time and chapter

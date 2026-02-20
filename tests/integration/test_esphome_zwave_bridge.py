@@ -19,7 +19,7 @@ MQTT_HOST = "localhost"
 MQTT_PORT = 1884
 HEADERS = {"Authorization": "Bearer test-token", "Content-Type": "application/json"}
 
-pytestmark = pytest.mark.asyncio
+pytestmark = [pytest.mark.asyncio, pytest.mark.marge_only]
 
 
 def mqtt_publish(topic: str, payload: str):

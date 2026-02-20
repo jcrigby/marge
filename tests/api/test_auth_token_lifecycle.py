@@ -8,7 +8,7 @@ create, list, delete, token format validation, and full lifecycle.
 import uuid
 import pytest
 
-pytestmark = pytest.mark.asyncio
+pytestmark = [pytest.mark.asyncio, pytest.mark.marge_only]
 
 
 async def _create_token(rest, name):

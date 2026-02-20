@@ -22,8 +22,8 @@ async def test_entity_id_array_turn_on(rest):
     )
     assert resp.status_code == 200
     data = resp.json()
-    assert "changed_states" in data
-    assert len(data["changed_states"]) == 3
+    assert isinstance(data, list)
+    assert len(data) == 3
 
     for i in range(3):
         state = await rest.get_state(f"light.arr_on_{i}")
@@ -42,7 +42,7 @@ async def test_entity_id_array_turn_off(rest):
     )
     assert resp.status_code == 200
     data = resp.json()
-    assert len(data["changed_states"]) == 2
+    assert len(data) == 2
 
 
 async def test_target_entity_id_pattern(rest):
@@ -107,7 +107,7 @@ async def test_service_changed_states_all_fields(rest):
         headers=rest._headers(),
     )
     data = resp.json()
-    for entry in data["changed_states"]:
+    for entry in data:
         assert "entity_id" in entry
         assert "state" in entry
         assert "attributes" in entry

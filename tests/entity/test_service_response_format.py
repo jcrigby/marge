@@ -1,8 +1,8 @@
 """
 CTS -- Service Call Response Format Tests
 
-Tests that service call responses have the correct format: changed_states
-array with proper entity fields.
+Tests that service call responses have the correct format: a flat JSON array
+of entity state objects.
 """
 
 import pytest
@@ -10,8 +10,8 @@ import pytest
 pytestmark = pytest.mark.asyncio
 
 
-async def test_service_response_has_changed_states(rest):
-    """Service call response contains changed_states key."""
+async def test_service_response_is_list(rest):
+    """Service call response is a flat JSON array."""
     await rest.set_state("light.svc_resp_1", "off")
     resp = await rest.client.post(
         f"{rest.base_url}/api/services/light/turn_on",
@@ -20,7 +20,7 @@ async def test_service_response_has_changed_states(rest):
     )
     assert resp.status_code == 200
     data = resp.json()
-    assert "changed_states" in data
+    assert isinstance(data, list)
 
 
 async def test_service_response_changed_has_entity_id(rest):
@@ -32,8 +32,8 @@ async def test_service_response_changed_has_entity_id(rest):
         headers=rest._headers(),
     )
     data = resp.json()
-    assert len(data["changed_states"]) > 0
-    entry = data["changed_states"][0]
+    assert len(data) > 0
+    entry = data[0]
     assert "entity_id" in entry
     assert entry["entity_id"] == "light.svc_resp_2"
 
@@ -47,7 +47,7 @@ async def test_service_response_changed_has_state(rest):
         headers=rest._headers(),
     )
     data = resp.json()
-    entry = data["changed_states"][0]
+    entry = data[0]
     assert "state" in entry
     assert entry["state"] == "on"
 
@@ -61,7 +61,7 @@ async def test_service_response_changed_has_attributes(rest):
         headers=rest._headers(),
     )
     data = resp.json()
-    entry = data["changed_states"][0]
+    entry = data[0]
     assert "attributes" in entry
 
 
@@ -74,7 +74,7 @@ async def test_service_response_changed_has_timestamps(rest):
         headers=rest._headers(),
     )
     data = resp.json()
-    entry = data["changed_states"][0]
+    entry = data[0]
     assert "last_changed" in entry
     assert "last_updated" in entry
 
@@ -88,7 +88,7 @@ async def test_service_response_changed_has_context(rest):
         headers=rest._headers(),
     )
     data = resp.json()
-    entry = data["changed_states"][0]
+    entry = data[0]
     assert "context" in entry
     assert "id" in entry["context"]
 
@@ -102,8 +102,8 @@ async def test_toggle_returns_changed_state(rest):
         headers=rest._headers(),
     )
     data = resp.json()
-    assert len(data["changed_states"]) > 0
-    assert data["changed_states"][0]["state"] == "off"
+    assert len(data) > 0
+    assert data[0]["state"] == "off"
 
 
 async def test_turn_off_returns_changed_state(rest):
@@ -115,8 +115,8 @@ async def test_turn_off_returns_changed_state(rest):
         headers=rest._headers(),
     )
     data = resp.json()
-    assert len(data["changed_states"]) > 0
-    assert data["changed_states"][0]["state"] == "off"
+    assert len(data) > 0
+    assert data[0]["state"] == "off"
 
 
 async def test_climate_service_returns_changed(rest):
@@ -128,9 +128,9 @@ async def test_climate_service_returns_changed(rest):
         headers=rest._headers(),
     )
     data = resp.json()
-    assert "changed_states" in data
-    if len(data["changed_states"]) > 0:
-        entry = data["changed_states"][0]
+    assert isinstance(data, list)
+    if len(data) > 0:
+        entry = data[0]
         assert entry["attributes"].get("temperature") == 72
 
 
@@ -143,5 +143,5 @@ async def test_lock_service_returns_changed(rest):
         headers=rest._headers(),
     )
     data = resp.json()
-    assert len(data["changed_states"]) > 0
-    assert data["changed_states"][0]["state"] == "locked"
+    assert len(data) > 0
+    assert data[0]["state"] == "locked"

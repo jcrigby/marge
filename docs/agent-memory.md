@@ -33,8 +33,10 @@ See [phase-tracker.md](phase-tracker.md) for detailed status.
 - **Phase 6 (Production)**: MOSTLY COMPLETE — backup/restore, graceful shutdown, history
 - **Phase 7 (Local Network)**: COMPLETE — Shelly, Hue, Cast, Sonos, Matter + WASM HTTP host functions
 - **Phase 8 (Virtual Devices)**: COMPLETE — zigbee2mqtt (37 devices), Shelly (2 Gen2), Hue (3 lights + 2 sensors) simulators
+- **Phase 9 (Conformance Verification)**: COMPLETE — divergence matrix, A/B diff, conformance monitor, service response fix, marge_only markers, conformance gate
 - **Coverage**: ~85% of homes (10 integrations)
-- CTS: 1654 tests / 125 files (pruned from 4854/411 on 2026-02-16), 94/94 Rust unit tests
+- CTS: 1654 tests / 125 files (pruned from 4854/411 on 2026-02-16), 19 files tagged marge_only, 94/94 Rust unit tests
+- Scripts: cts-compare.py (170 LOC), cts-dual-run.sh (120 LOC), ab-diff.py (249 LOC), conformance-monitor.py (300 LOC)
 
 ## Critical Gotchas
 - **MQTT command dispatch**: `set_mqtt_tx()` must be called after `start_mqtt()` to wire service→broker publish. Uses a second broker link (`marge-command`) and `spawn_blocking` + `blocking_recv()` for the publisher task. Without this, service calls silently drop outbound MQTT commands
@@ -55,6 +57,7 @@ See [phase-tracker.md](phase-tracker.md) for detailed status.
 
 ## Plan Decisions
 <!-- Record architectural choices and WHY they were made. Prevents re-litigating settled decisions. -->
+- **Phase 9 — Conformance Verification**: Rather than just running CTS and hoping, systematically compare HA vs Marge. Four deliverables: (1) CTS divergence matrix, (2) A/B structural diff, (3) conformance monitor, (4) fix known divergences. Chose pytest-json-report for machine-readable CTS output. Chose `marge_only` marker to filter Marge-specific tests when running against HA (rather than separate test dirs). Known divergence: service call response wraps in `{"changed_states": [...]}` vs HA's flat array.
 - **Dual plugin runtime (WASM + Lua)**: WASM for performance-critical/compiled plugins, Lua for quick scripting. Both sandboxed. Chose this over Lua-only because WASM allows any source language.
 - **Embedded MQTT broker (rumqttd)**: Avoids external dependency for demo. Trade-off: rumqttd 0.19 API is awkward (blocking start, no Default for ServerSettings).
 - **SQLite over Postgres**: Single-binary deployment, no external DB. WAL mode for concurrent reads. Sufficient for home automation scale.
@@ -73,6 +76,9 @@ See [phase-tracker.md](phase-tracker.md) for detailed status.
 - **HA automation entity_ids from `alias` not `id`**: HA ignores the `id` field and generates entity_id from the `alias`. Caused entity mismatch confusion.
 - **MQTT command dispatch requires second broker link**: Service calls need to publish back to MQTT. Required a separate `marge-command` client connection + `spawn_blocking` + `blocking_recv()`. Without this, outbound MQTT commands silently drop.
 - **State casing normalization timing**: Must normalize AFTER template rendering AND JSON extraction. Normalizing too early breaks template logic.
+
+## Known Issues (Resolved)
+- **ServiceResponse format divergence**: Marge wrapped service call responses in `{"changed_states": [...]}` while HA returns a flat `[...]`. Fixed in Phase 9.3 — handler now returns `Json<Vec<EntityState>>` directly. 4 test files updated.
 
 ## Known Issues (Not Yet Fixed)
 - **Memory leak — topic_subscriptions**: `discovery.rs:462` `add_topic_subscription()` pushes entity_ids into `Vec<String>` without dedup. Each MQTT message re-appends the same IDs. Over 3 days with 37 devices @ 5s intervals = millions of duplicate strings (~50-100 MB). **Fix**: Change `Vec<String>` to `HashSet<String>` or add dedup check before push.

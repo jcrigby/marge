@@ -9,7 +9,7 @@ import asyncio
 import uuid
 import pytest
 
-pytestmark = pytest.mark.asyncio
+pytestmark = [pytest.mark.asyncio, pytest.mark.marge_only]
 
 
 async def setup_search_entities(rest, tag):

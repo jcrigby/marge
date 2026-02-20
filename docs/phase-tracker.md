@@ -166,13 +166,73 @@ the same entity fleet without physical hardware. Enables all-virtual Innovation 
 - Rust unit tests: 94 (86 existing + 8 Lua plugin tests)
 
 ---
+## Phase 9: HA Conformance Verification — Detect and Prevent Divergence
+
+**Goal**: Systematically verify Marge matches HA behavior. Run CTS against both, compare results, fix divergences, add ongoing gates.
+
+**Known divergence found during exploration**: Marge's `call_service` wraps results in `{"changed_states": [...]}` (api.rs:99-102) while HA returns a flat array `[...]`.
+
+### 9.1 conftest.py marker + tag Marge-specific tests — COMPLETE
+- [x] Register `marge_only` pytest marker in conftest.py
+- [x] Add autouse fixture that skips `@pytest.mark.marge_only` when SUT_URL contains port 8123
+- [x] Mark 19 test files with `@pytest.mark.marge_only` (health, sim-time, metrics, integrations, search, backup, auth)
+
+### 9.2 CTS Divergence Matrix (P0) — COMPLETE
+- [x] Create `scripts/cts-compare.py` (170 LOC) — reads two pytest-json-report JSONs, produces 4-quadrant matrix
+- [x] Create `scripts/cts-dual-run.sh` (120 LOC) — runs pytest against HA then Marge, stores results, calls compare
+
+### 9.3 Fix Known Divergences (P1) — COMPLETE
+- [x] Fix `api.rs` ServiceResponse — return flat `Vec<EntityState>` instead of `{"changed_states": [...]}`
+- [x] Update 4 CTS test files that asserted the wrapped format
+
+### 9.4 A/B Response Structural Diff (P1) — COMPLETE
+- [x] Create `scripts/ab-diff.py` (249 LOC) — side-by-side JSON comparison of identical API calls
+- [x] Endpoint catalog: core, states, services, templates, events (9 endpoints)
+- [x] Volatile field exclusion: 16 fields (timestamps, context, version, config paths)
+
+### 9.5 Conformance Monitor for Scenario Runs (P2) — COMPLETE
+- [x] Create `scripts/conformance-monitor.py` (300 LOC) — polls /api/states on both SUTs, compares, logs divergences to JSONL
+
+### 9.6 Extend check-gate.sh (P2) — COMPLETE
+- [x] Add `conformance` gate that runs dual CTS + comparison, fails on HA-pass/Marge-fail divergences
+
+### Implementation Order
+1. conftest.py marker + tag Marge-specific tests (9.1)
+2. cts-compare.py + cts-dual-run.sh (9.2)
+3. Fix ServiceResponse format in api.rs (9.3)
+4. ab-diff.py (9.4)
+5. conformance-monitor.py (9.5)
+6. check-gate.sh conformance gate (9.6)
+
+### Files to Create
+| File | LOC (est.) | Purpose |
+|------|------------|---------|
+| `scripts/cts-dual-run.sh` | 50 | Orchestrate dual CTS execution |
+| `scripts/cts-compare.py` | 120 | Compare pytest-json-report files, produce matrix |
+| `scripts/ab-diff.py` | 250 | A/B structural JSON diff of API responses |
+| `scripts/conformance-monitor.py` | 200 | Continuous state comparison during scenarios |
+
+### Files to Modify
+| File | Change |
+|------|--------|
+| `marge-core/src/api.rs` | Fix ServiceResponse to return flat array (HA compat) |
+| `tests/conftest.py` | Add `marge_only` marker + auto-skip fixture |
+| `scripts/check-gate.sh` | Add `conformance` gate |
+| ~20 test files | Add `@pytest.mark.marge_only` to Marge-specific tests |
+
+---
 ## Active Tasks
 <!-- Update this section at end of every session. Clear completed items. Next session starts here. -->
-_No active tasks._
+1. [x] **9.1** conftest.py marker + tag Marge-specific tests
+2. [x] **9.2** cts-compare.py + cts-dual-run.sh
+3. [x] **9.3** Fix ServiceResponse format in api.rs
+4. [x] **9.4** ab-diff.py
+5. [x] **9.5** conformance-monitor.py
+6. [x] **9.6** check-gate.sh conformance gate
 
 ## Work In Progress
 <!-- What was being worked on when the session ended? What should the next session pick up? -->
-_No WIP. All phases complete. Project in maintenance/demo-prep mode._
+Phase 9 COMPLETE. All 6 deliverables implemented. Needs Docker stack to verify end-to-end.
 
 ---
 ## Session Log

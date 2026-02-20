@@ -60,11 +60,7 @@ async def test_service_call_returns_changed_states(rest):
         headers=rest._headers(),
     )
     data = resp.json()
-    # Response is either a list or {"changed_states": [...]}
-    if isinstance(data, list):
-        changed = data
-    else:
-        changed = data.get("changed_states", [])
+    changed = data
     assert len(changed) > 0
     assert changed[0]["entity_id"] == eid
     assert changed[0]["state"] == "on"
@@ -80,12 +76,8 @@ async def test_service_call_empty_array(rest):
     )
     assert resp.status_code == 200
     data = resp.json()
-    # Empty array → {} (changed_states skipped when empty) or [] or {"changed_states": []}
-    if isinstance(data, list):
-        assert len(data) == 0
-    elif isinstance(data, dict):
-        changed = data.get("changed_states", [])
-        assert len(changed) == 0
+    assert isinstance(data, list)
+    assert len(data) == 0
 
 
 async def test_service_call_preserves_existing_attributes(rest):
