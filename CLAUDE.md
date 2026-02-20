@@ -57,14 +57,37 @@ mosquitto (1883) — ha-legacy (8123) — marge (8124/1884) — dashboard (3000)
 - No emojis unless asked
 
 ## Memory Sync Protocol
-Two docs files serve as cross-machine breadcrumbs for session continuity:
-- `docs/phase-tracker.md` — roadmap, phase completion status, session log
-- `docs/agent-memory.md` — architecture, key files, gotchas, current state
+Two docs files serve as cross-machine breadcrumbs for session continuity.
+ALL session state must be synced to these files — `~/.claude/` is ephemeral and may not exist on other machines or fresh clones.
 
-**Sync rules:**
-1. On session start: read both files to restore context
-2. After each commit: update `docs/phase-tracker.md` (check items, add session log entry)
-3. After significant changes: update `docs/agent-memory.md` (file sizes, phase status, new gotchas)
-4. Sync both files into the commit whenever other code is being committed (no separate "docs only" commits unless nothing else changed)
+### What goes where
 
-**Source of truth:** The repo docs files are canonical. Do NOT depend on `.claude/projects/` memory — it may not exist on a fresh clone. Everything needed to resume work must be in the repo.
+**`docs/phase-tracker.md`** — operational/temporal state:
+- Roadmap and phase completion status (checklist items)
+- Session log (timestamped entries of what was done)
+- Active task list (current todos, what's in progress, what's blocked)
+- Work-in-progress state (where we left off, what needs to be resumed next session)
+
+**`docs/agent-memory.md`** — knowledge/reference state:
+- Architecture, key files, LOC counts
+- Critical gotchas and known issues
+- Plan decisions and rationale (architectural choices made and WHY)
+- Failed approaches (what was tried, why it didn't work — so we don't repeat mistakes)
+- Discovered blockers/surprises (things found during implementation that affect future work)
+
+### Sync rules
+1. **Session start**: Read BOTH files before doing anything else
+2. **After each commit**: Update `phase-tracker.md` (check items, add session log entry, update active tasks)
+3. **After significant changes**: Update `agent-memory.md` (file sizes, phase status, new gotchas, decisions, failures)
+4. **Before ending a session**: Write current task state and WIP to `phase-tracker.md` so the next session can resume
+5. **On plan-mode decisions**: Record the decision and rationale in `agent-memory.md` under "Plan Decisions"
+6. **On failed approaches**: Record what was tried and why it failed in `agent-memory.md` under "Failed Approaches"
+7. Sync both files into the commit whenever other code is being committed (no separate "docs only" commits unless nothing else changed)
+
+### What NOT to depend on
+- `~/.claude/projects/` memory files — ephemeral, machine-local
+- Plan-mode temp files — gone after session ends
+- TaskCreate/TaskUpdate state — lives only in session context
+- Conversation history — gets compressed and truncated
+
+**Source of truth:** The repo docs files are canonical. Everything needed to resume work must be in the repo.

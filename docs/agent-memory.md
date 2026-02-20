@@ -53,6 +53,27 @@ See [phase-tracker.md](phase-tracker.md) for detailed status.
 - **Docker restart vs recreate**: `docker compose restart` reuses same container image. Need `docker compose up -d --force-recreate` to pick up rebuilt images
 - **HA token expiry**: Default tokens expire ~30 min. Run `./scripts/ha-refresh-token.sh` before each demo session. For walkaway resilience, create a long-lived token via HA UI (Profile > Long-Lived Access Tokens)
 
+## Plan Decisions
+<!-- Record architectural choices and WHY they were made. Prevents re-litigating settled decisions. -->
+- **Dual plugin runtime (WASM + Lua)**: WASM for performance-critical/compiled plugins, Lua for quick scripting. Both sandboxed. Chose this over Lua-only because WASM allows any source language.
+- **Embedded MQTT broker (rumqttd)**: Avoids external dependency for demo. Trade-off: rumqttd 0.19 API is awkward (blocking start, no Default for ServerSettings).
+- **SQLite over Postgres**: Single-binary deployment, no external DB. WAL mode for concurrent reads. Sufficient for home automation scale.
+- **React UI served by Rust**: tower-http ServeDir serves built React assets. No separate web server needed.
+- **Local network integrations as Rust modules, not plugins**: Shelly/Hue/Cast/Sonos/Matter need persistent connections, mDNS, event streams — too complex for WASM/Lua sandbox.
+
+## Failed Approaches
+<!-- What was tried and didn't work. Prevents repeating mistakes. -->
+- **mlua without "send" feature**: `Lua` uses `Rc` internally, can't cross `.await` points. Wasted time debugging before discovering the feature flag.
+- **Direct `?` with mlua::Error + anyhow**: `Arc<dyn StdError>` isn't `Send+Sync`. Must use `.map_err(|e| anyhow::anyhow!("{}", e))`.
+- **CTS depth test explosion**: Auto-generated depth tests grew to 4854 tests / 411 files with massive duplication. Had to prune back to 1654/125. Lesson: generate focused tests, not combinatorial.
+- **Docker `restart` vs `recreate`**: `docker compose restart` reuses the same image. Spent time debugging why code changes weren't taking effect. Need `up -d --force-recreate`.
+
+## Discovered Blockers / Surprises
+<!-- Things found during implementation that were unexpected and affect future work. -->
+- **HA automation entity_ids from `alias` not `id`**: HA ignores the `id` field and generates entity_id from the `alias`. Caused entity mismatch confusion.
+- **MQTT command dispatch requires second broker link**: Service calls need to publish back to MQTT. Required a separate `marge-command` client connection + `spawn_blocking` + `blocking_recv()`. Without this, outbound MQTT commands silently drop.
+- **State casing normalization timing**: Must normalize AFTER template rendering AND JSON extraction. Normalizing too early breaks template logic.
+
 ## Known Issues (Not Yet Fixed)
 - **Memory leak — topic_subscriptions**: `discovery.rs:462` `add_topic_subscription()` pushes entity_ids into `Vec<String>` without dedup. Each MQTT message re-appends the same IDs. Over 3 days with 37 devices @ 5s intervals = millions of duplicate strings (~50-100 MB). **Fix**: Change `Vec<String>` to `HashSet<String>` or add dedup check before push.
 - **Memory leak — last_time_triggers**: `automation.rs:661` stores `"automation_id:HH:MM"` keys to prevent duplicate time-trigger fires, but only clears on automation reload. Grows ~10-20 MB over days. **Fix**: Add TTL cleanup (remove entries older than 24h) or clear daily.

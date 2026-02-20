@@ -166,6 +166,15 @@ the same entity fleet without physical hardware. Enables all-virtual Innovation 
 - Rust unit tests: 94 (86 existing + 8 Lua plugin tests)
 
 ---
+## Active Tasks
+<!-- Update this section at end of every session. Clear completed items. Next session starts here. -->
+_No active tasks._
+
+## Work In Progress
+<!-- What was being worked on when the session ended? What should the next session pick up? -->
+_No WIP. All phases complete. Project in maintenance/demo-prep mode._
+
+---
 ## Session Log
 - 2026-02-14: Phase 1 audit — all items verified implemented
 - 2026-02-14: Phase 2/3 audit — all items verified implemented (were built during CTS depth batches)
