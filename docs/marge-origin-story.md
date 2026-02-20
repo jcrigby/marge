@@ -44,7 +44,7 @@ She's the one who actually keeps the household running.
 
 The Perplexity chat produced the idea. The next step was to make it rigorous.
 
-Within a couple of hours on the same day, working with Claude in a project workspace, the idea became three formal specification documents totaling over 4,000 lines:
+Within a couple of hours on the same day, working with Claude in a project workspace, the idea became three formal specification documents totaling over 4,000 lines. Then, that same day, Claude Code built the entire Rust core — API, state machine, automation engine, MQTT broker, all of it. Perplexity conversation to working system in a single sitting.
 
 **MRG-SSS-001 — System/Subsystem Specification.** MIL-STD-498 style, because if you're going to specify a system, specify it like you mean it. Architecture, entity model (30+ domains), automation engine, integration framework (Rust core, gRPC for polyglot support, Python shim for day-one HA compatibility), REST and WebSocket APIs, non-functional requirements, development phasing, risk register. The works.
 
@@ -77,11 +77,11 @@ A spec that can't lie (executable tests) is worth more than one that can (narrat
 
 ## 4. THE HANDOFF
 
-With specifications locked, the project was handed to Claude Code for autonomous implementation.
+With specifications locked, the project was handed to Claude Code for autonomous implementation. All of this happened on the same day — February 4, 2026. Perplexity conversation, specification, and a working Rust core with a full RESTful API, all in one sitting.
 
 The engineer's role during the build was: pressing "keep going" between phases.
 
-That's not an exaggeration. Claude Code executed eight implementation phases, wrote 14,916 lines of Rust, built a conformance test harness, created a live demo dashboard, and iterated against the test suite until all 94 Rust unit tests passed. Total wall-clock time: 9.5 hours — and that includes the time spent waiting for the human to review each phase summary and press Enter to proceed. Total human intervention: reading what it did and confirming the next phase should start.
+That's not an exaggeration. Claude Code executed eight implementation phases, wrote 14,916 lines of Rust, built a conformance test harness, created a live demo dashboard, and iterated against the test suite until all 94 Rust unit tests passed. Total wall-clock time: 9.5 hours — and that includes the time spent waiting for the human to review each phase summary and press Enter to proceed. Total human intervention: reading what it did and confirming the next phase should start. Everything since day one — ten integrations, plugin runtimes, virtual device simulators, a React dashboard — has been iterative expansion in the same mode. The rest is a blur.
 
 The results spoke for themselves:
 
