@@ -44,7 +44,7 @@ She's the one who actually keeps the household running.
 
 The Perplexity chat produced the idea. The next step was to make it rigorous.
 
-Over the next few days, working with Claude in a project workspace, the idea became three formal specification documents totaling over 4,000 lines:
+Within a couple of hours on the same day, working with Claude in a project workspace, the idea became three formal specification documents totaling over 4,000 lines:
 
 **MRG-SSS-001 — System/Subsystem Specification.** MIL-STD-498 style, because if you're going to specify a system, specify it like you mean it. Architecture, entity model (30+ domains), automation engine, integration framework (Rust core, gRPC for polyglot support, Python shim for day-one HA compatibility), REST and WebSocket APIs, non-functional requirements, development phasing, risk register. The works.
 
@@ -54,9 +54,9 @@ Over the next few days, working with Claude in a project workspace, the idea bec
 
 The project started under the name "Sentinel," which lasted about five minutes before being replaced by "Marge" when the Claude project was created. Sentinel sounded like a defense contractor's bid. Marge sounded like the system that actually keeps the house running while everyone else causes chaos.
 
-During the specification work, the project acquired its second identity. There was a bash script making the rounds in the AI-assisted coding community called a "Ralph loop" — named after Ralph Wiggum from The Simpsons, because it's doing something hilariously simple and it works anyway. The loop: LLM writes code → runs tests → reads failures → fixes code → repeat. No human in the loop. Just a test suite and an agent iterating until green.
+During the specification work, the project crossed paths with an idea making the rounds in the AI-assisted coding community: the "Ralph loop" — named after Ralph Wiggum from The Simpsons, because it's doing something hilariously simple and it works anyway. The loop: LLM writes code → runs tests → reads failures → fixes code → repeat. No human in the loop. Just a test suite and an agent iterating until green.
 
-Ralph loops were already being absorbed into coding agent tools natively. The pattern worked. But it worked best when the test suite was good. And Marge had a *very* good test suite — one validated against a real production system.
+The plan was to use a Ralph loop for Marge's implementation. But by the time the specs were done and Claude Code was turned loose, it never came to that. Claude Code had already learned delegation — it decomposed work into subagent tasks, dispatched them in parallel, verified results, and moved on. The explicit bash-script loop was unnecessary because the agent had internalized the pattern natively. The Ralph loop was the plan; autonomous delegation was what actually happened.
 
 Marge became a dual experiment:
 
@@ -81,7 +81,7 @@ With specifications locked, the project was handed to Claude Code for autonomous
 
 The engineer's role during the build was: pressing "keep going" between phases.
 
-That's not an exaggeration. Claude Code executed eight implementation phases, wrote 14,916 lines of Rust, built a conformance test harness, created a live demo dashboard, and iterated against the test suite until all 94 Rust unit tests passed. Total wall-clock time: 9.5 hours. Total human intervention: reviewing phase completion summaries and confirming the next phase should proceed.
+That's not an exaggeration. Claude Code executed eight implementation phases, wrote 14,916 lines of Rust, built a conformance test harness, created a live demo dashboard, and iterated against the test suite until all 94 Rust unit tests passed. Total wall-clock time: 9.5 hours — and that includes the time spent waiting for the human to review each phase summary and press Enter to proceed. Total human intervention: reading what it did and confirming the next phase should start.
 
 The results spoke for themselves:
 
