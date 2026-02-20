@@ -613,6 +613,9 @@ impl AutomationEngine {
                 continue;
             };
 
+            // Prune stale entries from previous minutes to prevent unbounded growth
+            self.last_time_triggers.retain(|_key, val| val == current_hhmm);
+
             let automations = self.automations.read().unwrap_or_else(|e| e.into_inner()).clone();
             for auto in &automations {
                 if !self.is_enabled(&auto.id) {
