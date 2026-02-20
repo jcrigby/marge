@@ -14,7 +14,7 @@ these tests focus on API shape, validation, and structural correctness.
 
 import pytest
 
-pytestmark = pytest.mark.asyncio
+pytestmark = [pytest.mark.asyncio, pytest.mark.marge_only]
 
 
 # ── Integration Listing ──────────────────────────────────────

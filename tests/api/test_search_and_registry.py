@@ -7,7 +7,7 @@ backup, logbook, statistics, and YAML config management.
 
 import pytest
 
-pytestmark = pytest.mark.asyncio
+pytestmark = [pytest.mark.asyncio, pytest.mark.marge_only]
 
 
 # ── Search API ────────────────────────────────────────────

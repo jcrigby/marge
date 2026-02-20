@@ -7,7 +7,7 @@ metric names, types, and values.
 
 import pytest
 
-pytestmark = pytest.mark.asyncio
+pytestmark = [pytest.mark.asyncio, pytest.mark.marge_only]
 
 
 async def test_metrics_returns_200(rest):

@@ -248,6 +248,24 @@ class MQTTClient:
         self.client.disconnect()
 
 
+# ── Markers ───────────────────────────────────────────────
+
+def pytest_configure(config):
+    config.addinivalue_line(
+        "markers", "marge_only: test is Marge-specific and should be skipped against real HA"
+    )
+
+
+@pytest.fixture(autouse=True)
+def _skip_marge_only_on_ha(request):
+    """Auto-skip marge_only tests when running against real HA."""
+    marker = request.node.get_closest_marker("marge_only")
+    if marker is not None:
+        sut_url = os.environ.get("SUT_URL", "http://localhost:8124")
+        if ":8123" in sut_url:
+            pytest.skip("marge_only test — skipped against HA")
+
+
 # ── Fixtures ──────────────────────────────────────────────
 
 @pytest.fixture(scope="session")

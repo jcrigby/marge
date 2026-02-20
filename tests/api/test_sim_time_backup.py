@@ -6,7 +6,7 @@ Tests simulation time management and backup/restore functionality.
 
 import pytest
 
-pytestmark = pytest.mark.asyncio
+pytestmark = [pytest.mark.asyncio, pytest.mark.marge_only]
 
 
 # ── Sim-Time ─────────────────────────────────────────────

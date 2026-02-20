@@ -9,7 +9,7 @@ import uuid
 import pytest
 import httpx
 
-pytestmark = pytest.mark.asyncio
+pytestmark = [pytest.mark.asyncio, pytest.mark.marge_only]
 
 BASE = "http://localhost:8124"
 
