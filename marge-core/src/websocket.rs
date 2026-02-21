@@ -513,6 +513,219 @@ async fn handle_ws(
                                         "type": "pong",
                                     })).unwrap_or_default()
                                 }
+                                // ── P1: Registry Commands ──────────────────────
+                                "config/device_registry/update" => {
+                                    let device_id = incoming.data.get("device_id")
+                                        .and_then(|v| v.as_str()).unwrap_or("").to_string();
+                                    if device_id.is_empty() {
+                                        ws_error(id, "invalid_format", "device_id required")
+                                    } else {
+                                        let name = incoming.data.get("name_by_user")
+                                            .or_else(|| incoming.data.get("name"))
+                                            .and_then(|v| v.as_str()).unwrap_or("").to_string();
+                                        let area_id = incoming.data.get("area_id")
+                                            .and_then(|v| v.as_str()).unwrap_or("").to_string();
+                                        let db = db_path.clone();
+                                        let did = device_id.clone();
+                                        let _ = tokio::task::spawn_blocking(move || {
+                                            crate::recorder::upsert_device(&db, &crate::recorder::Device {
+                                                device_id: did,
+                                                name,
+                                                manufacturer: String::new(),
+                                                model: String::new(),
+                                                area_id,
+                                            })
+                                        }).await;
+                                        ws_result(id, true, Some(serde_json::json!({"device_id": device_id})))
+                                    }
+                                }
+                                "config/entity_registry/get" => {
+                                    let entity_id = incoming.data.get("entity_id")
+                                        .and_then(|v| v.as_str()).unwrap_or("");
+                                    if let Some(state) = app.state_machine.get(entity_id) {
+                                        ws_result(id, true, Some(serde_json::json!({
+                                            "entity_id": entity_id,
+                                            "name": state.attributes.get("friendly_name").and_then(|v| v.as_str()).unwrap_or(""),
+                                            "platform": "mqtt",
+                                            "disabled_by": null,
+                                            "icon": state.attributes.get("icon").and_then(|v| v.as_str()).unwrap_or(""),
+                                        })))
+                                    } else {
+                                        ws_error(id, "not_found", "Entity not found")
+                                    }
+                                }
+                                "config/entity_registry/remove" => {
+                                    let entity_id = incoming.data.get("entity_id")
+                                        .and_then(|v| v.as_str()).unwrap_or("");
+                                    if entity_id.is_empty() {
+                                        ws_error(id, "invalid_format", "entity_id required")
+                                    } else {
+                                        app.state_machine.remove(entity_id);
+                                        ws_result(id, true, None)
+                                    }
+                                }
+                                "config/label_registry/update" => {
+                                    let label_id = incoming.data.get("label_id")
+                                        .and_then(|v| v.as_str()).unwrap_or("").to_string();
+                                    if label_id.is_empty() {
+                                        ws_error(id, "invalid_format", "label_id required")
+                                    } else {
+                                        let name = incoming.data.get("name")
+                                            .and_then(|v| v.as_str()).unwrap_or("").to_string();
+                                        let color = incoming.data.get("color")
+                                            .and_then(|v| v.as_str()).unwrap_or("").to_string();
+                                        let db = db_path.clone();
+                                        let lid = label_id.clone();
+                                        let ok = tokio::task::spawn_blocking(move || {
+                                            crate::recorder::upsert_label(&db, &lid, &name, &color)
+                                        }).await.ok().and_then(|r| r.ok()).is_some();
+                                        ws_result(id, ok, Some(serde_json::json!({"label_id": label_id})))
+                                    }
+                                }
+                                // ── P2: History/Logbook Commands ───────────────
+                                "logbook/get_events" => {
+                                    let now = chrono::Utc::now();
+                                    let default_start = (now - chrono::Duration::hours(24)).to_rfc3339();
+                                    let default_end = now.to_rfc3339();
+                                    let start = incoming.data.get("start_time")
+                                        .and_then(|v| v.as_str())
+                                        .unwrap_or(&default_start)
+                                        .to_string();
+                                    let end = incoming.data.get("end_time")
+                                        .and_then(|v| v.as_str())
+                                        .unwrap_or(&default_end)
+                                        .to_string();
+                                    let db = db_path.clone();
+                                    let entries = tokio::task::spawn_blocking(move || {
+                                        crate::recorder::query_logbook_global(&db, &start, &end, 500)
+                                    }).await.ok().and_then(|r| r.ok()).unwrap_or_default();
+                                    ws_result(id, true, Some(serde_json::to_value(&entries).unwrap_or_default()))
+                                }
+                                "history/history_during_period" => {
+                                    let now = chrono::Utc::now();
+                                    let default_start = (now - chrono::Duration::hours(24)).to_rfc3339();
+                                    let default_end = now.to_rfc3339();
+                                    let start = incoming.data.get("start_time")
+                                        .and_then(|v| v.as_str())
+                                        .unwrap_or(&default_start)
+                                        .to_string();
+                                    let end = incoming.data.get("end_time")
+                                        .and_then(|v| v.as_str())
+                                        .unwrap_or(&default_end)
+                                        .to_string();
+                                    let entity_ids: Vec<String> = incoming.data.get("entity_ids")
+                                        .and_then(|v| v.as_array())
+                                        .map(|a| a.iter().filter_map(|v| v.as_str().map(String::from)).collect())
+                                        .unwrap_or_default();
+                                    let db = db_path.clone();
+                                    let result = tokio::task::spawn_blocking(move || {
+                                        crate::recorder::query_history_multi(&db, &entity_ids, &start, &end)
+                                    }).await.ok().and_then(|r| r.ok()).unwrap_or_default();
+                                    ws_result(id, true, Some(serde_json::to_value(&result).unwrap_or_default()))
+                                }
+                                "history/list_statistic_ids" => {
+                                    // Return entity IDs of numeric entities from the state machine
+                                    let states = app.state_machine.get_all();
+                                    let ids: Vec<serde_json::Value> = states.iter()
+                                        .filter(|s| s.state.parse::<f64>().is_ok())
+                                        .map(|s| serde_json::json!({
+                                            "statistic_id": s.entity_id,
+                                            "name": s.attributes.get("friendly_name").and_then(|v| v.as_str()).unwrap_or(&s.entity_id),
+                                            "source": "recorder",
+                                            "unit_of_measurement": s.attributes.get("unit_of_measurement"),
+                                        }))
+                                        .collect();
+                                    ws_result(id, true, Some(serde_json::to_value(&ids).unwrap_or_default()))
+                                }
+                                "history/statistics_during_period" => {
+                                    let now = chrono::Utc::now();
+                                    let default_start = (now - chrono::Duration::hours(24)).to_rfc3339();
+                                    let default_end = now.to_rfc3339();
+                                    let start = incoming.data.get("start_time")
+                                        .and_then(|v| v.as_str())
+                                        .unwrap_or(&default_start)
+                                        .to_string();
+                                    let end = incoming.data.get("end_time")
+                                        .and_then(|v| v.as_str())
+                                        .unwrap_or(&default_end)
+                                        .to_string();
+                                    let entity_ids: Vec<String> = incoming.data.get("statistic_ids")
+                                        .and_then(|v| v.as_array())
+                                        .map(|a| a.iter().filter_map(|v| v.as_str().map(String::from)).collect())
+                                        .unwrap_or_default();
+                                    let db = db_path.clone();
+                                    // Query all entities in a single blocking task to avoid
+                                    // multiple spawn_blocking calls
+                                    let result = tokio::task::spawn_blocking(move || {
+                                        let mut map = serde_json::Map::new();
+                                        for eid in &entity_ids {
+                                            if let Ok(buckets) = crate::recorder::query_statistics(&db, eid, &start, &end) {
+                                                map.insert(eid.clone(), serde_json::to_value(&buckets).unwrap_or_default());
+                                            }
+                                        }
+                                        map
+                                    }).await.unwrap_or_default();
+                                    ws_result(id, true, Some(serde_json::Value::Object(result)))
+                                }
+                                // ── P3: Higher Complexity / Niche ──────────────
+                                "logbook/event_stream" => {
+                                    // Register as subscription; state_changed events
+                                    // will naturally flow as logbook updates
+                                    subscribed_ids.push(id);
+                                    ws_result(id, true, None)
+                                }
+                                "recorder/get_statistics_metadata" => {
+                                    let states = app.state_machine.get_all();
+                                    let metadata: Vec<serde_json::Value> = states.iter()
+                                        .filter(|s| s.state.parse::<f64>().is_ok())
+                                        .map(|s| serde_json::json!({
+                                            "statistic_id": s.entity_id,
+                                            "name": s.attributes.get("friendly_name").and_then(|v| v.as_str()).unwrap_or(&s.entity_id),
+                                            "source": "recorder",
+                                            "unit_of_measurement": s.attributes.get("unit_of_measurement"),
+                                            "has_mean": true,
+                                            "has_sum": false,
+                                        }))
+                                        .collect();
+                                    ws_result(id, true, Some(serde_json::to_value(&metadata).unwrap_or_default()))
+                                }
+                                "search/related" => {
+                                    let item_type = incoming.data.get("item_type")
+                                        .and_then(|v| v.as_str()).unwrap_or("");
+                                    let item_id = incoming.data.get("item_id")
+                                        .and_then(|v| v.as_str()).unwrap_or("").to_string();
+                                    let db = db_path.clone();
+                                    let iid = item_id.clone();
+                                    let it = item_type.to_string();
+                                    let related = tokio::task::spawn_blocking(move || -> serde_json::Value {
+                                        match it.as_str() {
+                                            "entity" => {
+                                                let area = crate::recorder::load_area_entities(&db).ok()
+                                                    .and_then(|m| m.into_iter().find(|(eid, _)| eid == &iid).map(|(_, aid)| aid));
+                                                let device = crate::recorder::load_device_entities(&db).ok()
+                                                    .and_then(|m| m.into_iter().find(|(eid, _)| eid == &iid).map(|(_, did)| did));
+                                                serde_json::json!({
+                                                    "area": area.map(|a| vec![a]).unwrap_or_default(),
+                                                    "device": device.map(|d| vec![d]).unwrap_or_default(),
+                                                })
+                                            }
+                                            "area" => {
+                                                let entities: Vec<String> = crate::recorder::load_area_entities(&db).ok()
+                                                    .map(|m| m.into_iter().filter(|(_, aid)| aid == &iid).map(|(eid, _)| eid).collect())
+                                                    .unwrap_or_default();
+                                                serde_json::json!({"entity": entities})
+                                            }
+                                            "device" => {
+                                                let entities: Vec<String> = crate::recorder::load_device_entities(&db).ok()
+                                                    .map(|m| m.into_iter().filter(|(_, did)| did == &iid).map(|(eid, _)| eid).collect())
+                                                    .unwrap_or_default();
+                                                serde_json::json!({"entity": entities})
+                                            }
+                                            _ => serde_json::json!({})
+                                        }
+                                    }).await.unwrap_or_default();
+                                    ws_result(id, true, Some(related))
+                                }
                                 _ => {
                                     tracing::debug!(msg_type = %incoming.msg_type, "Unknown WS message type");
                                     ws_error(id, "unknown_command", "Unknown command.")
