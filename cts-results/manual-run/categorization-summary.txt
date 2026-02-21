@@ -1,0 +1,577 @@
+================================================================================
+CTS DIVERGENCE MATRIX — CATEGORIZATION SUMMARY
+909 marge-pass / ha-fail tests analyzed
+Generated: 2026-02-20
+================================================================================
+
+OVERVIEW
+----------------------------------------
+  Bucket A (tag marge_only):       285  (31.4%)
+  Bucket B (fix test approach):     555  (61.1%)
+  Bucket C (fix Marge):              69  (7.6%)
+  Uncategorized:                      0
+  ────────────────────────────────────
+  Total:                            909
+
+================================================================================
+BUCKET A: TAG marge_only (285 tests)
+================================================================================
+
+These tests exercise Marge-specific endpoints and features that Home Assistant
+does not implement. They should be marked with @pytest.mark.marge_only so they
+are automatically skipped when running the CTS against HA.
+
+ACTION: Add @pytest.mark.marge_only decorator to these tests.
+
+Error categories:
+  404_marge_endpoint              268
+  marge_ws_command                  8
+  marge_specific_endpoint           7
+  marge_yaml_endpoint               1
+  marge_notification                1
+
+By test file (top 15):
+   20  tests/api/test_history_logbook.py
+   16  tests/api/test_area_label_lifecycle.py
+   16  tests/api/test_config_endpoints.py
+   16  tests/api/test_logbook_global.py
+   15  tests/automation/test_automation_api.py
+   13  tests/api/test_rest_error_handling.py
+   11  tests/api/test_config_yaml.py
+   11  tests/api/test_scene_yaml_endpoints.py
+   11  tests/automation/test_automation_entity_state.py
+   11  tests/integration/test_history_logbook_integration.py
+   10  tests/api/test_scene_config_api.py
+    9  tests/api/test_device_registry_rest.py
+    8  tests/api/test_automation_yaml_roundtrip.py
+    8  tests/api/test_notification_lifecycle.py
+    8  tests/api/test_rest_notification_endpoints.py
+
+Top 5 sample failures:
+  1. tests/api/test_api_misc_endpoints.py::test_automation_reload_via_alt_path
+     Reason: 404 on Marge-specific endpoint: api/config/automation/reload
+     Error:  assert 404 == 200
+ +  where 404 = <Response [404 Not Found]>.status_code
+
+  2. tests/api/test_api_misc_endpoints.py::test_backup_returns_data
+     Reason: 404 on Marge-specific endpoint: api/backup
+     Error:  assert 404 == 200
+ +  where 404 = <Response [404 Not Found]>.status_code
+
+  3. tests/api/test_api_misc_endpoints.py::test_get_automation_yaml
+     Reason: 404 on Marge-specific endpoint: api/config/automation/yaml
+     Error:  assert 404 == 200
+ +  where 404 = <Response [404 Not Found]>.status_code
+
+  4. tests/api/test_api_misc_endpoints.py::test_metrics_endpoint
+     Reason: 404 on Marge-specific endpoint: metrics
+     Error:  assert 404 == 200
+ +  where 404 = <Response [404 Not Found]>.status_code
+
+  5. tests/api/test_api_misc_endpoints.py::test_sim_time_set_and_verify
+     Reason: 404 on Marge-specific endpoint: api/sim/
+     Error:  assert 404 == 200
+ +  where 404 = <Response [404 Not Found]>.status_code
+
+Marge-specific endpoints hit by these tests:
+  - api/areas
+  - api/auth/tokens
+  - api/backup
+  - api/config/automation/config
+  - api/config/automation/reload
+  - api/config/automation/yaml
+  - api/config/core/reload
+  - api/config/scene/config
+  - api/config/scene/yaml
+  - api/devices
+  - api/health
+  - api/history/
+  - api/labels
+  - api/logbook
+  - api/notifications
+  - api/sim/
+  - api/states/search
+  - api/statistics/
+  - api/webhook/
+  - metrics
+  - /api/history/*, /api/logbook/*, /api/areas, /api/labels, /api/devices
+  - /api/backup, /api/restore, /api/webhook/*
+  - /api/config/automation/config, /api/config/automation/yaml, /api/config/automation/reload
+  - /api/config/scene/config, /api/config/scene/yaml, /api/config/core/reload
+  - /api/notifications/*, /api/states/search, /api/sim/*
+  - /metrics, /api/health (Marge-specific fields)
+  - /api/statistics/*, /api/auth/tokens
+  - WS: entity_update, area_*, label_*, device_*
+
+================================================================================
+BUCKET B: FIX TEST APPROACH (555 tests)
+================================================================================
+
+These tests use a testing pattern that works on Marge but not on HA.
+The root cause: they create entities via POST /api/states (ad-hoc) and then
+call services on them. HA requires entities to be registered through proper
+integrations for service calls to work. POST /api/states only sets state,
+it does not register the entity with the integration platform.
+
+ACTION: Rewrite these tests to either:
+  (a) Use HA-compatible entities (MQTT discovery, input_* helpers, etc.)
+  (b) Only assert state changes via POST /api/states (not service calls)
+  (c) Tag as marge_only if the behavior is intentionally Marge-specific
+
+Error categories:
+  400_service_call                276
+  service_no_effect                68
+  timeout_other                    48
+  none_subscript                   31
+  automation_no_effect             26
+  ws_service_failed                26
+  missing_attribute                20
+  jde_response_format              12
+  mqtt_entity_missing               8
+  ws_assertion_failed               8
+  automation_missing                6
+  400_other                         5
+  timeout_expected                  4
+  mqtt_none                         2
+  timeout_mqtt                      2
+  value_mismatch                    2
+  timeout_ws                        2
+  automation_failed                 2
+  timeout_service                   2
+  ws_command_failed                 1
+  entity_registry_missing           1
+  ws_entity_not_found               1
+  assertion_failed                  1
+  service_assertion_failed          1
+
+By test file (top 20):
+   40  tests/api/test_rest_service_dispatch_patterns.py
+   30  tests/entity/test_domain_toggles.py
+   29  tests/api/test_ws_service_dispatch.py
+   20  tests/entity/test_timer_counter_humidifier_text.py
+   19  tests/entity/test_service_edge_cases.py
+   17  tests/entity/test_media_player_extended.py
+   17  tests/entity/test_media_player_lock_camera_group.py
+   15  tests/entity/test_fan_cover_extended.py
+   14  tests/entity/test_attribute_preservation.py
+   14  tests/entity/test_input_number_select_button.py
+   14  tests/entity/test_timer_counter.py
+   13  tests/entity/test_domain_state_formats.py
+   12  tests/automation/test_demo_automation_security.py
+   12  tests/entity/test_climate_extended.py
+   12  tests/entity/test_service_data_validation.py
+   11  tests/api/test_ws_comprehensive.py
+   11  tests/entity/test_homeassistant_service.py
+   11  tests/entity/test_service_interactions.py
+   11  tests/entity/test_stub_services.py
+   11  tests/entity/test_toggle_semantics.py
+
+Breakdown of the 276 '400_service_call' failures by service domain:
+  media_player                     48
+  light                            41
+  other                            34
+  climate                          21
+  cover                            20
+  fan                              14
+  switch                           13
+  siren                            12
+  custom_domain                    11
+  number                            9
+  alarm_control_panel               8
+  humidifier                        7
+  scene                             6
+  valve                             6
+  vacuum                            5
+  select                            4
+  water_heater                      4
+  lock                              3
+  camera                            3
+  lawn_mower                        3
+  remote                            3
+  device_tracker                    1
+
+Top 5 sample failures:
+  1. tests/api/test_mqtt_entity_command_bridge.py::test_mqtt_binary_sensor_state
+     Reason: MQTT entity not created in HA
+     Error:  assert None is not None
+
+  2. tests/api/test_mqtt_entity_command_bridge.py::test_mqtt_light_domain
+     Reason: MQTT entity not created in HA
+     Error:  assert None is not None
+
+  3. tests/api/test_mqtt_entity_command_bridge.py::test_mqtt_numeric_state
+     Reason: MQTT entity returns None on HA
+     Error:  TypeError: 'NoneType' object is not subscriptable
+
+  4. tests/api/test_mqtt_entity_command_bridge.py::test_mqtt_sequential_updates
+     Reason: MQTT entity returns None on HA
+     Error:  TypeError: 'NoneType' object is not subscriptable
+
+  5. tests/api/test_mqtt_entity_command_bridge.py::test_mqtt_state_topic_creates_entity
+     Reason: MQTT entity not created in HA
+     Error:  assert None is not None
+
+================================================================================
+BUCKET C: FIX MARGE (69 tests)
+================================================================================
+
+These tests reveal real conformance bugs where Marge's behavior diverges from
+Home Assistant. These are the highest-priority fixes for HA compatibility.
+
+ACTION: Fix Marge's implementation to match HA behavior.
+
+Error categories:
+  domain_not_listed                19
+  template_ws_diff                 14
+  service_format_diff              10
+  domain_count_mismatch             4
+  template_filter_diff              4
+  service_listing_diff              3
+  template_diff                     3
+  ws_services_format                3
+  201_vs_200                        2
+  ws_template_diff                  2
+  context_format_diff               2
+  500_error                         1
+  ws_subscribe_trigger              1
+  ws_error_format_diff              1
+
+By test file:
+   13  tests/api/test_template_state_functions.py
+   12  tests/api/test_service_listing_format.py
+    9  tests/api/test_ws_service_dispatch.py
+    7  tests/api/test_template_engine.py
+    5  tests/core/test_service_registry_consistency.py
+    5  tests/entity/test_new_domains.py
+    3  tests/api/test_rest_error_handling.py
+    3  tests/api/test_ws_subscribe.py
+    3  tests/entity/test_extended_domains.py
+    2  tests/api/test_api_misc_endpoints.py
+    2  tests/api/test_ws_comprehensive.py
+    2  tests/core/test_state_timestamp_semantics.py
+    1  tests/api/test_rest_states_patterns.py
+    1  tests/api/test_ws_registries.py
+    1  tests/integration/test_cross_api.py
+
+All 69 Bucket C tests with specific errors:
+--------------------------------------------------------------------------------
+
+### domain_not_listed (19 tests)
+  tests/api/test_api_misc_endpoints.py::test_list_services_has_light
+    Domain not present in HA service listing
+    Error: AssertionError: assert 'light' in ['homeassistant', 'persistent_notification', 'logger', 'system_log', 'person', 'frontend', ...]
+  tests/api/test_api_misc_endpoints.py::test_list_services_light_has_turn_on
+    Domain not found in HA service listing
+    Error: RuntimeError: coroutine raised StopIteration
+  tests/api/test_service_listing_format.py::test_events_has_standard_types
+    Domain not present in HA service listing
+    Error: AssertionError: assert 'call_service' in ['*', 'logging_changed', 'entity_registry_updated', 'core_config_updated', 'homeassistant_start', 'homeassist
+  tests/api/test_service_listing_format.py::test_services_all_expected_domains_present
+    Domain not present in HA service listing
+    Error: AssertionError: Missing domain: alarm_control_panel
+assert 'alarm_control_panel' in ['homeassistant', 'persistent_notification', 'logger', 'system_log
+  tests/api/test_service_listing_format.py::test_services_climate_has_expected_services
+    Domain not found in HA service listing
+    Error: RuntimeError: coroutine raised StopIteration
+  tests/api/test_service_listing_format.py::test_services_cover_has_expected_services
+    Domain not found in HA service listing
+    Error: RuntimeError: coroutine raised StopIteration
+  tests/api/test_service_listing_format.py::test_services_fan_has_expected_services
+    Domain not found in HA service listing
+    Error: RuntimeError: coroutine raised StopIteration
+  tests/api/test_service_listing_format.py::test_services_humidifier_has_expected_services
+    Domain not found in HA service listing
+    Error: RuntimeError: coroutine raised StopIteration
+  tests/api/test_service_listing_format.py::test_services_light_has_expected_services
+    Domain not found in HA service listing
+    Error: RuntimeError: coroutine raised StopIteration
+  tests/api/test_service_listing_format.py::test_services_vacuum_has_expected_services
+    Domain not found in HA service listing
+    Error: RuntimeError: coroutine raised StopIteration
+  tests/core/test_service_registry_consistency.py::test_climate_services_registered
+    Domain not found in HA service listing
+    Error: RuntimeError: coroutine raised StopIteration
+  tests/core/test_service_registry_consistency.py::test_light_services_registered
+    Domain not found in HA service listing
+    Error: RuntimeError: coroutine raised StopIteration
+  tests/core/test_service_registry_consistency.py::test_services_list_has_domains
+    Domain not present in HA service listing
+    Error: AssertionError: Missing domain: light
+assert 'light' in ['homeassistant', 'persistent_notification', 'logger', 'system_log', 'person', 'frontend', ...
+  tests/entity/test_extended_domains.py::test_services_include_camera
+    Domain not present in HA service listing
+    Error: AssertionError: assert 'camera' in ['homeassistant', 'persistent_notification', 'logger', 'system_log', 'person', 'frontend', ...]
+  tests/entity/test_extended_domains.py::test_services_include_device_tracker
+    Domain not present in HA service listing
+    Error: AssertionError: assert 'device_tracker' in ['homeassistant', 'persistent_notification', 'logger', 'system_log', 'person', 'frontend', ...]
+  tests/entity/test_new_domains.py::test_services_include_humidifier
+    Domain not present in HA service listing
+    Error: AssertionError: assert 'humidifier' in ['persistent_notification', 'homeassistant', 'logger', 'system_log', 'person', 'frontend', ...]
+  tests/entity/test_new_domains.py::test_services_include_lawn_mower
+    Domain not present in HA service listing
+    Error: AssertionError: assert 'lawn_mower' in ['persistent_notification', 'homeassistant', 'logger', 'system_log', 'person', 'frontend', ...]
+  tests/entity/test_new_domains.py::test_services_include_remote
+    Domain not present in HA service listing
+    Error: AssertionError: assert 'remote' in ['persistent_notification', 'homeassistant', 'logger', 'system_log', 'person', 'frontend', ...]
+  tests/entity/test_new_domains.py::test_services_include_water_heater
+    Domain not present in HA service listing
+    Error: AssertionError: assert 'water_heater' in ['persistent_notification', 'homeassistant', 'logger', 'system_log', 'person', 'frontend', ...]
+
+### template_ws_diff (14 tests)
+  tests/api/test_template_state_functions.py::test_ws_is_state_false
+    Template WS response format difference
+    Error: TypeError: 'NoneType' object is not subscriptable
+  tests/api/test_template_state_functions.py::test_ws_is_state_nonexistent
+    Template WS response format difference
+    Error: TypeError: 'NoneType' object is not subscriptable
+  tests/api/test_template_state_functions.py::test_ws_is_state_true
+    Template WS response format difference
+    Error: TypeError: 'NoneType' object is not subscriptable
+  tests/api/test_template_state_functions.py::test_ws_now_returns_timestamp
+    Template WS response format difference
+    Error: TypeError: 'NoneType' object is not subscriptable
+  tests/api/test_template_state_functions.py::test_ws_state_attr_friendly_name
+    Template WS response format difference
+    Error: TypeError: 'NoneType' object is not subscriptable
+  tests/api/test_template_state_functions.py::test_ws_state_attr_returns_value
+    Template WS response format difference
+    Error: TypeError: 'NoneType' object is not subscriptable
+  tests/api/test_template_state_functions.py::test_ws_states_returns_entity_state
+    Template WS response format difference
+    Error: TypeError: 'NoneType' object is not subscriptable
+  tests/api/test_template_state_functions.py::test_ws_states_unknown_entity
+    Template WS response format difference
+    Error: TypeError: 'NoneType' object is not subscriptable
+  tests/api/test_template_state_functions.py::test_ws_template_arithmetic
+    Template WS response format difference
+    Error: TypeError: 'NoneType' object is not subscriptable
+  tests/api/test_template_state_functions.py::test_ws_template_conditional
+    Template WS response format difference
+    Error: TypeError: 'NoneType' object is not subscriptable
+  tests/api/test_template_state_functions.py::test_ws_template_default_filter
+    Template WS response format difference
+    Error: TypeError: 'NoneType' object is not subscriptable
+  tests/api/test_template_state_functions.py::test_ws_template_float_filter
+    Template WS response format difference
+    Error: TypeError: 'NoneType' object is not subscriptable
+  tests/api/test_template_state_functions.py::test_ws_template_lower_upper
+    Template WS response format difference
+    Error: TypeError: 'NoneType' object is not subscriptable
+  tests/api/test_ws_comprehensive.py::test_ws_render_template_states
+    Template WS response format difference
+    Error: TypeError: 'NoneType' object is not subscriptable
+
+### service_format_diff (10 tests)
+  tests/api/test_ws_comprehensive.py::test_ws_get_services_has_service_names
+    Service/WS response format difference (dict vs list)
+    Error: TypeError: string indices must be integers
+  tests/api/test_ws_service_dispatch.py::test_get_services_has_domain[climate]
+    Service/WS response format difference (dict vs list)
+    Error: TypeError: string indices must be integers
+  tests/api/test_ws_service_dispatch.py::test_get_services_has_domain[light]
+    Service/WS response format difference (dict vs list)
+    Error: TypeError: string indices must be integers
+  tests/api/test_ws_service_dispatch.py::test_get_services_has_domain[switch]
+    Service/WS response format difference (dict vs list)
+    Error: TypeError: string indices must be integers
+  tests/api/test_ws_service_dispatch.py::test_get_services_light_has_turn_on
+    Service/WS response format difference (dict vs list)
+    Error: TypeError: string indices must be integers
+  tests/api/test_ws_service_dispatch.py::test_get_services_matches_rest
+    Service/WS response format difference (dict vs list)
+    Error: TypeError: string indices must be integers
+  tests/api/test_ws_service_dispatch.py::test_get_services_service_has_description
+    Service/WS response format difference (dict vs list)
+    Error: TypeError: string indices must be integers
+  tests/api/test_ws_service_dispatch.py::test_get_services_sorted_by_domain
+    Service/WS response format difference (dict vs list)
+    Error: TypeError: string indices must be integers
+  tests/core/test_service_registry_consistency.py::test_rest_and_ws_services_match
+    Service/WS response format difference (dict vs list)
+    Error: TypeError: string indices must be integers
+  tests/integration/test_cross_api.py::test_services_consistent_rest_ws
+    Service/WS response format difference (dict vs list)
+    Error: TypeError: string indices must be integers
+
+### domain_count_mismatch (4 tests)
+  tests/api/test_service_listing_format.py::test_services_total_domains
+    Service/domain count mismatch - HA only lists loaded integration domains
+    Error: AssertionError: Expected 40+ domains, got 28
+assert 28 >= 40
+ +  where 28 = len([{'domain': 'homeassistant', 'services': {'check_config': {'descriptio
+  tests/api/test_service_listing_format.py::test_services_total_service_count
+    Service/domain count mismatch - HA only lists loaded integration domains
+    Error: AssertionError: Expected 100+ services, got 94
+assert 94 >= 100
+  tests/entity/test_extended_domains.py::test_services_total_domain_count
+    Service/domain count mismatch - HA only lists loaded integration domains
+    Error: AssertionError: Expected 34+ domains, got 28
+assert 28 >= 34
+ +  where 28 = len([{'domain': 'homeassistant', 'services': {'check_config': {'descriptio
+  tests/entity/test_new_domains.py::test_services_total_at_least_40
+    Service/domain count mismatch - HA only lists loaded integration domains
+    Error: AssertionError: Expected 40+ domains, got 28
+assert 28 >= 40
+ +  where 28 = len([{'domain': 'persistent_notification', 'services': {'create': {'descri
+
+### template_filter_diff (4 tests)
+  tests/api/test_template_engine.py::test_filter_min_max[{{ 3 | max(7) }}-7]
+    Template filter min/max returns 400 on HA
+    Error: assert 400 == 200
+ +  where 400 = <Response [400 Bad Request]>.status_code
+  tests/api/test_template_engine.py::test_filter_min_max[{{ 3 | min(7) }}-3]
+    Template filter min/max returns 400 on HA
+    Error: assert 400 == 200
+ +  where 400 = <Response [400 Bad Request]>.status_code
+  tests/api/test_template_engine.py::test_filter_min_max[{{ 5 | max(10) | int }}-10]
+    Template filter min/max returns 400 on HA
+    Error: assert 400 == 200
+ +  where 400 = <Response [400 Bad Request]>.status_code
+  tests/api/test_template_engine.py::test_filter_min_max[{{ 5 | min(10) | int }}-5]
+    Template filter min/max returns 400 on HA
+    Error: assert 400 == 200
+ +  where 400 = <Response [400 Bad Request]>.status_code
+
+### service_listing_diff (3 tests)
+  tests/api/test_service_listing_format.py::test_services_description_format
+    Service listing sorting difference
+    Error: AssertionError: assert 'Saves the pe...ing interval.' == 'homeassistan...istent_states'
+  
+  - homeassistant.save_persistent_states
+  + Saves the pers
+  tests/api/test_service_listing_format.py::test_services_domains_sorted
+    Service listing sorting difference
+    Error: AssertionError: assert ['homeassista...rontend', ...] == ['automation'...rontend', ...]
+  
+  At index 0 diff: 'homeassistant' != 'automation'
+  Use -v
+  tests/core/test_service_registry_consistency.py::test_services_sorted_by_domain
+    Service listing sorting difference
+    Error: AssertionError: assert ['homeassista...rontend', ...] == ['automation'...rontend', ...]
+  
+  At index 0 diff: 'homeassistant' != 'automation'
+  Use -v
+
+### template_diff (3 tests)
+  tests/api/test_template_engine.py::test_filter_from_json_attr
+    Template rendering difference
+    Error: AssertionError: assert '' == '1'
+  
+  - 1
+  tests/api/test_template_engine.py::test_filter_is_defined
+    Template rendering difference
+    Error: AssertionError: assert '42' == 'true'
+  
+  - true
+  + 42
+  tests/api/test_template_engine.py::test_filter_int_from_float_string
+    Template int filter behavior difference
+    Error: AssertionError: assert '0' in '3'
+ +  where '3' = <Response [200 OK]>.text
+
+### ws_services_format (3 tests)
+  tests/api/test_ws_service_dispatch.py::test_get_services_domain_entry_format
+    WS get_services entry format difference (dict keys vs list)
+    Error: AssertionError: Missing 'domain' in entry: homeassistant
+assert 'domain' in 'homeassistant'
+  tests/api/test_ws_service_dispatch.py::test_ws_get_services
+    WS get_services format difference (dict vs list)
+    Error: AssertionError: assert False
+ +  where False = isinstance({'automation': {'reload': {'description': 'Reloads the automation configuration.', 'fields':
+  tests/api/test_ws_subscribe.py::test_ws_get_services_returns_list
+    WS get_services format difference (dict vs list)
+    Error: AssertionError: assert False
+ +  where False = isinstance({'automation': {'reload': {'description': 'Reloads the automation configuration.', 'fields':
+
+### 201_vs_200 (2 tests)
+  tests/api/test_rest_error_handling.py::test_set_state_returns_entity_format
+    HA returns 201 Created for new entity, test expects 200
+    Error: assert 201 == 200
+ +  where 201 = <Response [201 Created]>.status_code
+  tests/api/test_rest_states_patterns.py::test_set_state_creates_entity
+    HA returns 201 Created for new entity, test expects 200
+    Error: assert 201 == 200
+ +  where 201 = <Response [201 Created]>.status_code
+
+### ws_template_diff (2 tests)
+  tests/api/test_ws_subscribe.py::test_ws_render_template_error
+    WS render_template response difference
+    Error: assert (True is False or 'error' in "{'id': 1, 'type': 'result', 'success': true, 'result': none}")
+ +  where True = <built-in method get of dict obje
+  tests/api/test_ws_subscribe.py::test_ws_render_template_valid
+    WS render_template response difference
+    Error: AssertionError: assert '2' in 'None'
+ +  where 'None' = str(None)
+ +    where None = <built-in method get of dict object at 0x7f47b1099d00>('result', 
+
+### context_format_diff (2 tests)
+  tests/core/test_state_timestamp_semantics.py::test_context_has_uuid_format
+    Context ID format difference - HA uses ULID (26 chars, no dashes), test expects UUID (32+ chars, dashes)
+    Error: AssertionError: assert 26 >= 32
+ +  where 26 = len('01KHYN742KDSCPK3227D4JY2FF')
+  tests/core/test_state_timestamp_semantics.py::test_context_id_has_dashes
+    Context ID format difference - HA uses ULID (26 chars, no dashes), test expects UUID (32+ chars, dashes)
+    Error: AssertionError: assert '-' in '01KHYN7434JB8PZ7ZV8Q8Q12D2'
+
+### 500_error (1 tests)
+  tests/api/test_rest_error_handling.py::test_template_missing_template_field
+    HA returns 500 Internal Server Error
+    Error: assert 500 in (400, 422)
+ +  where 500 = <Response [500 Internal Server Error]>.status_code
+
+### ws_subscribe_trigger (1 tests)
+  tests/api/test_ws_registries.py::test_ws_subscribe_trigger
+    WS subscribe_trigger difference
+    Error: assert False is True
+
+### ws_error_format_diff (1 tests)
+  tests/api/test_rest_error_handling.py::test_ws_unknown_command
+    WS unknown command error message format difference
+    Error: AssertionError: assert 'Unknown' in ''
+ +  where '' = <built-in method get of dict object at 0x7f47b09cd300>('message', '')
+ +    where <built-in meth
+
+================================================================================
+RECOMMENDED FIX PRIORITIES FOR BUCKET C
+================================================================================
+
+Priority 1 — Service listing format (19 tests)
+  Marge lists services for ALL domains (40+ domains) regardless of whether
+  entities exist. HA only lists domains that have loaded integrations (28).
+  The CTS expects Marge's behavior (more domains) which HA doesn't satisfy.
+  Decision: These tests assert Marge's service registry behavior. Consider
+  whether to (a) tag them marge_only or (b) make Marge lazy-load domains.
+
+Priority 2 — WS get_services format (13 tests)
+  HA returns get_services as a dict: {domain: {service: {desc, fields}}}
+  Tests expect a list-of-dicts: [{domain: ..., services: {...}}, ...]
+  Both Marge and HA may be correct depending on WS version.
+  Fix: Update WS handler in Marge to match HA's dict format, OR tag tests.
+
+Priority 3 — Template rendering differences (7 tests)
+  - from_json filter + state access: Marge returns empty, HA returns value
+  - is_defined filter: Marge returns value, HA returns 'true'
+  - Boolean case: Marge returns 'True', HA returns 'true'
+  - None case: Marge returns 'None', HA returns 'none'
+  - int(3.14) filter: Marge returns '0', HA returns '3'
+  - min/max filters: 400 on HA (different filter implementation)
+  Fix: Audit template.rs filter implementations against Jinja2/HA.
+
+Priority 4 — Context ID format (2 tests)
+  HA uses ULIDs (26 chars, no dashes) for context IDs.
+  Marge uses UUIDs (32+ chars, dashes).
+  Fix: Switch Marge to ULID format for context.id.
+
+Priority 5 — POST /api/states returns 201 vs 200 (2 tests)
+  HA returns 201 Created when creating a new entity via POST /api/states.
+  Marge returns 200 OK for both create and update.
+  Fix: Return 201 for new entities, 200 for updates, in api.rs.
+
+Priority 6 — Template WS response differences (14 tests)
+  Tests using is_state() and state_attr() via WS that return None on HA
+  because the entity doesn't exist in the test HA instance.
+  May overlap with Bucket B (entity not registered).
+
+================================================================================
+END OF REPORT
+================================================================================
