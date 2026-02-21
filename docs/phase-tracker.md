@@ -257,14 +257,16 @@ Full categorization: `cts-results/manual-run/categorization.json` + `categorizat
 ---
 ## Active Tasks
 <!-- Update this section at end of every session. Clear completed items. Next session starts here. -->
-1. [ ] Tag 285 Bucket A tests as marge_only (Marge-specific endpoints)
-2. [ ] Fix Bucket C conformance bugs in Marge (69 tests, 7 issues)
-3. [ ] Rewrite 555 Bucket B tests to use HA-compatible patterns (long-term)
+1. [x] Tag 285 Bucket A tests as marge_only (37 files, commit f2f47c0)
+2. [x] Document API surface — docs/api-surface.md (MRG-API-001, commit f2f47c0)
+3. [ ] Fix Bucket C conformance bugs in Marge (69 tests, 7 issues)
+4. [ ] Implement 11 missing HA WS commands (see api-surface.md gap list)
+5. [ ] Rewrite 555 Bucket B tests to use HA-compatible patterns (long-term)
 
 ## Work In Progress
 <!-- What was being worked on when the session ended? What should the next session pick up? -->
-Phase 9 tooling complete + first dual-target run done. CTS conformance is 38.9% (580/1490).
-Next: tag Bucket A (easy wins), then fix Bucket C (real bugs).
+Bucket A tagged, API surface documented. Decision recorded: Marge is a superset (keep REST, add WS equivalents).
+Next: fix Bucket C conformance bugs (7 issues), then implement missing WS commands.
 
 ---
 ## Session Log
