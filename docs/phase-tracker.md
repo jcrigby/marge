@@ -265,8 +265,20 @@ Full categorization: `cts-results/manual-run/categorization.json` + `categorizat
 
 ## Work In Progress
 <!-- What was being worked on when the session ended? What should the next session pick up? -->
-Bucket A tagged, API surface documented. Decision recorded: Marge is a superset (keep REST, add WS equivalents).
-Next: fix Bucket C conformance bugs (7 issues), then implement missing WS commands.
+Session state saved before context compaction. All work committed and pushed (6e0ba92).
+
+**Immediate next tasks (in order):**
+1. Fix Bucket C conformance bugs (69 tests, 7 issues) — see agent-memory.md "Known Conformance Gaps"
+2. Implement 11 missing HA WS commands — see docs/api-surface.md section 5
+3. Rewrite 555 Bucket B tests (long-term)
+
+**Key context for next turn:**
+- Docker stack is UP (HA on 8123, Marge on 8124). HA token at /tmp/ha_token.txt (expires ~30 min, refresh via scripts/ha-refresh-token.sh)
+- Python 3.9 on host — 5 test files use `dict | None` syntax (py3.10+), must --ignore them
+- pytest-asyncio 0.23.8 installed (was 1.2.0, caused mass failures)
+- CTS results in cts-results/manual-run/ (ha-report.json, marge-report.json, matrix.json, categorization.json)
+- 57 test files have marge_only marker. When running against HA, 239+ tests auto-skip.
+- User directive: delegate all work to subagents, main session is orchestrator only. Was doing too much inline.
 
 ---
 ## Session Log
