@@ -299,6 +299,7 @@ async fn get_state(
 }
 
 /// POST /api/states/{entity_id} — set entity state (HA-compatible)
+/// Returns 201 Created for new entities, 200 OK for updates (matches HA behavior).
 async fn set_state(
     State(rs): State<RouterState>,
     headers: HeaderMap,
@@ -306,8 +307,10 @@ async fn set_state(
     Json(body): Json<SetStateRequest>,
 ) -> Result<impl IntoResponse, StatusCode> {
     check_auth(&rs, &headers)?;
+    let is_new = rs.app.state_machine.get(&entity_id).is_none();
     let new_state = rs.app.state_machine.set(entity_id, body.state, body.attributes);
-    Ok((StatusCode::OK, Json(new_state)))
+    let status = if is_new { StatusCode::CREATED } else { StatusCode::OK };
+    Ok((status, Json(new_state)))
 }
 
 /// DELETE /api/states/{entity_id} — remove an entity

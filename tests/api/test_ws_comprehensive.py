@@ -47,14 +47,15 @@ def mqtt_publish(topic: str, payload: str):
 # SECTION 1: WebSocket Core Commands
 # ═══════════════════════════════════════════════════════════
 
+@pytest.mark.marge_only
 async def test_ws_get_services_has_service_names(ws):
     """get_services includes service names per domain."""
     resp = await ws.send_command("get_services")
     result = resp["result"]
-    light = next(e for e in result if e["domain"] == "light")
-    assert "turn_on" in light["services"]
-    assert "turn_off" in light["services"]
-    assert "toggle" in light["services"]
+    assert "light" in result
+    assert "turn_on" in result["light"]
+    assert "turn_off" in result["light"]
+    assert "toggle" in result["light"]
 
 
 async def test_ws_get_notifications(ws, rest):
@@ -130,10 +131,8 @@ async def test_ws_call_service_counter(ws, rest):
 async def test_ws_render_template_states(ws, rest):
     """WS render_template with states() function works."""
     await rest.set_state("sensor.ws_tmpl_test", "99")
-    resp = await ws.send_command("render_template",
-        template="{{ states('sensor.ws_tmpl_test') }}")
-    assert resp["success"] is True
-    assert resp["result"]["result"] == "99"
+    result = await ws.render_template("{{ states('sensor.ws_tmpl_test') }}")
+    assert result.strip() == "99"
 
 
 # ── Persistent Notification via WS ───────────────────────

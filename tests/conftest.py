@@ -203,6 +203,19 @@ class WSClient:
         result = json.loads(await self.ws.recv())
         return result
 
+    async def render_template(self, template: str, timeout: float = 5.0) -> str:
+        """Render a template via WS, handling both HA subscription and Marge request-response styles."""
+        resp = await self.send_command("render_template", template=template)
+        if not resp.get("success", False):
+            raise ValueError(f"render_template failed: {resp}")
+        # Marge returns result inline; HA returns null then sends an event
+        if resp.get("result") is not None:
+            return resp["result"]["result"]  # Marge style
+        # HA subscription style: read the follow-up event message
+        raw = await asyncio.wait_for(self.ws.recv(), timeout=timeout)
+        event_msg = json.loads(raw)
+        return event_msg["event"]["result"]
+
     async def close(self):
         if self.ws:
             await self.ws.close()

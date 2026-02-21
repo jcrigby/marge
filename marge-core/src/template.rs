@@ -212,7 +212,14 @@ fn serde_json_to_minijinja(v: &serde_json::Value) -> Value {
 
 fn filter_int(value: Value) -> Value {
     if let Some(s) = value.as_str() {
-        Value::from(s.parse::<i64>().unwrap_or(0))
+        // Try integer parse first, then float-truncate (matches HA/Python behavior)
+        match s.parse::<i64>() {
+            Ok(i) => Value::from(i),
+            Err(_) => match s.parse::<f64>() {
+                Ok(f) => Value::from(f as i64),
+                Err(_) => Value::from(0i64),
+            },
+        }
     } else if let Some(f) = as_f64(&value) {
         Value::from(f as i64)
     } else {
@@ -264,7 +271,11 @@ fn filter_iif(value: Value, if_true: Value, if_false: Option<Value>) -> Value {
 }
 
 fn filter_is_defined(value: Value) -> Value {
-    Value::from(!value.is_undefined())
+    if value.is_undefined() {
+        Value::from("false")
+    } else {
+        Value::from("true")
+    }
 }
 
 fn filter_lower(value: Value) -> Value {
@@ -294,7 +305,7 @@ fn filter_regex_match(value: Value, _pattern: Value) -> Value {
 fn filter_from_json(value: Value) -> Value {
     if let Some(s) = value.as_str() {
         match serde_json::from_str::<serde_json::Value>(s) {
-            Ok(v) => serde_json_to_minijinja(&v),
+            Ok(v) => Value::from_serialize(&v),
             Err(_) => value,
         }
     } else {

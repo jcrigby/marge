@@ -51,6 +51,7 @@ async def test_list_services_has_domain(rest):
         assert "services" in entry
 
 
+@pytest.mark.marge_only
 async def test_list_services_has_light(rest):
     """Light domain appears in service listing."""
     resp = await rest.client.get(
@@ -62,6 +63,7 @@ async def test_list_services_has_light(rest):
     assert "light" in domains
 
 
+@pytest.mark.marge_only
 async def test_list_services_light_has_turn_on(rest):
     """Light domain has turn_on service."""
     resp = await rest.client.get(

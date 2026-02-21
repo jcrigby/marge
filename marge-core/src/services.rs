@@ -984,20 +984,22 @@ impl ServiceRegistry {
         result
     }
 
-    /// Return services as JSON array matching HA WebSocket format
+    /// Return services as JSON dict matching HA WebSocket format.
+    /// HA returns a flat dict keyed by domain:
+    /// {"light": {"turn_on": {"description": "...", "fields": {}}, ...}, ...}
     pub fn list_domains_json(&self) -> serde_json::Value {
         let services = self.list_services();
-        let mut arr = Vec::new();
+        let mut top = serde_json::Map::new();
         for (domain, svcs) in &services {
             let mut svc_map = serde_json::Map::new();
             for svc in svcs {
-                svc_map.insert(svc.clone(), serde_json::json!({"description": ""}));
+                svc_map.insert(svc.clone(), serde_json::json!({
+                    "description": format!("{}.{}", domain, svc),
+                    "fields": {}
+                }));
             }
-            arr.push(serde_json::json!({
-                "domain": domain,
-                "services": svc_map,
-            }));
+            top.insert(domain.clone(), serde_json::Value::Object(svc_map));
         }
-        serde_json::Value::Array(arr)
+        serde_json::Value::Object(top)
     }
 }

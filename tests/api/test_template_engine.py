@@ -100,10 +100,10 @@ async def test_filter_numeric_conversion(rest, template, expected):
 
 
 async def test_filter_int_from_float_string(rest):
-    """int filter on non-integer string returns 0 (parse failure)."""
+    """int filter on float string truncates toward zero (HA/Python behavior)."""
     r = await _render(rest, "{{ '3.7' | int }}")
     assert r.status_code == 200
-    assert "0" in r.text
+    assert r.text.strip() == "3"
 
 
 @pytest.mark.parametrize("template,expected", [
@@ -121,6 +121,7 @@ async def test_filter_round(rest, template, expected):
         assert expected in r.text
 
 
+@pytest.mark.marge_only
 @pytest.mark.parametrize("template,expected", [
     ("{{ 3 | max(7) }}", "7"),
     ("{{ 3 | min(7) }}", "3"),
@@ -128,7 +129,7 @@ async def test_filter_round(rest, template, expected):
     ("{{ 5 | min(10) | int }}", "5"),
 ])
 async def test_filter_min_max(rest, template, expected):
-    """min/max filters return correct extreme."""
+    """min/max filters return correct extreme (Marge extension, HA returns 400)."""
     r = await _render(rest, template)
     assert r.status_code == 200
     assert expected in r.text
@@ -176,8 +177,9 @@ async def test_filter_default_with_value(rest):
     assert r.text.strip() == "hello"
 
 
+@pytest.mark.marge_only
 async def test_filter_is_defined(rest):
-    """is_defined returns true for defined values."""
+    """is_defined returns true for defined values (Marge extension; HA uses 'is defined' test)."""
     r = await _render(rest, "{{ 42 | is_defined }}")
     assert r.status_code == 200
     assert r.text.strip() == "true"
@@ -186,8 +188,8 @@ async def test_filter_is_defined(rest):
 # ── JSON Filters ─────────────────────────────────────────
 
 async def test_filter_from_json_attr(rest):
-    """from_json parses JSON string and attr accesses fields."""
-    r = await _render(rest, '{{ \'{"a":1,"b":2}\' | from_json | attr("a") }}')
+    """from_json parses JSON string and dot notation accesses fields."""
+    r = await _render(rest, '{{ (\'{"a":1,"b":2}\' | from_json).a }}')
     assert r.status_code == 200
     assert r.text.strip() == "1"
 
@@ -203,7 +205,7 @@ async def test_filter_from_json_basic(rest):
 async def test_filter_from_json_with_state(rest):
     """from_json handles JSON stored in entity state."""
     await rest.set_state("sensor.json_test", '{"temp":72,"unit":"F"}')
-    r = await _render(rest, "{{ states('sensor.json_test') | from_json | attr('temp') }}")
+    r = await _render(rest, "{{ (states('sensor.json_test') | from_json).temp }}")
     assert r.status_code == 200
     assert r.text.strip() == "72"
 
@@ -281,7 +283,7 @@ async def test_states_with_float_comparison(rest):
     await rest.set_state("sensor.tmpl_adv_temp", "80")
     r = await _render(rest, "{{ states('sensor.tmpl_adv_temp') | float > 75 }}")
     assert r.status_code == 200
-    assert r.text.strip() == "true"
+    assert r.text.strip().lower() == "true"
 
 
 # ── Global Functions ──────────────────────────────────────
@@ -410,7 +412,7 @@ async def test_template_state_attr_missing(rest):
     await rest.set_state("sensor.attr_miss", "42")
     r = await _render(rest, "{{ state_attr('sensor.attr_miss', 'nonexistent') | default('none') }}")
     assert r.status_code == 200
-    assert r.text.strip() == "none"
+    assert r.text.strip().lower() == "none"
 
 
 # ── For Loop ─────────────────────────────────────────────

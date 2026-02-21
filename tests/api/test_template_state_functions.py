@@ -26,9 +26,7 @@ async def _render_rest(rest, template):
 
 async def _render_ws(ws, template: str) -> str:
     """Render template via WS render_template command."""
-    resp = await ws.send_command("render_template", template=template)
-    assert resp["success"] is True
-    return resp["result"]["result"]
+    return await ws.render_template(template)
 
 
 # ── states() function ───────────────────────────────────

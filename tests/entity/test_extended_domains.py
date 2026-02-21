@@ -61,6 +61,7 @@ async def test_services_include_persistent_notification(rest):
     assert "dismiss_all" in svc_names
 
 
+@pytest.mark.marge_only
 async def test_services_include_camera(rest):
     """GET /api/services includes camera domain."""
     resp = await rest.client.get(
@@ -72,6 +73,7 @@ async def test_services_include_camera(rest):
     assert "camera" in domains
 
 
+@pytest.mark.marge_only
 async def test_services_include_device_tracker(rest):
     """GET /api/services includes device_tracker domain."""
     resp = await rest.client.get(
@@ -83,6 +85,7 @@ async def test_services_include_device_tracker(rest):
     assert "device_tracker" in domains
 
 
+@pytest.mark.marge_only
 async def test_services_total_domain_count(rest):
     """GET /api/services returns at least 35 domains."""
     resp = await rest.client.get(

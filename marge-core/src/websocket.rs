@@ -27,7 +27,14 @@ enum WsOutgoing {
     #[serde(rename = "auth_invalid")]
     AuthInvalid { message: String },
     #[serde(rename = "result")]
-    Result { id: u64, success: bool, result: Option<serde_json::Value> },
+    Result {
+        id: u64,
+        success: bool,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        result: Option<serde_json::Value>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        error: Option<serde_json::Value>,
+    },
     #[serde(rename = "event")]
     Event { id: u64, event: serde_json::Value },
 }
@@ -174,7 +181,7 @@ async fn handle_ws(
                                         .and_then(|v| v.as_str()).unwrap_or("");
                                     match crate::template::render_with_state_machine(template, &app.state_machine) {
                                         Ok(rendered) => ws_result(id, true, Some(serde_json::json!({"result": rendered}))),
-                                        Err(e) => ws_result(id, false, Some(serde_json::json!({"message": e}))),
+                                        Err(e) => ws_error(id, "template_error", &e),
                                     }
                                 }
                                 "get_states" => {
@@ -508,7 +515,7 @@ async fn handle_ws(
                                 }
                                 _ => {
                                     tracing::debug!(msg_type = %incoming.msg_type, "Unknown WS message type");
-                                    ws_result(id, false, Some(serde_json::json!({"message": "Unknown command"})))
+                                    ws_error(id, "unknown_command", "Unknown command.")
                                 }
                             };
                             if socket.send(Message::Text(resp)).await.is_err() {
@@ -538,7 +545,16 @@ async fn handle_ws(
 }
 
 fn ws_result(id: u64, success: bool, result: Option<serde_json::Value>) -> String {
-    serde_json::to_string(&WsOutgoing::Result { id, success, result }).unwrap_or_default()
+    serde_json::to_string(&WsOutgoing::Result { id, success, result, error: None }).unwrap_or_default()
+}
+
+fn ws_error(id: u64, code: &str, message: &str) -> String {
+    serde_json::to_string(&WsOutgoing::Result {
+        id,
+        success: false,
+        result: None,
+        error: Some(serde_json::json!({"code": code, "message": message})),
+    }).unwrap_or_default()
 }
 
 fn make_state_changed_event(event: &StateChangedEvent) -> serde_json::Value {

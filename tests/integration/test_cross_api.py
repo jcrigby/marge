@@ -81,7 +81,8 @@ async def test_services_consistent_rest_ws(rest, ws):
     ws_data = ws_resp["result"]
 
     rest_domains = sorted([e["domain"] for e in rest_data])
-    ws_domains = sorted([e["domain"] for e in ws_data])
+    # WS get_services returns a flat dict keyed by domain
+    ws_domains = sorted(ws_data.keys())
     assert rest_domains == ws_domains
 
 

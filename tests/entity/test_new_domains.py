@@ -120,6 +120,7 @@ async def test_remote_send_command(rest):
 
 # -- Service Listing --
 
+@pytest.mark.marge_only
 async def test_services_include_water_heater(rest):
     """GET /api/services includes water_heater domain."""
     resp = await rest.client.get(
@@ -130,6 +131,7 @@ async def test_services_include_water_heater(rest):
     assert "water_heater" in domains
 
 
+@pytest.mark.marge_only
 async def test_services_include_humidifier(rest):
     """GET /api/services includes humidifier domain."""
     resp = await rest.client.get(
@@ -140,6 +142,7 @@ async def test_services_include_humidifier(rest):
     assert "humidifier" in domains
 
 
+@pytest.mark.marge_only
 async def test_services_include_lawn_mower(rest):
     """GET /api/services includes lawn_mower domain."""
     resp = await rest.client.get(
@@ -150,6 +153,7 @@ async def test_services_include_lawn_mower(rest):
     assert "lawn_mower" in domains
 
 
+@pytest.mark.marge_only
 async def test_services_include_remote(rest):
     """GET /api/services includes remote domain."""
     resp = await rest.client.get(
@@ -160,6 +164,7 @@ async def test_services_include_remote(rest):
     assert "remote" in domains
 
 
+@pytest.mark.marge_only
 async def test_services_total_at_least_40(rest):
     """GET /api/services returns at least 40 domains."""
     resp = await rest.client.get(

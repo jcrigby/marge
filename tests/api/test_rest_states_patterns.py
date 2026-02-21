@@ -34,7 +34,8 @@ async def test_set_state_creates_entity(rest):
         json={"state": "hello", "attributes": {"friendly_name": "New Entity"}},
         headers=rest._headers(),
     )
-    assert resp.status_code == 200
+    # HA returns 201 Created for new entities, 200 OK for updates
+    assert resp.status_code in (200, 201)
 
     state = await rest.get_state(eid)
     assert state["state"] == "hello"

@@ -106,7 +106,7 @@ async def test_same_state_same_attrs_last_updated_stable(rest):
 
 
 async def test_context_has_uuid_format(rest):
-    """Context.id is a valid UUID-like string."""
+    """Context.id is a valid identifier string (UUID or ULID)."""
     tag = uuid.uuid4().hex[:8]
     eid = f"sensor.ts_ctx_{tag}"
     await rest.set_state(eid, "val")
@@ -114,18 +114,20 @@ async def test_context_has_uuid_format(rest):
     state = await rest.get_state(eid)
     ctx = state["context"]
     assert "id" in ctx
-    assert len(ctx["id"]) >= 32  # UUID with or without hyphens
+    assert isinstance(ctx["id"], str)
+    assert len(ctx["id"]) >= 20  # UUID (32-36 chars) or ULID (26 chars)
 
 
-async def test_context_id_has_dashes(rest):
-    """context.id contains dashes (UUID format)."""
+async def test_context_id_is_nonempty_string(rest):
+    """context.id is a non-empty alphanumeric string (UUID or ULID)."""
     tag = uuid.uuid4().hex[:8]
     eid = f"sensor.ctx_uuid_{tag}"
     await rest.set_state(eid, "val")
 
     state = await rest.get_state(eid)
     ctx_id = state["context"]["id"]
-    assert "-" in ctx_id
+    assert isinstance(ctx_id, str)
+    assert len(ctx_id) >= 20  # UUID (32-36 chars) or ULID (26 chars)
 
 
 async def test_context_changes_on_each_set(rest):

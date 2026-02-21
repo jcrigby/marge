@@ -336,52 +336,52 @@ async def test_fire_event_no_data(ws):
 
 
 async def test_ws_get_services(ws):
-    """WS get_services returns service registry."""
+    """WS get_services returns service registry as flat dict keyed by domain."""
     resp = await ws.send_command("get_services")
     assert resp["success"] is True
     assert "result" in resp
     result = resp["result"]
-    assert isinstance(result, list)
-    domains = [s["domain"] for s in result]
-    assert "light" in domains
-    assert "switch" in domains
+    assert isinstance(result, dict)
+    assert len(result) > 0
 
 
+@pytest.mark.marge_only
 @pytest.mark.parametrize("domain", ["light", "switch", "climate"],
                          ids=["light", "switch", "climate"])
 async def test_get_services_has_domain(ws, domain):
     """get_services includes expected domains."""
     resp = await ws.send_command("get_services")
-    domains = [e["domain"] for e in resp["result"]]
-    assert domain in domains
+    assert domain in resp["result"]
 
 
 async def test_get_services_domain_entry_format(ws):
-    """Each domain entry has 'domain' and 'services' keys."""
+    """Each domain entry is a dict of service names to service info."""
     resp = await ws.send_command("get_services")
-    for entry in resp["result"]:
-        assert "domain" in entry, f"Missing 'domain' in entry: {entry}"
-        assert "services" in entry, f"Missing 'services' in entry: {entry}"
-        assert isinstance(entry["services"], dict)
+    result = resp["result"]
+    for domain, services in result.items():
+        assert isinstance(services, dict), f"Services for {domain} should be a dict"
+        for svc_name, svc_info in services.items():
+            assert isinstance(svc_info, dict), f"{domain}.{svc_name} info should be a dict"
 
 
+@pytest.mark.marge_only
 async def test_get_services_light_has_turn_on(ws):
     """Light domain includes turn_on service."""
     resp = await ws.send_command("get_services")
-    light = next(e for e in resp["result"] if e["domain"] == "light")
-    assert "turn_on" in light["services"]
+    assert "light" in resp["result"]
+    assert "turn_on" in resp["result"]["light"]
 
 
+@pytest.mark.marge_only
 async def test_get_services_service_has_description(ws):
     """Service entries have description field."""
     resp = await ws.send_command("get_services")
-    light = next(e for e in resp["result"] if e["domain"] == "light")
-    turn_on = light["services"]["turn_on"]
+    turn_on = resp["result"]["light"]["turn_on"]
     assert "description" in turn_on
 
 
 async def test_get_services_matches_rest(ws, rest):
-    """WS get_services matches REST /api/services output."""
+    """WS get_services domain set matches REST /api/services domains."""
     ws_resp = await ws.send_command("get_services")
     rest_resp = await rest.client.get(
         f"{rest.base_url}/api/services",
@@ -390,15 +390,17 @@ async def test_get_services_matches_rest(ws, rest):
     assert rest_resp.status_code == 200
     rest_services = rest_resp.json()
 
-    ws_domains = sorted(e["domain"] for e in ws_resp["result"])
+    # WS returns flat dict, REST returns list of {domain, services}
+    ws_domains = sorted(ws_resp["result"].keys())
     rest_domains = sorted(e["domain"] for e in rest_services)
     assert ws_domains == rest_domains
 
 
+@pytest.mark.marge_only
 async def test_get_services_sorted_by_domain(ws):
-    """get_services result is sorted alphabetically by domain."""
+    """get_services result keys are sorted alphabetically by domain."""
     resp = await ws.send_command("get_services")
-    domains = [e["domain"] for e in resp["result"]]
+    domains = list(resp["result"].keys())
     assert domains == sorted(domains)
 
 
