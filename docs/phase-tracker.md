@@ -220,19 +220,51 @@ the same entity fleet without physical hardware. Enables all-virtual Innovation 
 | `scripts/check-gate.sh` | Add `conformance` gate |
 | ~20 test files | Add `@pytest.mark.marge_only` to Marge-specific tests |
 
+### 9.7 Dual CTS Verification Results (2026-02-20)
+
+First dual-target CTS run. HA is the reference. Results:
+
+| Target | Passed | Failed | Skipped |
+|--------|--------|--------|---------|
+| Marge | 1728 | 1 | 0 |
+| HA | 580 | 910 | 239 |
+
+Divergence matrix on intersection (1490 tests):
+- Both pass: 580 (38.9%) — **true conformance tests**
+- Both fail: 1 (0.1%)
+- HA pass / Marge fail: 0 (0.0%)
+- Marge pass / HA fail: 909 (61.0%) — **tests that don't validate conformance**
+
+The 909 marge-pass/ha-fail tests categorized into three buckets:
+
+| Bucket | Count | Action |
+|--------|-------|--------|
+| A: Tag marge_only | 285 (31%) | Marge-specific endpoints (history REST, areas, backup, webhooks, etc.) |
+| B: Fix test approach | 555 (61%) | Tests create ad-hoc entities via POST /api/states then call services — HA rejects because entities aren't registered with integration platform |
+| C: Fix Marge | 69 (8%) | Real conformance bugs |
+
+**Bucket C — Real conformance bugs found:**
+1. WS `get_services` format — Marge returns list-of-dicts, HA returns `{domain: {service: {...}}}` (13 tests)
+2. Service domain listing — Marge lists 40+ domains, HA only lists loaded integrations (23 tests)
+3. Template WS `render_template` response format differs (14 tests)
+4. Template filter behavior — `int(3.14)` returns 0 vs 3, `is_defined`, None casing (7 tests)
+5. Context IDs — HA uses ULIDs (26 chars, no dashes), Marge uses UUIDs (2 tests)
+6. POST /api/states — HA returns 201 for new entities, Marge returns 200 (2 tests)
+7. Misc edge cases (3 tests)
+
+Full categorization: `cts-results/manual-run/categorization.json` + `categorization-summary.txt`
+
 ---
 ## Active Tasks
 <!-- Update this section at end of every session. Clear completed items. Next session starts here. -->
-1. [x] **9.1** conftest.py marker + tag Marge-specific tests
-2. [x] **9.2** cts-compare.py + cts-dual-run.sh
-3. [x] **9.3** Fix ServiceResponse format in api.rs
-4. [x] **9.4** ab-diff.py
-5. [x] **9.5** conformance-monitor.py
-6. [x] **9.6** check-gate.sh conformance gate
+1. [ ] Tag 285 Bucket A tests as marge_only (Marge-specific endpoints)
+2. [ ] Fix Bucket C conformance bugs in Marge (69 tests, 7 issues)
+3. [ ] Rewrite 555 Bucket B tests to use HA-compatible patterns (long-term)
 
 ## Work In Progress
 <!-- What was being worked on when the session ended? What should the next session pick up? -->
-Phase 9 COMPLETE. All 6 deliverables implemented. Needs Docker stack to verify end-to-end.
+Phase 9 tooling complete + first dual-target run done. CTS conformance is 38.9% (580/1490).
+Next: tag Bucket A (easy wins), then fix Bucket C (real bugs).
 
 ---
 ## Session Log

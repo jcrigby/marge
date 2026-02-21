@@ -76,9 +76,30 @@ See [phase-tracker.md](phase-tracker.md) for detailed status.
 - **HA automation entity_ids from `alias` not `id`**: HA ignores the `id` field and generates entity_id from the `alias`. Caused entity mismatch confusion.
 - **MQTT command dispatch requires second broker link**: Service calls need to publish back to MQTT. Required a separate `marge-command` client connection + `spawn_blocking` + `blocking_recv()`. Without this, outbound MQTT commands silently drop.
 - **State casing normalization timing**: Must normalize AFTER template rendering AND JSON extraction. Normalizing too early breaks template logic.
+- **HA service dispatch requires integration-registered entities**: `POST /api/states` creates state entries but does NOT register entities with HA's service platform. Calling `POST /api/services/light/turn_on` on an entity created via states API returns 400 on HA. Marge is lenient and dispatches to any entity in the state machine. This means 555 CTS tests (61% of failures) use an approach that's fundamentally incompatible with HA. Tests must either use HA-native entities or only assert via state API.
 
 ## Known Issues (Resolved)
 - **ServiceResponse format divergence**: Marge wrapped service call responses in `{"changed_states": [...]}` while HA returns a flat `[...]`. Fixed in Phase 9.3 — handler now returns `Json<Vec<EntityState>>` directly. 4 test files updated.
+
+## Known Conformance Gaps (from Phase 9.7 dual CTS run)
+CTS conformance: 580/1490 (38.9%). 909 tests pass on Marge but fail on HA.
+
+**Bucket C — Real bugs in Marge (69 tests, 7 issues):**
+1. **WS get_services format** (13 tests): Marge returns `[{domain, services}]`, HA returns `{domain: {service: {...}}}`. Fix: `websocket.rs`
+2. **Service domain listing** (23 tests): Marge lists 40+ domains statically; HA only lists domains with loaded integrations. Decision needed: lazy-load or tag marge_only.
+3. **Template WS render_template** (14 tests): Different result wrapping. Fix: match HA's WS response format.
+4. **Template filter differences** (7 tests): `int(3.14)` → 0 on HA, 3 on Marge. `is_defined` returns value vs true. None vs none casing. Fix: `template.rs`
+5. **Context ID format** (2 tests): HA=ULIDs (26 chars, no dashes), Marge=UUIDs. Fix: generate ULIDs.
+6. **POST /api/states 201 vs 200** (2 tests): HA returns 201 Created for new entities. Fix: `api.rs` state setter.
+7. **Misc** (3 tests): HA returns 500 for missing template field, WS error format, subscribe_trigger.
+
+**Bucket B — Test approach problem (555 tests):**
+Root cause: tests create entities via `POST /api/states` then call services on them. HA's service dispatcher requires entities to be registered through integrations — `POST /api/states` only sets state, doesn't register with the platform. Marge is lenient and accepts any entity. These tests need rewriting to use HA-compatible patterns (either HA entities or state-only assertions).
+
+**Bucket A — Marge-only endpoints (285 tests):**
+Need `marge_only` marker: history REST, logbook REST, areas/labels/devices REST, config YAML endpoints, notifications, backup, webhooks, statistics, recorder.
+
+**Full categorization:** `cts-results/manual-run/categorization.json`
 
 ## Known Issues (Not Yet Fixed)
 - **Memory leak — topic_subscriptions**: `discovery.rs:462` `add_topic_subscription()` pushes entity_ids into `Vec<String>` without dedup. Each MQTT message re-appends the same IDs. Over 3 days with 37 devices @ 5s intervals = millions of duplicate strings (~50-100 MB). **Fix**: Change `Vec<String>` to `HashSet<String>` or add dedup check before push.
