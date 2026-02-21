@@ -11,7 +11,7 @@ import time
 
 import pytest
 
-pytestmark = pytest.mark.asyncio
+pytestmark = [pytest.mark.asyncio, pytest.mark.marge_only]
 
 
 # ── Special Characters ────────────────────────────────────

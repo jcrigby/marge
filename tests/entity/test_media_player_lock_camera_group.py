@@ -10,7 +10,7 @@ update (skip), and generic service fallback for unknown domains.
 import uuid
 import pytest
 
-pytestmark = pytest.mark.asyncio
+pytestmark = [pytest.mark.asyncio, pytest.mark.marge_only]
 
 
 # ── Media Player Extended ──────────────────────────────

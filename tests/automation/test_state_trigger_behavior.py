@@ -8,7 +8,7 @@ action execution verification, and trigger context.
 import asyncio
 import pytest
 
-pytestmark = pytest.mark.asyncio
+pytestmark = [pytest.mark.asyncio, pytest.mark.marge_only]
 
 
 async def test_smoke_trigger_unlocks_door(rest):

@@ -9,7 +9,7 @@ play_media, select_sound_mode, and the full media playback lifecycle.
 import uuid
 import pytest
 
-pytestmark = pytest.mark.asyncio
+pytestmark = [pytest.mark.asyncio, pytest.mark.marge_only]
 
 
 # ── State-transition services (parametrized) ────────────────

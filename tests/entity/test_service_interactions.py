@@ -7,7 +7,7 @@ transitions, and domain-specific semantics.
 
 import pytest
 
-pytestmark = pytest.mark.asyncio
+pytestmark = [pytest.mark.asyncio, pytest.mark.marge_only]
 
 
 # -- Light Services --

@@ -9,7 +9,7 @@ dependency scenarios.
 import asyncio
 import pytest
 
-pytestmark = pytest.mark.asyncio
+pytestmark = [pytest.mark.asyncio, pytest.mark.marge_only]
 
 
 # ── Multi-Entity Service Calls ───────────────────────────

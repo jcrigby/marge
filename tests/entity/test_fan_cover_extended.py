@@ -9,7 +9,7 @@ and cover (toggle, set_cover_position, stop_cover, position-based state).
 import uuid
 import pytest
 
-pytestmark = pytest.mark.asyncio
+pytestmark = [pytest.mark.asyncio, pytest.mark.marge_only]
 
 
 # ── Fan Basic ──────────────────────────────────────────

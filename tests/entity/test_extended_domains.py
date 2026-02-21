@@ -11,6 +11,7 @@ pytestmark = pytest.mark.asyncio
 
 # -- Camera --
 
+@pytest.mark.marge_only
 async def test_camera_turn_on(rest):
     """camera.turn_on sets state to streaming."""
     await rest.set_state("camera.front_door", "idle")
@@ -21,6 +22,7 @@ async def test_camera_turn_on(rest):
     assert state["state"] == "streaming"
 
 
+@pytest.mark.marge_only
 async def test_camera_turn_off(rest):
     """camera.turn_off sets state to idle."""
     await rest.set_state("camera.front_door", "streaming")
@@ -33,6 +35,7 @@ async def test_camera_turn_off(rest):
 
 # -- Device Tracker --
 
+@pytest.mark.marge_only
 async def test_device_tracker_see(rest):
     """device_tracker.see sets location state."""
     await rest.set_state("device_tracker.phone", "not_home")

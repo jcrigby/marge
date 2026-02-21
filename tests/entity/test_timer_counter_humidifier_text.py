@@ -9,7 +9,7 @@ text (set_value), and input_datetime (set_datetime).
 import uuid
 import pytest
 
-pytestmark = pytest.mark.asyncio
+pytestmark = [pytest.mark.asyncio, pytest.mark.marge_only]
 
 
 # ── Timer ──────────────────────────────────────────────

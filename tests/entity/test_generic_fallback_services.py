@@ -7,7 +7,7 @@ toggle) work for any domain, even those without explicit registrations.
 
 import pytest
 
-pytestmark = pytest.mark.asyncio
+pytestmark = [pytest.mark.asyncio, pytest.mark.marge_only]
 
 
 async def test_unknown_domain_turn_on(rest):

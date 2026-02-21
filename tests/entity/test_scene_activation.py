@@ -8,7 +8,7 @@ multiple entities in a scene, and scene re-activation.
 import asyncio
 import pytest
 
-pytestmark = pytest.mark.asyncio
+pytestmark = [pytest.mark.asyncio, pytest.mark.marge_only]
 
 
 async def test_evening_scene_activates(rest):

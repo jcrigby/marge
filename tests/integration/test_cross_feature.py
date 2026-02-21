@@ -34,6 +34,7 @@ async def test_state_change_recorded_in_history(rest):
     assert "updated" in states
 
 
+@pytest.mark.marge_only
 async def test_service_call_appears_in_history(rest):
     """Service call that changes state is recorded in history."""
     entity = "light.xfeat_svc_hist"
@@ -53,6 +54,7 @@ async def test_service_call_appears_in_history(rest):
 
 # ── Service Call → WS Event ─────────────────────────────────
 
+@pytest.mark.marge_only
 async def test_service_call_triggers_ws_event(ws, rest):
     """Service call generates state_changed WS event."""
     entity = "switch.xfeat_ws_svc"
@@ -84,6 +86,7 @@ async def test_automation_trigger_changes_state(rest):
 
 # ── Scene → Service → WS ───────────────────────────────────
 
+@pytest.mark.marge_only
 async def test_scene_activation_triggers_ws_events(ws, rest):
     """Scene activation triggers WS state_changed events."""
     await rest.set_state("light.living_room_main", "off")
@@ -106,6 +109,7 @@ async def test_scene_activation_triggers_ws_events(ws, rest):
 
 # ── Template + State ────────────────────────────────────────
 
+@pytest.mark.marge_only
 async def test_template_reflects_service_change(rest):
     """Template rendering reflects state changed by service call."""
     entity = "sensor.xfeat_tmpl"
@@ -152,6 +156,7 @@ async def test_area_search_reflects_state_changes(rest):
 
 # ── Webhook → State → WS ───────────────────────────────────
 
+@pytest.mark.marge_only
 async def test_webhook_state_triggers_ws_event(ws, rest):
     """Webhook state change triggers WS event."""
     entity = "sensor.xfeat_webhook_ws"
@@ -170,6 +175,7 @@ async def test_webhook_state_triggers_ws_event(ws, rest):
 
 # ── Logbook + Service Call ──────────────────────────────────
 
+@pytest.mark.marge_only
 async def test_logbook_records_service_changes(rest):
     """Service call state changes appear in logbook."""
     entity = "light.xfeat_logbook"

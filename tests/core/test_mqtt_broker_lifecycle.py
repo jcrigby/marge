@@ -17,7 +17,7 @@ import pytest
 MQTT_HOST = "localhost"
 MQTT_PORT = 1884
 
-pytestmark = pytest.mark.asyncio
+pytestmark = [pytest.mark.asyncio, pytest.mark.marge_only]
 
 
 def make_client(tag=""):

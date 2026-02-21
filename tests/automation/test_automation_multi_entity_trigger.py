@@ -9,7 +9,7 @@ entity, and automation metadata across all 6 demo automations.
 import asyncio
 import pytest
 
-pytestmark = pytest.mark.asyncio
+pytestmark = [pytest.mark.asyncio, pytest.mark.marge_only]
 
 
 # ── Multi-Entity Trigger (StringOrVec) ─────────────────────

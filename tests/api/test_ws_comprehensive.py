@@ -104,6 +104,7 @@ async def test_ws_unsubscribe(ws, rest):
 
 # ── Call Service via WS ──────────────────────────────────
 
+@pytest.mark.marge_only
 async def test_ws_call_service_timer(ws, rest):
     """WS call_service timer.start works."""
     await rest.set_state("timer.ws_call_test", "idle")
@@ -115,6 +116,7 @@ async def test_ws_call_service_timer(ws, rest):
     assert state["state"] == "active"
 
 
+@pytest.mark.marge_only
 async def test_ws_call_service_counter(ws, rest):
     """WS call_service counter.increment works."""
     await rest.set_state("counter.ws_call_test", "0")
@@ -128,6 +130,7 @@ async def test_ws_call_service_counter(ws, rest):
 
 # ── Template Rendering ───────────────────────────────────
 
+@pytest.mark.marge_only
 async def test_ws_render_template_states(ws, rest):
     """WS render_template with states() function works."""
     await rest.set_state("sensor.ws_tmpl_test", "99")
@@ -171,6 +174,7 @@ async def test_ws_notification_lifecycle(ws):
 # SECTION 2: MQTT + REST + WS Roundtrip Integration
 # ═══════════════════════════════════════════════════════════
 
+@pytest.mark.marge_only
 async def test_mqtt_state_appears_in_rest(rest):
     """MQTT publish on home/domain/id/state creates entity in REST."""
     tag = uuid.uuid4().hex[:8]
@@ -182,6 +186,7 @@ async def test_mqtt_state_appears_in_rest(rest):
     assert state["state"] == "42"
 
 
+@pytest.mark.marge_only
 async def test_mqtt_state_triggers_ws_event(ws, rest):
     """MQTT state publish triggers state_changed event on WebSocket."""
     tag = uuid.uuid4().hex[:8]
@@ -210,6 +215,7 @@ async def test_mqtt_state_triggers_ws_event(ws, rest):
     await ws.send_command("unsubscribe_events", subscription=sub_id)
 
 
+@pytest.mark.marge_only
 async def test_mqtt_update_triggers_ws_with_old_state(ws, rest):
     """Second MQTT publish includes old_state in WS event."""
     tag = uuid.uuid4().hex[:8]
@@ -243,6 +249,7 @@ async def test_mqtt_update_triggers_ws_with_old_state(ws, rest):
     await ws.send_command("unsubscribe_events", subscription=sub_id)
 
 
+@pytest.mark.marge_only
 async def test_mqtt_multiple_domains(rest):
     """MQTT bridge handles multiple domains correctly."""
     tag = uuid.uuid4().hex[:8]
@@ -264,6 +271,7 @@ async def test_mqtt_multiple_domains(rest):
     assert s3["state"] == "off"
 
 
+@pytest.mark.marge_only
 async def test_mqtt_state_update_preserves_attributes(rest):
     """MQTT state update preserves existing entity attributes."""
     tag = uuid.uuid4().hex[:8]
@@ -282,6 +290,7 @@ async def test_mqtt_state_update_preserves_attributes(rest):
     assert state["attributes"].get("device_class") == "temperature"
 
 
+@pytest.mark.marge_only
 async def test_mqtt_rapid_updates_all_recorded(rest):
     """Rapid MQTT updates are all recorded in state machine."""
     tag = uuid.uuid4().hex[:8]
@@ -297,6 +306,7 @@ async def test_mqtt_rapid_updates_all_recorded(rest):
     assert state["state"] == "4"
 
 
+@pytest.mark.marge_only
 @pytest.mark.parametrize("topic_template,entity_template", [
     ("other/sensor/bad_{tag}/state", "sensor.bad_{tag}"),       # wrong root prefix
     ("home/sensor/nofinal_{tag}", "sensor.nofinal_{tag}"),      # missing /state segment
@@ -330,6 +340,7 @@ async def test_parallel_state_sets_10(rest):
         assert state["state"] == str(i)
 
 
+@pytest.mark.marge_only
 async def test_parallel_service_calls(rest):
     """10 parallel service calls all succeed."""
     tag = uuid.uuid4().hex[:8]

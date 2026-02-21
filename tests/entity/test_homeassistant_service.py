@@ -8,7 +8,7 @@ and homeassistant.restart/check_config service calls.
 import uuid
 import pytest
 
-pytestmark = pytest.mark.asyncio
+pytestmark = [pytest.mark.asyncio, pytest.mark.marge_only]
 
 
 async def test_ha_turn_on(rest):

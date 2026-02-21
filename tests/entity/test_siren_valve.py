@@ -7,7 +7,7 @@ Tests siren and valve domain services, plus alarm lifecycle.
 import uuid
 import pytest
 
-pytestmark = pytest.mark.asyncio
+pytestmark = [pytest.mark.asyncio, pytest.mark.marge_only]
 
 
 # ── Siren ────────────────────────────────────────

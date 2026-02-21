@@ -10,7 +10,7 @@ force trigger via automation.trigger service, and disable/re-enable lifecycle.
 import asyncio
 import pytest
 
-pytestmark = pytest.mark.asyncio
+pytestmark = [pytest.mark.asyncio, pytest.mark.marge_only]
 
 
 # ── Precondition setup helper ──────────────────────────────

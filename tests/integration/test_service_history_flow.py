@@ -15,6 +15,7 @@ pytestmark = pytest.mark.asyncio
 _FLUSH = 0.6  # Recorder coalesces writes at 100ms + margin
 
 
+@pytest.mark.marge_only
 async def test_service_state_in_history(rest):
     """Service call state change appears in history."""
     tag = uuid.uuid4().hex[:8]
@@ -36,6 +37,7 @@ async def test_service_state_in_history(rest):
     assert "on" in states
 
 
+@pytest.mark.marge_only
 async def test_multiple_service_calls_in_history(rest):
     """Multiple service calls produce multiple history entries."""
     tag = uuid.uuid4().hex[:8]
@@ -145,6 +147,7 @@ async def test_statistics_after_numeric_states(rest):
         assert bucket["min"] <= bucket["max"]
 
 
+@pytest.mark.marge_only
 async def test_logbook_after_service_call(rest):
     """Logbook captures entries from service-driven state changes."""
     tag = uuid.uuid4().hex[:8]

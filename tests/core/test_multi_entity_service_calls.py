@@ -9,7 +9,7 @@ empty arrays and mixed domains.
 import uuid
 import pytest
 
-pytestmark = pytest.mark.asyncio
+pytestmark = [pytest.mark.asyncio, pytest.mark.marge_only]
 
 
 async def test_service_call_array_entity_ids(rest):

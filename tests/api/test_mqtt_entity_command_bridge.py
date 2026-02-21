@@ -14,7 +14,7 @@ import uuid
 import pytest
 import paho.mqtt.client as mqtt
 
-pytestmark = pytest.mark.asyncio
+pytestmark = [pytest.mark.asyncio, pytest.mark.marge_only]
 
 MQTT_HOST = "localhost"
 MQTT_PORT = 1884

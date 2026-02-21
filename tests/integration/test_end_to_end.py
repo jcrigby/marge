@@ -53,6 +53,7 @@ async def test_set_state_and_read_back(rest):
     assert "context" in state
 
 
+@pytest.mark.marge_only
 async def test_service_call_changes_state(rest):
     """Service call through REST changes entity state."""
     await rest.set_state("light.e2e_svc", "off")
@@ -153,6 +154,7 @@ async def test_automation_trigger_fires_actions(rest):
     assert count_after > count_before
 
 
+@pytest.mark.marge_only
 async def test_scene_activation_multiple_entities(rest):
     """Scene activation sets multiple entity states at once."""
     # Reset states

@@ -8,7 +8,7 @@ set_temperature attribute storage.
 import uuid
 import pytest
 
-pytestmark = pytest.mark.asyncio
+pytestmark = [pytest.mark.asyncio, pytest.mark.marge_only]
 
 
 # -- Alarm Control Panel (parametrized) --

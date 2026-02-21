@@ -7,7 +7,7 @@ target pattern, and cross-domain service calls via REST API.
 
 import pytest
 
-pytestmark = pytest.mark.asyncio
+pytestmark = [pytest.mark.asyncio, pytest.mark.marge_only]
 
 
 async def test_entity_id_array_turn_on(rest):

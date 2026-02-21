@@ -7,7 +7,7 @@ Tests counter domain services: increment, decrement, reset.
 
 import pytest
 
-pytestmark = pytest.mark.asyncio
+pytestmark = [pytest.mark.asyncio, pytest.mark.marge_only]
 
 
 # ── Timer state transitions (parametrized) ───────────────────

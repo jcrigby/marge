@@ -9,7 +9,7 @@ turn_on/turn_off, lifecycle, and temperature/mode preservation.
 import uuid
 import pytest
 
-pytestmark = pytest.mark.asyncio
+pytestmark = [pytest.mark.asyncio, pytest.mark.marge_only]
 
 
 async def test_climate_set_temperature_high_low(rest):

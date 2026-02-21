@@ -7,7 +7,7 @@ of entity state objects.
 
 import pytest
 
-pytestmark = pytest.mark.asyncio
+pytestmark = [pytest.mark.asyncio, pytest.mark.marge_only]
 
 
 async def test_service_response_is_list(rest):

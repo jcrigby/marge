@@ -8,7 +8,7 @@ for generic domain services.
 
 import pytest
 
-pytestmark = pytest.mark.asyncio
+pytestmark = [pytest.mark.asyncio, pytest.mark.marge_only]
 
 
 # ── Script Services ──────────────────────────────────────────

@@ -261,7 +261,8 @@ Full categorization: `cts-results/manual-run/categorization.json` + `categorizat
 2. [x] Document API surface — docs/api-surface.md (MRG-API-001, commit f2f47c0)
 3. [x] Fix Bucket C conformance bugs in Marge (69 tests, 7 issues) — see session log 2026-02-20 entry
 4. [x] Implement 11 missing HA WS commands (see api-surface.md gap list)
-5. [ ] Rewrite 555 Bucket B tests to use HA-compatible patterns (long-term)
+5. [x] Tag ~480 Bucket B tests as marge_only (service dispatch on ad-hoc entities)
+6. [ ] Rewrite ~50-75 Bucket B tests using HA input_* helpers (optional, long-term)
 6. [ ] Fix remaining ~14 Bucket C tests that still fail on HA (mostly Bucket B-adjacent: entities created via POST /api/states not functional in HA templates/services)
 
 ## Work In Progress
@@ -316,3 +317,4 @@ Full categorization: `cts-results/manual-run/categorization.json` + `categorizat
 - 2026-02-20: Bucket C conformance fixes — 4 Rust files + 16 test files changed. Fixes: WS get_services dict format (services.rs), WS render_template + error format (websocket.rs), template int/is_defined/from_json filters (template.rs), POST /api/states 201 for new entities (api.rs), render_template protocol helper (conftest.py). Tagged 35+ more tests marge_only. CTS: 1712 passed, 17 pre-existing failures, 0 regressions.
 - 2026-02-21: Implement 11 missing HA WS commands (+213 LOC in websocket.rs): device_registry/update, entity_registry/get+remove, label_registry/update, logbook/get_events+event_stream, history/history_during_period+list_statistic_ids+statistics_during_period, recorder/get_statistics_metadata, search/related. CTS: 1712 passed, 0 regressions.
 - 2026-02-21: Fix last_time_triggers memory leak — daily clear on day rollover + minute-gated retain (automation.rs). topic_subscriptions already fixed (HashSet). CTS: 1712 passed, 0 regressions.
+- 2026-02-21: Tag ~480 Bucket B tests as marge_only across 45 files (service dispatch on ad-hoc entities). 100 test files now have marge_only markers. CTS: 1717 passed, 12 pre-existing failures.

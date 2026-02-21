@@ -35,7 +35,7 @@ See [phase-tracker.md](phase-tracker.md) for detailed status.
 - **Phase 8 (Virtual Devices)**: COMPLETE — zigbee2mqtt (37 devices), Shelly (2 Gen2), Hue (3 lights + 2 sensors) simulators
 - **Phase 9 (Conformance Verification)**: COMPLETE — divergence matrix, A/B diff, conformance monitor, service response fix, marge_only markers, conformance gate
 - **Coverage**: ~85% of homes (10 integrations)
-- CTS: 1654 tests / 125 files (pruned from 4854/411 on 2026-02-16), 19 files tagged marge_only, 94/94 Rust unit tests
+- CTS: 1729 tests / 125 files (pruned from 4854/411 on 2026-02-16), 100 files tagged marge_only, 94/94 Rust unit tests
 - Scripts: cts-compare.py (170 LOC), cts-dual-run.sh (120 LOC), ab-diff.py (249 LOC), conformance-monitor.py (300 LOC)
 
 ## Critical Gotchas
@@ -96,8 +96,8 @@ CTS conformance: 580/1490 (38.9%). 909 tests pass on Marge but fail on HA.
 
 **Remaining Bucket C tests failing on HA (~14):** Mostly Bucket B-adjacent — tests create entities via POST /api/states then render templates or call services referencing them. HA doesn't make POST /api/states entities available to template functions or WS service dispatch.
 
-**Bucket B — Test approach problem (555 tests):**
-Root cause: tests create entities via `POST /api/states` then call services on them. HA's service dispatcher requires entities to be registered through integrations — `POST /api/states` only sets state, doesn't register with the platform. Marge is lenient and accepts any entity. These tests need rewriting to use HA-compatible patterns (either HA entities or state-only assertions).
+**Bucket B — Test approach problem (555 tests) — TAGGED marge_only:**
+Root cause: tests create entities via `POST /api/states` then call services on them. HA requires integration-registered entities. Marge is lenient. ~480 tests tagged marge_only across 45 files. ~50-75 tests could potentially be rewritten using HA `input_*` helpers (input_boolean, input_number, counter, timer) but requires HA config changes.
 
 **Bucket A — Marge-only endpoints (285 tests):**
 Tagged `marge_only`. Auto-skip on HA.

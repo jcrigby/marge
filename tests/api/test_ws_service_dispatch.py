@@ -25,6 +25,7 @@ pytestmark = pytest.mark.asyncio
 # ── Basic call_service Dispatch ──────────────────────────────
 
 
+@pytest.mark.marge_only
 async def test_ws_call_service_with_target(ws, rest):
     """WS call_service with target.entity_id works."""
     await rest.set_state("light.ws_svc_t1", "off")
@@ -37,6 +38,7 @@ async def test_ws_call_service_with_target(ws, rest):
     assert resp["success"] is True
 
 
+@pytest.mark.marge_only
 async def test_ws_call_service_with_service_data(ws, rest):
     """WS call_service with service_data.entity_id works."""
     await rest.set_state("switch.ws_svc_d1", "off")
@@ -51,6 +53,7 @@ async def test_ws_call_service_with_service_data(ws, rest):
     assert state["state"] == "on"
 
 
+@pytest.mark.marge_only
 async def test_ws_call_service_entity_array(ws, rest):
     """WS call_service with array of entity_ids."""
     tag = uuid.uuid4().hex[:8]
@@ -69,6 +72,7 @@ async def test_ws_call_service_entity_array(ws, rest):
     assert (await rest.get_state(eid2))["state"] == "on"
 
 
+@pytest.mark.marge_only
 async def test_ws_call_service_with_data(ws, rest):
     """WS call_service passes data to service handler."""
     await rest.set_state("light.ws_svc_data", "off")
@@ -85,6 +89,7 @@ async def test_ws_call_service_with_data(ws, rest):
     assert state["attributes"].get("brightness") == 128
 
 
+@pytest.mark.marge_only
 async def test_ws_call_service_toggle(ws, rest):
     """WS call_service toggle switches state."""
     tag = uuid.uuid4().hex[:8]
@@ -101,6 +106,7 @@ async def test_ws_call_service_toggle(ws, rest):
     assert state["state"] == "off"
 
 
+@pytest.mark.marge_only
 async def test_ws_call_service_climate(ws, rest):
     """WS call_service for climate domain works."""
     tag = uuid.uuid4().hex[:8]
@@ -117,6 +123,7 @@ async def test_ws_call_service_climate(ws, rest):
     assert state["attributes"]["temperature"] == 72
 
 
+@pytest.mark.marge_only
 async def test_ws_call_service_lock(ws, rest):
     """WS call_service for lock domain works."""
     tag = uuid.uuid4().hex[:8]
@@ -143,6 +150,7 @@ async def test_ws_call_service_scene(ws, rest):
     assert resp["success"] is True
 
 
+@pytest.mark.marge_only
 async def test_ws_call_service_light_with_brightness(ws, rest):
     """WS call_service light.turn_on with brightness sets attribute."""
     tag = uuid.uuid4().hex[:8]
@@ -159,6 +167,7 @@ async def test_ws_call_service_light_with_brightness(ws, rest):
     assert state["attributes"]["brightness"] == 200
 
 
+@pytest.mark.marge_only
 async def test_ws_call_service_target_entity_array(ws, rest):
     """WS call_service with target.entity_id as array."""
     tag = uuid.uuid4().hex[:8]
@@ -177,6 +186,7 @@ async def test_ws_call_service_target_entity_array(ws, rest):
     assert (await rest.get_state(eid2))["state"] == "off"
 
 
+@pytest.mark.marge_only
 @pytest.mark.parametrize("domain,service,entity_prefix,initial_state,service_data_extra,expected_attr,expected_attr_val", [
     ("cover", "set_cover_position", "cover.ws_cvr", "closed", {"position": 50}, "current_position", 50),
     ("fan", "set_percentage", "fan.ws_fn", "on", {"percentage": 75}, "percentage", 75),
@@ -198,6 +208,7 @@ async def test_ws_call_service_attribute_domains(ws, rest, domain, service, enti
     assert state["attributes"][expected_attr] == expected_attr_val
 
 
+@pytest.mark.marge_only
 async def test_ws_call_counter_increment(ws, rest):
     """WS call_service counter.increment increases value."""
     tag = uuid.uuid4().hex[:8]
@@ -420,6 +431,7 @@ async def test_ws_get_config(ws):
 # ── Service Response Format ──────────────────────────────────
 
 
+@pytest.mark.marge_only
 async def test_call_service_returns_result(ws, rest):
     """WS call_service response has 'result' field."""
     tag = uuid.uuid4().hex[:8]
@@ -436,6 +448,7 @@ async def test_call_service_returns_result(ws, rest):
     assert "result" in resp
 
 
+@pytest.mark.marge_only
 async def test_call_service_result_is_list(ws, rest):
     """call_service result is a list of changed states."""
     tag = uuid.uuid4().hex[:8]
@@ -453,6 +466,7 @@ async def test_call_service_result_is_list(ws, rest):
     assert len(result) >= 1
 
 
+@pytest.mark.marge_only
 async def test_changed_state_has_entity_id(ws, rest):
     """Changed state entries include entity_id."""
     tag = uuid.uuid4().hex[:8]
@@ -469,6 +483,7 @@ async def test_changed_state_has_entity_id(ws, rest):
     assert entry["entity_id"] == eid
 
 
+@pytest.mark.marge_only
 async def test_changed_state_has_state_field(ws, rest):
     """Changed state entries include 'state' string."""
     tag = uuid.uuid4().hex[:8]
@@ -485,6 +500,7 @@ async def test_changed_state_has_state_field(ws, rest):
     assert entry["state"] == "on"
 
 
+@pytest.mark.marge_only
 async def test_changed_state_has_attributes(ws, rest):
     """Changed state entries include 'attributes' dict."""
     tag = uuid.uuid4().hex[:8]
@@ -502,6 +518,7 @@ async def test_changed_state_has_attributes(ws, rest):
     assert isinstance(entry["attributes"], dict)
 
 
+@pytest.mark.marge_only
 async def test_changed_state_has_timestamps(ws, rest):
     """Changed state entries include last_changed and last_updated."""
     tag = uuid.uuid4().hex[:8]
@@ -519,6 +536,7 @@ async def test_changed_state_has_timestamps(ws, rest):
     assert "last_updated" in entry
 
 
+@pytest.mark.marge_only
 async def test_changed_state_has_context(ws, rest):
     """Changed state entries include context with id."""
     tag = uuid.uuid4().hex[:8]
@@ -536,6 +554,7 @@ async def test_changed_state_has_context(ws, rest):
     assert "id" in entry["context"]
 
 
+@pytest.mark.marge_only
 async def test_multi_entity_service_response(ws, rest):
     """call_service with multiple entities returns all changed states."""
     tag = uuid.uuid4().hex[:8]
@@ -558,6 +577,7 @@ async def test_multi_entity_service_response(ws, rest):
     assert eid_b in entity_ids
 
 
+@pytest.mark.marge_only
 async def test_toggle_response_reflects_new_state(ws, rest):
     """Toggle response shows the new (toggled) state."""
     tag = uuid.uuid4().hex[:8]
@@ -574,6 +594,7 @@ async def test_toggle_response_reflects_new_state(ws, rest):
     assert entry["state"] == "off"
 
 
+@pytest.mark.marge_only
 async def test_service_preserves_attributes_in_response(ws, rest):
     """Service call response preserves existing attributes."""
     tag = uuid.uuid4().hex[:8]

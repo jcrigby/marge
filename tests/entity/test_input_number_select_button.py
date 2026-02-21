@@ -8,7 +8,7 @@ number, select, and button domains with edge cases and lifecycle coverage.
 import uuid
 import pytest
 
-pytestmark = pytest.mark.asyncio
+pytestmark = [pytest.mark.asyncio, pytest.mark.marge_only]
 
 
 # ── Input Number ───────────────────────────────────────

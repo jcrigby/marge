@@ -9,7 +9,7 @@ across service calls, and domain-specific service arguments.
 import uuid
 import pytest
 
-pytestmark = pytest.mark.asyncio
+pytestmark = [pytest.mark.asyncio, pytest.mark.marge_only]
 
 
 async def test_service_call_nonexistent_entity(rest):
