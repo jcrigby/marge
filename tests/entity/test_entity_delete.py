@@ -86,6 +86,7 @@ async def test_delete_reduces_entity_count(rest):
 
 # ── Search with Label Filter ────────────────────────────
 
+@pytest.mark.marge_only
 async def test_search_by_label(rest):
     """Search with label= filter returns only labeled entities."""
     # Create label and entity
@@ -127,6 +128,7 @@ async def test_search_by_label(rest):
     )
 
 
+@pytest.mark.marge_only
 async def test_search_by_area(rest):
     """Search with area= filter returns only entities in that area."""
     # Create area and entity

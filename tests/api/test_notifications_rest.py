@@ -10,6 +10,7 @@ import pytest
 pytestmark = pytest.mark.asyncio
 
 
+@pytest.mark.marge_only
 async def test_create_notification_via_service(rest):
     """POST persistent_notification.create adds a notification."""
     await rest.call_service("persistent_notification", "create", {
@@ -37,6 +38,7 @@ async def test_dismiss_nonexistent_returns_404(rest):
     assert resp.status_code == 404
 
 
+@pytest.mark.marge_only
 async def test_dismiss_via_service(rest):
     """persistent_notification.dismiss service removes by notification_id."""
     await rest.call_service("persistent_notification", "create", {
@@ -57,6 +59,7 @@ async def test_dismiss_via_service(rest):
     assert "rest_test_svc_dismiss" not in ids
 
 
+@pytest.mark.marge_only
 async def test_dismiss_all_via_service(rest):
     """persistent_notification.dismiss_all service clears notifications."""
     await rest.call_service("persistent_notification", "create", {

@@ -8,7 +8,7 @@ case sensitivity, empty results, and combined filters.
 import uuid
 import pytest
 
-pytestmark = pytest.mark.asyncio
+pytestmark = [pytest.mark.asyncio, pytest.mark.marge_only]
 
 
 async def test_search_by_q_text(rest):

@@ -99,6 +99,7 @@ async def test_delete_via_rest_invisible_ws(rest, ws):
     assert "sensor.cross_del" not in ids
 
 
+@pytest.mark.marge_only
 async def test_health_ws_connections_accurate(rest, ws):
     """Health endpoint reflects at least 1 WS connection."""
     health = await rest.get_health()

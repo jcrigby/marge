@@ -16,6 +16,7 @@ _FLUSH = 0.15
 
 # ── State Change → WS Event → History ───────────────────────
 
+@pytest.mark.marge_only
 async def test_state_change_recorded_in_history(rest):
     """State change via REST is recorded in history."""
     entity = "sensor.xfeat_hist"
@@ -121,6 +122,7 @@ async def test_template_reflects_service_change(rest):
 
 # ── Area + Search + State ───────────────────────────────────
 
+@pytest.mark.marge_only
 async def test_area_search_reflects_state_changes(rest):
     """Search by area returns entities with current state."""
     entity = "sensor.xfeat_area_search"
@@ -186,6 +188,7 @@ async def test_logbook_records_service_changes(rest):
 
 # ── Health Metrics After Operations ─────────────────────────
 
+@pytest.mark.marge_only
 async def test_health_state_changes_increment(rest):
     """State changes counter increments with operations."""
     h1 = (await rest.client.get(f"{rest.base_url}/api/health")).json()

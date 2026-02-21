@@ -172,6 +172,7 @@ async def test_scene_activation_multiple_entities(rest):
         assert state["state"] == "on", f"{eid} should be on after evening scene"
 
 
+@pytest.mark.marge_only
 async def test_health_after_operations(rest):
     """Health endpoint reflects accumulated metrics."""
     health = await rest.get_health()

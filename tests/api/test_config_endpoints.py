@@ -67,6 +67,7 @@ async def test_check_config(rest):
 
 # ── Health Endpoint ───────────────────────────────────────
 
+@pytest.mark.marge_only
 async def test_health_has_status(rest):
     """GET /api/health includes status field."""
     health = await rest.get_health()
@@ -74,6 +75,7 @@ async def test_health_has_status(rest):
     assert health["status"] == "ok"
 
 
+@pytest.mark.marge_only
 async def test_health_has_entity_count(rest):
     """GET /api/health includes entity_count."""
     health = await rest.get_health()
@@ -82,6 +84,7 @@ async def test_health_has_entity_count(rest):
     assert health["entity_count"] >= 0
 
 
+@pytest.mark.marge_only
 async def test_health_has_uptime(rest):
     """GET /api/health includes uptime_seconds."""
     health = await rest.get_health()
@@ -89,6 +92,7 @@ async def test_health_has_uptime(rest):
     assert health["uptime_seconds"] >= 0
 
 
+@pytest.mark.marge_only
 async def test_health_has_memory(rest):
     """GET /api/health includes memory_rss_kb."""
     health = await rest.get_health()
@@ -98,6 +102,7 @@ async def test_health_has_memory(rest):
 
 # ── Automation Reload ─────────────────────────────────────
 
+@pytest.mark.marge_only
 async def test_automation_reload_endpoint(rest):
     """POST /api/config/automation/reload returns success."""
     resp = await rest.client.post(
@@ -109,6 +114,7 @@ async def test_automation_reload_endpoint(rest):
 
 # ── Prometheus Metrics ────────────────────────────────────
 
+@pytest.mark.marge_only
 async def test_prometheus_metrics_endpoint(rest):
     """GET /metrics returns Prometheus-format text."""
     resp = await rest.client.get(f"{rest.base_url}/metrics")
@@ -120,6 +126,7 @@ async def test_prometheus_metrics_endpoint(rest):
 
 # ── Device Registry ───────────────────────────────────────
 
+@pytest.mark.marge_only
 async def test_devices_list(rest):
     """GET /api/devices returns a list."""
     resp = await rest.client.get(
@@ -130,6 +137,7 @@ async def test_devices_list(rest):
     assert isinstance(resp.json(), list)
 
 
+@pytest.mark.marge_only
 async def test_device_create(rest):
     """POST /api/devices creates a new device."""
     resp = await rest.client.post(
@@ -160,6 +168,7 @@ async def test_device_create(rest):
     )
 
 
+@pytest.mark.marge_only
 async def test_device_delete(rest):
     """DELETE /api/devices/{id} removes a device."""
     await rest.client.post(
@@ -187,6 +196,7 @@ async def test_device_delete(rest):
     assert "cts_del_device" not in ids
 
 
+@pytest.mark.marge_only
 async def test_device_entity_assignment(rest):
     """POST /api/devices/{id}/entities/{eid} assigns entity to device."""
     # Create device and entity
@@ -291,6 +301,7 @@ async def test_config_has_timezone(rest):
 
 # ── Merged from depth: Health Field Depth ────────────────
 
+@pytest.mark.marge_only
 async def test_health_has_version(rest):
     """Health endpoint has version field."""
     resp = await rest.client.get(
@@ -301,6 +312,7 @@ async def test_health_has_version(rest):
     assert "version" in data
 
 
+@pytest.mark.marge_only
 async def test_health_has_memory_fields(rest):
     """Health endpoint has memory_rss_kb and memory_rss_mb."""
     resp = await rest.client.get(
@@ -313,6 +325,7 @@ async def test_health_has_memory_fields(rest):
     assert data["memory_rss_mb"] > 0
 
 
+@pytest.mark.marge_only
 async def test_health_has_latency_fields(rest):
     """Health endpoint has latency_avg_us and latency_max_us."""
     resp = await rest.client.get(
@@ -324,6 +337,7 @@ async def test_health_has_latency_fields(rest):
     assert "latency_max_us" in data
 
 
+@pytest.mark.marge_only
 async def test_health_has_startup_time(rest):
     """Health endpoint has startup_us and startup_ms."""
     resp = await rest.client.get(
@@ -336,6 +350,7 @@ async def test_health_has_startup_time(rest):
     assert data["startup_us"] > 0
 
 
+@pytest.mark.marge_only
 async def test_health_has_counters(rest):
     """Health endpoint has state_changes and events_fired."""
     resp = await rest.client.get(
@@ -347,6 +362,7 @@ async def test_health_has_counters(rest):
     assert "events_fired" in data
 
 
+@pytest.mark.marge_only
 async def test_health_has_sim_fields(rest):
     """Health endpoint has sim_time/sim_chapter/sim_speed after sim/time call."""
     # Set sim time first

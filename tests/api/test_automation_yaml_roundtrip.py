@@ -10,6 +10,7 @@ import pytest
 pytestmark = pytest.mark.asyncio
 
 
+@pytest.mark.marge_only
 async def test_get_automation_yaml_not_empty(rest):
     """GET automation YAML returns non-empty content."""
     resp = await rest.client.get(
@@ -20,6 +21,7 @@ async def test_get_automation_yaml_not_empty(rest):
     assert len(resp.text) > 50
 
 
+@pytest.mark.marge_only
 async def test_automation_yaml_contains_alias(rest):
     """Automation YAML contains alias fields."""
     resp = await rest.client.get(
@@ -29,6 +31,7 @@ async def test_automation_yaml_contains_alias(rest):
     assert "alias" in resp.text
 
 
+@pytest.mark.marge_only
 async def test_automation_yaml_contains_trigger(rest):
     """Automation YAML contains trigger definitions."""
     resp = await rest.client.get(
@@ -38,6 +41,7 @@ async def test_automation_yaml_contains_trigger(rest):
     assert "trigger" in resp.text
 
 
+@pytest.mark.marge_only
 async def test_automation_yaml_contains_action(rest):
     """Automation YAML contains action definitions."""
     resp = await rest.client.get(
@@ -47,6 +51,7 @@ async def test_automation_yaml_contains_action(rest):
     assert "action" in resp.text
 
 
+@pytest.mark.marge_only
 async def test_scene_yaml_contains_name(rest):
     """Scene YAML contains name fields."""
     resp = await rest.client.get(
@@ -57,6 +62,7 @@ async def test_scene_yaml_contains_name(rest):
     assert "name" in resp.text
 
 
+@pytest.mark.marge_only
 async def test_scene_yaml_contains_entities(rest):
     """Scene YAML contains entity definitions."""
     resp = await rest.client.get(
@@ -66,6 +72,7 @@ async def test_scene_yaml_contains_entities(rest):
     assert "entities" in resp.text
 
 
+@pytest.mark.marge_only
 async def test_reload_then_list_consistent(rest):
     """Automation list is consistent before and after reload."""
     resp1 = await rest.client.get(
@@ -91,6 +98,7 @@ async def test_reload_then_list_consistent(rest):
     assert before_ids == after_ids
 
 
+@pytest.mark.marge_only
 async def test_reload_count_matches_automations(rest):
     """Reload returns count matching number of automations."""
     resp = await rest.client.post(

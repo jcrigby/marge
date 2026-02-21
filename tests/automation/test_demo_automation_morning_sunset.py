@@ -87,6 +87,7 @@ async def test_morning_entity_state_on(rest):
     assert state["state"] == "on"
 
 
+@pytest.mark.marge_only
 async def test_morning_has_time_trigger(rest):
     """morning_wakeup has exactly 1 trigger."""
     resp = await rest.client.get(
@@ -98,6 +99,7 @@ async def test_morning_has_time_trigger(rest):
     assert morning["trigger_count"] == 1
 
 
+@pytest.mark.marge_only
 async def test_morning_has_3_actions(rest):
     """morning_wakeup has 3 actions (light, climate, switch)."""
     resp = await rest.client.get(
@@ -156,6 +158,7 @@ async def test_sunset_force_trigger_activates_evening_scene(rest):
     assert state["state"] == "on"
 
 
+@pytest.mark.marge_only
 async def test_sunset_has_sun_trigger(rest):
     """sunset_lights has 1 trigger (sun event)."""
     resp = await rest.client.get(
@@ -167,6 +170,7 @@ async def test_sunset_has_sun_trigger(rest):
     assert sunset["trigger_count"] == 1
 
 
+@pytest.mark.marge_only
 async def test_sunset_has_2_actions(rest):
     """sunset_lights has 2 actions (lights + scene)."""
     resp = await rest.client.get(

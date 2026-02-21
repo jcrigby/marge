@@ -12,6 +12,7 @@ pytestmark = pytest.mark.asyncio
 
 # ── Automation YAML ──────────────────────────────────────────
 
+@pytest.mark.marge_only
 async def test_automation_yaml_content_type(rest):
     """GET /api/config/automation/yaml returns text/yaml content type."""
     resp = await rest.client.get(
@@ -35,6 +36,7 @@ async def test_automation_yaml_has_entries(rest):
     assert count >= 6, f"Expected 6+ automations, found {count}"
 
 
+@pytest.mark.marge_only
 async def test_automation_yaml_roundtrip(rest):
     """Read YAML, write it back, read again — content matches."""
     resp1 = await rest.client.get(
@@ -59,6 +61,7 @@ async def test_automation_yaml_roundtrip(rest):
     assert resp3.text == original
 
 
+@pytest.mark.marge_only
 async def test_automation_yaml_invalid_rejected(rest):
     """PUT with invalid YAML returns 400."""
     resp = await rest.client.put(
@@ -71,6 +74,7 @@ async def test_automation_yaml_invalid_rejected(rest):
 
 # ── Scene YAML ───────────────────────────────────────────────
 
+@pytest.mark.marge_only
 async def test_scene_yaml_content_type(rest):
     """GET /api/config/scene/yaml returns text/yaml content type."""
     resp = await rest.client.get(
@@ -93,6 +97,7 @@ async def test_scene_yaml_has_entries(rest):
     assert count >= 2, f"Expected 2+ scenes, found {count}"
 
 
+@pytest.mark.marge_only
 async def test_scene_yaml_roundtrip(rest):
     """Read scene YAML, write it back, read again — content matches."""
     resp1 = await rest.client.get(
@@ -115,6 +120,7 @@ async def test_scene_yaml_roundtrip(rest):
     assert resp3.text == original
 
 
+@pytest.mark.marge_only
 async def test_scene_yaml_invalid_rejected(rest):
     """PUT with invalid scene YAML returns 400."""
     resp = await rest.client.put(

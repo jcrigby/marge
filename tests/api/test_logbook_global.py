@@ -13,6 +13,7 @@ import pytest
 pytestmark = pytest.mark.asyncio
 
 
+@pytest.mark.marge_only
 async def test_global_logbook_returns_list(rest):
     """GET /api/logbook returns list of entries."""
     resp = await rest.client.get(
@@ -24,6 +25,7 @@ async def test_global_logbook_returns_list(rest):
     assert isinstance(data, list)
 
 
+@pytest.mark.marge_only
 async def test_logbook_after_state_change(rest):
     """Logbook records state changes."""
     tag = uuid.uuid4().hex[:8]
@@ -40,6 +42,7 @@ async def test_logbook_after_state_change(rest):
     assert isinstance(data, list)
 
 
+@pytest.mark.marge_only
 async def test_logbook_entry_has_fields(rest):
     """Logbook entries have expected fields."""
     tag = uuid.uuid4().hex[:8]
@@ -58,6 +61,7 @@ async def test_logbook_entry_has_fields(rest):
         assert "state" in entry
 
 
+@pytest.mark.marge_only
 async def test_logbook_unknown_entity(rest):
     """Logbook for unknown entity returns empty list."""
     resp = await rest.client.get(
@@ -99,6 +103,7 @@ async def test_events_after_fire(rest):
     assert resp2.status_code == 200
 
 
+@pytest.mark.marge_only
 async def test_history_multiple_changes(rest):
     """History records multiple state changes."""
     tag = uuid.uuid4().hex[:8]
@@ -116,6 +121,7 @@ async def test_history_multiple_changes(rest):
     assert isinstance(data, list)
 
 
+@pytest.mark.marge_only
 async def test_history_has_state_and_timestamp(rest):
     """History entries have state and timestamp fields."""
     tag = uuid.uuid4().hex[:8]
@@ -139,6 +145,7 @@ async def test_history_has_state_and_timestamp(rest):
 # ── Time-Range Queries (from depth) ────────────────────
 
 
+@pytest.mark.marge_only
 @pytest.mark.parametrize("start,end,expect_empty", [
     ("2020-01-01T00:00:00Z", "2030-01-01T00:00:00Z", False),
     ("2020-01-01T00:00:00Z", "2020-01-01T00:00:01Z", True),
@@ -160,6 +167,7 @@ async def test_logbook_time_range(rest, start, end, expect_empty):
 # ── Logbook Entity Captures Changes (from depth) ──────
 
 
+@pytest.mark.marge_only
 async def test_logbook_entity_captures_changes(rest):
     """Logbook entries exist after state changes (with recorder flush)."""
     tag = uuid.uuid4().hex[:8]
@@ -184,6 +192,7 @@ async def test_logbook_entity_captures_changes(rest):
 # ── Merged from test_logbook_statistics.py ─────────────
 
 
+@pytest.mark.marge_only
 async def test_logbook_per_entity_filtered(rest):
     """GET /api/logbook/:entity_id returns entries only for that entity."""
     tag = uuid.uuid4().hex[:8]
@@ -204,6 +213,7 @@ async def test_logbook_per_entity_filtered(rest):
         assert entry["entity_id"] == eid
 
 
+@pytest.mark.marge_only
 async def test_statistics_numeric_entity(rest):
     """Statistics for numeric entity returns aggregates."""
     for val in ["10", "20", "30", "40", "50"]:
@@ -225,6 +235,7 @@ async def test_statistics_numeric_entity(rest):
 # ── Merged from test_history_params.py ─────────────────
 
 
+@pytest.mark.marge_only
 async def test_history_with_start_param(rest):
     """History with start= returns entries after that time."""
     tag = uuid.uuid4().hex[:8]
@@ -244,6 +255,7 @@ async def test_history_with_start_param(rest):
     assert len(data) >= 1
 
 
+@pytest.mark.marge_only
 async def test_history_with_start_and_end(rest):
     """History with start= and end= returns bounded entries."""
     tag = uuid.uuid4().hex[:8]
@@ -264,6 +276,7 @@ async def test_history_with_start_and_end(rest):
     assert len(data) >= 1
 
 
+@pytest.mark.marge_only
 async def test_history_narrow_window_empty(rest):
     """History with very narrow old window returns no entries."""
     tag = uuid.uuid4().hex[:8]
@@ -284,6 +297,7 @@ async def test_history_narrow_window_empty(rest):
     assert len(data) == 0
 
 
+@pytest.mark.marge_only
 async def test_history_entity_has_all_fields(rest):
     """History entries include entity_id, state, attributes, last_changed."""
     tag = uuid.uuid4().hex[:8]
@@ -304,6 +318,7 @@ async def test_history_entity_has_all_fields(rest):
     assert "last_changed" in entry
 
 
+@pytest.mark.marge_only
 async def test_history_nonexistent_entity_empty(rest):
     """History for nonexistent entity returns empty list."""
     resp = await rest.client.get(

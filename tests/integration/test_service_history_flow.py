@@ -59,6 +59,7 @@ async def test_multiple_service_calls_in_history(rest):
     assert "off" in states
 
 
+@pytest.mark.marge_only
 async def test_history_entry_has_required_fields(rest):
     """History entries have entity_id, state, last_changed, last_updated."""
     tag = uuid.uuid4().hex[:8]
@@ -79,6 +80,7 @@ async def test_history_entry_has_required_fields(rest):
     assert "last_updated" in entry
 
 
+@pytest.mark.marge_only
 async def test_history_attributes_preserved(rest):
     """History entries preserve attributes from state changes."""
     tag = uuid.uuid4().hex[:8]
@@ -102,6 +104,7 @@ async def test_history_attributes_preserved(rest):
     assert attrs.get("unit") == "F"
 
 
+@pytest.mark.marge_only
 async def test_history_empty_for_nonexistent(rest):
     """History for nonexistent entity returns empty list."""
     resp = await rest.client.get(
@@ -115,6 +118,7 @@ async def test_history_empty_for_nonexistent(rest):
     assert len(data) == 0
 
 
+@pytest.mark.marge_only
 async def test_statistics_after_numeric_states(rest):
     """Statistics endpoint shows aggregates after numeric state writes."""
     tag = uuid.uuid4().hex[:8]
@@ -159,6 +163,7 @@ async def test_logbook_after_service_call(rest):
     assert isinstance(data, list)
 
 
+@pytest.mark.marge_only
 async def test_history_ordered_chronologically(rest):
     """History entries are ordered by time."""
     tag = uuid.uuid4().hex[:8]
@@ -179,6 +184,7 @@ async def test_history_ordered_chronologically(rest):
         assert timestamps == sorted(timestamps)
 
 
+@pytest.mark.marge_only
 async def test_delete_entity_history_persists(rest):
     """Deleting entity does not remove its history entries."""
     tag = uuid.uuid4().hex[:8]

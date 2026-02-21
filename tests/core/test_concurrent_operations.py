@@ -117,6 +117,7 @@ async def test_concurrent_get_states(rest):
     assert all(r == results[0] for r in results)
 
 
+@pytest.mark.marge_only
 async def test_concurrent_search(rest):
     """Concurrent search calls all succeed."""
     tag = uuid.uuid4().hex[:8]

@@ -15,6 +15,7 @@ pytestmark = pytest.mark.asyncio
 
 # ── REST Notification Operations ─────────────────────────
 
+@pytest.mark.marge_only
 async def test_notification_create_via_service(rest):
     """Create notification via service call."""
     await rest.call_service("persistent_notification", "create", {
@@ -34,6 +35,7 @@ async def test_notification_create_via_service(rest):
     assert "notif_lc_1" in ids
 
 
+@pytest.mark.marge_only
 async def test_notification_has_fields(rest):
     """Notification includes title and message fields."""
     await rest.call_service("persistent_notification", "create", {
@@ -54,6 +56,7 @@ async def test_notification_has_fields(rest):
     assert notif["message"] == "Body text here"
 
 
+@pytest.mark.marge_only
 async def test_notification_dismiss_by_id(rest):
     """Dismiss specific notification by ID."""
     await rest.call_service("persistent_notification", "create", {
@@ -80,6 +83,7 @@ async def test_notification_dismiss_by_id(rest):
     assert "notif_lc_dismiss" not in ids
 
 
+@pytest.mark.marge_only
 async def test_notification_dismiss_all(rest):
     """Dismiss all notifications."""
     # Create a few
@@ -107,6 +111,7 @@ async def test_notification_dismiss_all(rest):
     assert len(resp.json()) == 0
 
 
+@pytest.mark.marge_only
 async def test_notification_overwrite(rest):
     """Creating notification with same ID overwrites it."""
     await rest.call_service("persistent_notification", "create", {
@@ -182,6 +187,7 @@ async def test_ws_notification_roundtrip(ws):
 # ── Merged from test_notification_lifecycle_depth.py ─────
 
 
+@pytest.mark.marge_only
 async def test_notification_has_created_at(rest):
     """Notification entry has created_at timestamp."""
     tag = uuid.uuid4().hex[:8]
@@ -208,6 +214,7 @@ async def test_notification_has_created_at(rest):
         assert "T" in found[0]["created_at"]
 
 
+@pytest.mark.marge_only
 async def test_ws_create_notification(ws, rest):
     """WS persistent_notification/create creates notification."""
     tag = uuid.uuid4().hex[:8]
@@ -233,6 +240,7 @@ async def test_ws_create_notification(ws, rest):
     assert nid in ids
 
 
+@pytest.mark.marge_only
 async def test_notification_count_changes(rest):
     """Notification count increases after create, decreases after dismiss."""
     # Get initial count
