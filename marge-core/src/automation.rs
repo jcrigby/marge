@@ -586,6 +586,7 @@ impl AutomationEngine {
         tokio::time::sleep(Duration::from_secs(1)).await;
 
         let mut last_day = 0u32;
+        let mut last_hhmm = String::new();
 
         loop {
             tokio::time::sleep(Duration::from_millis(500)).await;
@@ -604,6 +605,9 @@ impl AutomationEngine {
                 let (sunrise, sunset) =
                     calculate_sun_times(40.3916, -111.8508, tz_offset, day);
                 *self.sun_times.write().unwrap_or_else(|e| e.into_inner()) = (sunrise, sunset);
+                // Clear stale time-trigger dedup entries from previous day
+                self.last_time_triggers.clear();
+                last_hhmm.clear();
             }
 
             // Extract HH:MM for matching
@@ -613,8 +617,11 @@ impl AutomationEngine {
                 continue;
             };
 
-            // Prune stale entries from previous minutes to prevent unbounded growth
-            self.last_time_triggers.retain(|_key, val| val == current_hhmm);
+            // Prune stale entries only when the minute rolls over (not every 500ms tick)
+            if current_hhmm != last_hhmm {
+                self.last_time_triggers.retain(|_key, val| val == current_hhmm);
+                last_hhmm = current_hhmm.to_string();
+            }
 
             let automations = self.automations.read().unwrap_or_else(|e| e.into_inner()).clone();
             for auto in &automations {

@@ -270,7 +270,7 @@ Full categorization: `cts-results/manual-run/categorization.json` + `categorizat
 **Immediate next tasks (in order):**
 1. Investigate remaining ~14 Bucket C tests that still fail on HA (render_template subscription timing, domain availability)
 2. Rewrite 555 Bucket B tests (long-term)
-3. Address memory leaks (topic_subscriptions, last_time_triggers)
+3. Address SQLite WAL growth monitoring
 
 **Key context for next turn:**
 - Docker stack is UP (HA on 8123, Marge on 8124). HA token at ha-config/.ha_token (expires ~30 min, refresh via scripts/ha-refresh-token.sh)
@@ -315,3 +315,4 @@ Full categorization: `cts-results/manual-run/categorization.json` + `categorizat
 - 2026-02-20: Bucket A tagged (37 more files, 285 tests) + API surface doc MRG-API-001 (commit f2f47c0). Decision: Marge is API superset — keep REST, add HA WS equivalents. 11 missing WS commands identified.
 - 2026-02-20: Bucket C conformance fixes — 4 Rust files + 16 test files changed. Fixes: WS get_services dict format (services.rs), WS render_template + error format (websocket.rs), template int/is_defined/from_json filters (template.rs), POST /api/states 201 for new entities (api.rs), render_template protocol helper (conftest.py). Tagged 35+ more tests marge_only. CTS: 1712 passed, 17 pre-existing failures, 0 regressions.
 - 2026-02-21: Implement 11 missing HA WS commands (+213 LOC in websocket.rs): device_registry/update, entity_registry/get+remove, label_registry/update, logbook/get_events+event_stream, history/history_during_period+list_statistic_ids+statistics_during_period, recorder/get_statistics_metadata, search/related. CTS: 1712 passed, 0 regressions.
+- 2026-02-21: Fix last_time_triggers memory leak — daily clear on day rollover + minute-gated retain (automation.rs). topic_subscriptions already fixed (HashSet). CTS: 1712 passed, 0 regressions.

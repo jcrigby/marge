@@ -105,6 +105,9 @@ Tagged `marge_only`. Auto-skip on HA.
 **Full categorization:** `cts-results/manual-run/categorization.json`
 
 ## Known Issues (Not Yet Fixed)
-- **Memory leak — topic_subscriptions**: `discovery.rs:462` `add_topic_subscription()` pushes entity_ids into `Vec<String>` without dedup. Each MQTT message re-appends the same IDs. Over 3 days with 37 devices @ 5s intervals = millions of duplicate strings (~50-100 MB). **Fix**: Change `Vec<String>` to `HashSet<String>` or add dedup check before push.
-- **Memory leak — last_time_triggers**: `automation.rs:661` stores `"automation_id:HH:MM"` keys to prevent duplicate time-trigger fires, but only clears on automation reload. Grows ~10-20 MB over days. **Fix**: Add TTL cleanup (remove entries older than 24h) or clear daily.
 - **Possible — SQLite WAL growth**: `recorder.rs` uses WAL mode. Over days of continuous writes, WAL segments could accumulate if checkpoint lags. Monitor `.db-wal` file size.
+
+## Known Issues (Resolved)
+- **Memory leak — topic_subscriptions**: Already fixed (uses `HashSet<String>` at discovery.rs:167, not `Vec<String>`). No action needed.
+- **Memory leak — last_time_triggers**: Fixed — daily clear on day rollover + minute-gated retain (automation.rs). Map bounded to N*T entries per minute (typically single digits).
+- **ServiceResponse format divergence**: Fixed in Phase 9.3 — flat `Vec<EntityState>` instead of `{"changed_states": [...]}`.
