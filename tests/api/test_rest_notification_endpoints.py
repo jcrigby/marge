@@ -22,6 +22,7 @@ async def create_notification(rest, nid, title="Test", message="Body"):
     await asyncio.sleep(0.2)
 
 
+@pytest.mark.marge_only
 async def test_list_notifications_returns_200(rest):
     """GET /api/notifications returns 200."""
     resp = await rest.client.get(
@@ -31,6 +32,7 @@ async def test_list_notifications_returns_200(rest):
     assert resp.status_code == 200
 
 
+@pytest.mark.marge_only
 async def test_list_notifications_is_array(rest):
     """GET /api/notifications returns JSON array."""
     resp = await rest.client.get(
@@ -40,6 +42,7 @@ async def test_list_notifications_is_array(rest):
     assert isinstance(resp.json(), list)
 
 
+@pytest.mark.marge_only
 async def test_created_notification_appears(rest):
     """Created notification appears in listing."""
     tag = uuid.uuid4().hex[:8]
@@ -54,6 +57,7 @@ async def test_created_notification_appears(rest):
     assert nid in ids
 
 
+@pytest.mark.marge_only
 async def test_notification_has_title_and_message(rest):
     """Notification entry has title and message fields."""
     tag = uuid.uuid4().hex[:8]
@@ -73,6 +77,7 @@ async def test_notification_has_title_and_message(rest):
     assert entry["message"] == f"Msg {tag}"
 
 
+@pytest.mark.marge_only
 async def test_dismiss_notification_via_rest(rest):
     """POST /api/notifications/:id/dismiss removes notification."""
     tag = uuid.uuid4().hex[:8]
@@ -104,6 +109,7 @@ async def test_dismiss_nonexistent_notification(rest):
     assert resp.status_code in (200, 404)
 
 
+@pytest.mark.marge_only
 async def test_dismiss_all_notifications(rest):
     """POST /api/notifications/dismiss_all clears all."""
     tag = uuid.uuid4().hex[:8]
@@ -124,6 +130,7 @@ async def test_dismiss_all_notifications(rest):
     assert len(list_resp.json()) == 0
 
 
+@pytest.mark.marge_only
 async def test_create_overwrite_notification(rest):
     """Creating with same ID overwrites title/message."""
     tag = uuid.uuid4().hex[:8]
@@ -144,6 +151,7 @@ async def test_create_overwrite_notification(rest):
     assert entry["message"] == "Updated body"
 
 
+@pytest.mark.marge_only
 async def test_notification_has_created_at(rest):
     """Notification entry has created_at field."""
     tag = uuid.uuid4().hex[:8]

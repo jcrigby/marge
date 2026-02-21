@@ -12,6 +12,7 @@ pytestmark = pytest.mark.asyncio
 
 # ── List Automations ─────────────────────────────────────
 
+@pytest.mark.marge_only
 async def test_list_automations(rest):
     """GET /api/config/automation/config returns all 6 automations."""
     resp = await rest.client.get(
@@ -28,6 +29,7 @@ async def test_list_automations(rest):
     assert "goodnight_routine" in ids
 
 
+@pytest.mark.marge_only
 async def test_automation_info_fields(rest):
     """Automation info includes all expected metadata fields."""
     resp = await rest.client.get(
@@ -126,6 +128,7 @@ async def test_disabled_automation_does_not_fire(rest):
 
 # ── Reload ───────────────────────────────────────────────
 
+@pytest.mark.marge_only
 async def test_reload_automations(rest):
     """POST /api/config/core/reload reloads automations from disk."""
     resp = await rest.client.post(
@@ -138,6 +141,7 @@ async def test_reload_automations(rest):
     assert data["automations_reloaded"] >= 6
 
 
+@pytest.mark.marge_only
 async def test_reload_via_automation_path(rest):
     """POST /api/config/automation/reload also reloads automations."""
     resp = await rest.client.post(
@@ -151,6 +155,7 @@ async def test_reload_via_automation_path(rest):
 
 # ── Force Trigger ────────────────────────────────────────
 
+@pytest.mark.marge_only
 async def test_force_trigger_sets_last_triggered(rest):
     """Force-triggering an automation updates its last_triggered."""
     import asyncio
@@ -182,6 +187,7 @@ async def test_force_trigger_sets_last_triggered(rest):
     assert morning["total_triggers"] >= 1
 
 
+@pytest.mark.marge_only
 async def test_trigger_count_increments(rest):
     """Each force-trigger increments total_triggers counter."""
     import asyncio

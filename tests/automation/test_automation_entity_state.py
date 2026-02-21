@@ -29,6 +29,7 @@ async def test_automation_entity_has_friendly_name(rest):
         assert len(e["attributes"]["friendly_name"]) > 0
 
 
+@pytest.mark.marge_only
 async def test_automation_entity_state_on(rest):
     """Enabled automations have state 'on'."""
     resp = await rest.client.get(
@@ -44,6 +45,7 @@ async def test_automation_entity_state_on(rest):
                 assert state["state"] == "on", f"{eid} should be on when enabled"
 
 
+@pytest.mark.marge_only
 async def test_automation_config_has_fields(rest):
     """GET /api/config/automation/config returns expected fields."""
     resp = await rest.client.get(
@@ -64,6 +66,7 @@ async def test_automation_config_has_fields(rest):
         assert "enabled" in auto
 
 
+@pytest.mark.marge_only
 async def test_automation_config_trigger_count(rest):
     """Automation config shows correct trigger count."""
     resp = await rest.client.get(
@@ -76,6 +79,7 @@ async def test_automation_config_trigger_count(rest):
         assert isinstance(auto["trigger_count"], int)
 
 
+@pytest.mark.marge_only
 async def test_automation_config_mode(rest):
     """Automation mode is a valid string."""
     resp = await rest.client.get(
@@ -87,6 +91,7 @@ async def test_automation_config_mode(rest):
         assert auto["mode"] in ["single", "restart", "queued", "parallel"]
 
 
+@pytest.mark.marge_only
 async def test_automation_disable_changes_state(rest):
     """Disabling automation changes entity state to 'off'."""
     resp = await rest.client.get(
@@ -108,6 +113,7 @@ async def test_automation_disable_changes_state(rest):
         assert state["state"] == "on"
 
 
+@pytest.mark.marge_only
 async def test_automation_config_enabled_tracks_state(rest):
     """Config API reflects enabled/disabled state."""
     resp = await rest.client.get(
@@ -149,6 +155,7 @@ async def test_scene_entities_exist(rest):
     assert len(scene_entities) >= 2  # evening and goodnight
 
 
+@pytest.mark.marge_only
 async def test_scene_config_api(rest):
     """GET /api/config/scene/config returns scene metadata."""
     resp = await rest.client.get(
@@ -165,6 +172,7 @@ async def test_scene_config_api(rest):
         assert "entity_count" in scene
 
 
+@pytest.mark.marge_only
 async def test_automation_total_triggers_counter(rest):
     """total_triggers field starts at 0 or positive integer."""
     resp = await rest.client.get(
@@ -198,6 +206,7 @@ async def test_automation_entity_has_attributes(rest):
 
 # ── Merged from depth: trigger API ──────────────────────────
 
+@pytest.mark.marge_only
 async def test_automation_trigger_succeeds(rest):
     """automation.trigger via API returns success."""
     resp = await rest.client.get(
@@ -212,6 +221,7 @@ async def test_automation_trigger_succeeds(rest):
     # Should not error -- automation was triggered
 
 
+@pytest.mark.marge_only
 async def test_automation_trigger_increments_count(rest):
     """Triggering an automation increments total_triggers."""
     resp = await rest.client.get(
@@ -236,6 +246,7 @@ async def test_automation_trigger_increments_count(rest):
     assert auto["total_triggers"] >= initial_count + 1
 
 
+@pytest.mark.marge_only
 async def test_automation_trigger_sets_last_triggered(rest):
     """Triggering an automation sets last_triggered timestamp."""
     resp = await rest.client.get(

@@ -353,6 +353,7 @@ async def test_parallel_service_calls(rest):
     ("/api/health", None, 10),
     ("/api/states/search", {"domain": "light"}, 5),
 ], ids=["get_states", "health_checks", "search_requests"])
+@pytest.mark.marge_only
 async def test_concurrent_get_endpoint(path, params, count):
     """Concurrent GET requests to the same endpoint all succeed."""
     async with httpx.AsyncClient() as c:

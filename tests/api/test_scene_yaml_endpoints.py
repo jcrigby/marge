@@ -8,7 +8,7 @@ Tests GET /api/config/scene/yaml (read raw YAML), PUT /api/config/scene/yaml
 import asyncio
 import pytest
 
-pytestmark = pytest.mark.asyncio
+pytestmark = [pytest.mark.asyncio, pytest.mark.marge_only]
 
 
 async def test_get_scene_yaml_returns_200(rest):

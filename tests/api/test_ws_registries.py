@@ -113,6 +113,7 @@ async def test_ws_area_create_missing_id(ws):
     assert resp["success"] is False
 
 
+@pytest.mark.marge_only
 async def test_ws_area_create_list_delete_roundtrip(ws):
     """Full area CRUD roundtrip via WS (uuid-isolated)."""
     tag = uuid.uuid4().hex[:8]
@@ -229,6 +230,7 @@ async def test_ws_label_registry_missing_fields(ws):
     assert resp.get("success", False) is False
 
 
+@pytest.mark.marge_only
 async def test_ws_label_create_list_delete_roundtrip(ws):
     """Full label CRUD roundtrip via WS (uuid-isolated)."""
     tag = uuid.uuid4().hex[:8]
@@ -329,6 +331,7 @@ async def test_ws_entity_registry_update_icon(ws, rest):
     assert state["attributes"]["icon"] == "mdi:thermometer"
 
 
+@pytest.mark.marge_only
 async def test_ws_entity_update_name_and_icon(ws, rest):
     """Update both name and icon in single WS command."""
     tag = uuid.uuid4().hex[:8]
@@ -348,6 +351,7 @@ async def test_ws_entity_update_name_and_icon(ws, rest):
     assert state["attributes"]["icon"] == "mdi:lightbulb"
 
 
+@pytest.mark.marge_only
 async def test_ws_entity_update_area_assignment(ws, rest):
     """Entity registry update with area_id assigns entity to area."""
     tag = uuid.uuid4().hex[:8]
@@ -372,6 +376,7 @@ async def test_ws_entity_update_area_assignment(ws, rest):
     assert resp.get("success", False) is True
 
 
+@pytest.mark.marge_only
 async def test_ws_entity_update_clear_area(ws, rest):
     """Clearing area_id unassigns entity from area."""
     tag = uuid.uuid4().hex[:8]
@@ -399,6 +404,7 @@ async def test_ws_entity_update_clear_area(ws, rest):
     assert resp.get("success", False) is True
 
 
+@pytest.mark.marge_only
 async def test_ws_entity_update_preserves_state(ws, rest):
     """Entity registry update preserves entity state value."""
     tag = uuid.uuid4().hex[:8]
@@ -445,6 +451,7 @@ async def test_ws_get_config_fields(ws):
 
 # ── Lovelace Config ───────────────────────────────────────
 
+@pytest.mark.marge_only
 async def test_ws_lovelace_config(ws):
     """lovelace/config returns a dashboard config stub."""
     result = await ws.send_command("lovelace/config")

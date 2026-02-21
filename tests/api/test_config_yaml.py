@@ -14,6 +14,7 @@ pytestmark = pytest.mark.asyncio
 
 # ── List Automations ─────────────────────────────────────
 
+@pytest.mark.marge_only
 async def test_list_automations_returns_list(rest):
     """GET /api/config/automation/config returns a list."""
     resp = await rest.client.get(
@@ -26,6 +27,7 @@ async def test_list_automations_returns_list(rest):
     assert len(data) >= 1
 
 
+@pytest.mark.marge_only
 async def test_list_automations_has_id(rest):
     """Each automation entry has an id field."""
     resp = await rest.client.get(
@@ -37,6 +39,7 @@ async def test_list_automations_has_id(rest):
         assert "id" in auto
 
 
+@pytest.mark.marge_only
 async def test_list_automations_has_alias(rest):
     """Each automation entry has an alias field."""
     resp = await rest.client.get(
@@ -48,6 +51,7 @@ async def test_list_automations_has_alias(rest):
         assert "alias" in auto
 
 
+@pytest.mark.marge_only
 async def test_list_automations_has_counts(rest):
     """Each automation entry has trigger/condition/action counts."""
     resp = await rest.client.get(
@@ -64,6 +68,7 @@ async def test_list_automations_has_counts(rest):
 
 # ── Reload Automations ───────────────────────────────────
 
+@pytest.mark.marge_only
 async def test_reload_automations(rest):
     """POST /api/config/core/reload reloads automations."""
     resp = await rest.client.post(
@@ -77,6 +82,7 @@ async def test_reload_automations(rest):
     assert data["automations_reloaded"] >= 1
 
 
+@pytest.mark.marge_only
 async def test_reload_preserves_entities(rest):
     """Reload does not remove automation entities."""
     # Get automations before
@@ -149,6 +155,7 @@ async def test_config_has_elevation(rest):
 
 # -- from test_extended_api.py --
 
+@pytest.mark.marge_only
 async def test_automation_config_returns_list(rest):
     """GET /api/config/automation/config returns a list of automations."""
     resp = await rest.client.get(
@@ -170,6 +177,7 @@ async def test_automation_config_returns_list(rest):
 
 # -- from test_extended_api.py --
 
+@pytest.mark.marge_only
 async def test_automation_config_has_metadata(rest):
     """Automation config includes runtime metadata fields."""
     resp = await rest.client.get(
@@ -186,6 +194,7 @@ async def test_automation_config_has_metadata(rest):
 
 # -- from test_extended_api.py --
 
+@pytest.mark.marge_only
 async def test_automation_entity_has_friendly_name(rest):
     """Automation entities have friendly_name attribute set from alias."""
     resp = await rest.client.get(
@@ -205,6 +214,7 @@ async def test_automation_entity_has_friendly_name(rest):
 
 # -- from test_extended_api.py --
 
+@pytest.mark.marge_only
 async def test_automation_trigger_updates_metadata(rest):
     """Triggering an automation updates last_triggered and current count."""
     resp = await rest.client.get(
@@ -233,6 +243,7 @@ async def test_automation_trigger_updates_metadata(rest):
 
 # -- from test_extended_api.py --
 
+@pytest.mark.marge_only
 async def test_automation_trigger_via_service(rest):
     """POST /api/services/automation/trigger fires an automation."""
     # Get first automation ID

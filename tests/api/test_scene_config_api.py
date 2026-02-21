@@ -9,7 +9,7 @@ import asyncio
 
 import pytest
 
-pytestmark = pytest.mark.asyncio
+pytestmark = [pytest.mark.asyncio, pytest.mark.marge_only]
 
 
 async def test_list_scenes_returns_list(rest):

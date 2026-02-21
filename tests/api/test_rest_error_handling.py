@@ -75,6 +75,7 @@ async def test_405_get_on_post_only(rest):
 # --- 404 / empty for nonexistent entity resources ---
 
 
+@pytest.mark.marge_only
 async def test_get_history_nonexistent_entity(rest):
     """GET /api/history/period for nonexistent entity returns empty."""
     resp = await rest.client.get(
@@ -87,6 +88,7 @@ async def test_get_history_nonexistent_entity(rest):
     assert len(data) == 0
 
 
+@pytest.mark.marge_only
 async def test_logbook_nonexistent_entity_empty(rest):
     """GET /api/logbook/<nonexistent> returns empty array."""
     tag = uuid.uuid4().hex[:8]
@@ -98,6 +100,7 @@ async def test_logbook_nonexistent_entity_empty(rest):
     assert resp.json() == []
 
 
+@pytest.mark.marge_only
 async def test_logbook_global_returns_list(rest):
     """GET /api/logbook returns a list."""
     resp = await rest.client.get(
@@ -108,6 +111,7 @@ async def test_logbook_global_returns_list(rest):
     assert isinstance(resp.json(), list)
 
 
+@pytest.mark.marge_only
 async def test_statistics_nonexistent_entity(rest):
     """Statistics for nonexistent entity returns empty."""
     resp = await rest.client.get(
@@ -173,6 +177,7 @@ async def test_template_missing_template_field(rest):
     assert resp.status_code in (400, 422)
 
 
+@pytest.mark.marge_only
 @pytest.mark.parametrize("endpoint,body", [
     ("/api/areas", {}),
     ("/api/labels", {}),
@@ -188,6 +193,7 @@ async def test_missing_required_fields_400(rest, endpoint, body):
     assert resp.status_code == 400
 
 
+@pytest.mark.marge_only
 @pytest.mark.parametrize("endpoint,content", [
     ("/api/config/automation/yaml", "this is: [not: valid: yaml: ---"),
     ("/api/config/scene/yaml", "definitely not: [valid yaml ---"),
@@ -489,6 +495,7 @@ async def test_set_state_preserves_entity_id_case(rest):
 # --- Health endpoint ---
 
 
+@pytest.mark.marge_only
 async def test_health_no_auth_required(rest):
     """Health endpoint works without specific auth and returns status ok."""
     resp = await rest.client.get(f"{rest.base_url}/api/health")
@@ -497,6 +504,7 @@ async def test_health_no_auth_required(rest):
     assert data["status"] == "ok"
 
 
+@pytest.mark.marge_only
 async def test_health_returns_version(rest):
     """Health endpoint includes version."""
     health = await rest.get_health()
@@ -504,6 +512,7 @@ async def test_health_returns_version(rest):
     assert isinstance(health["version"], str)
 
 
+@pytest.mark.marge_only
 async def test_health_returns_ws_connections(rest):
     """Health endpoint includes ws_connections count."""
     health = await rest.get_health()
@@ -567,6 +576,7 @@ async def test_api_root_returns_message(rest):
 # --- Token edge cases ---
 
 
+@pytest.mark.marge_only
 async def test_token_create_empty_name(rest):
     """Creating token with empty name returns 400 or succeeds."""
     resp = await rest.client.post(

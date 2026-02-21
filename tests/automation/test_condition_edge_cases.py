@@ -207,6 +207,7 @@ async def test_ws_notification_dismiss_all(ws):
 
 # ── Automation Info Fields ───────────────────────────────
 
+@pytest.mark.marge_only
 async def test_automation_info_has_mode(rest):
     """Automation config includes mode field."""
     resp = await rest.client.get(
@@ -219,6 +220,7 @@ async def test_automation_info_has_mode(rest):
         assert "mode" in auto, f"Automation {auto['id']} missing mode"
 
 
+@pytest.mark.marge_only
 async def test_automation_info_has_counts(rest):
     """Automation config includes trigger/condition/action counts."""
     resp = await rest.client.get(

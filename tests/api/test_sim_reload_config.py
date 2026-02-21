@@ -9,7 +9,7 @@ and GET /api/error_log endpoints.
 
 import pytest
 
-pytestmark = pytest.mark.asyncio
+pytestmark = [pytest.mark.asyncio, pytest.mark.marge_only]
 
 
 async def test_sim_time_reflected_in_health(rest):

@@ -88,6 +88,7 @@ async def test_list_events_returns_list(rest):
 
 # ── Webhook ──────────────────────────────────────────────
 
+@pytest.mark.marge_only
 async def test_webhook_accepts_post(rest):
     """POST /api/webhook/{id} returns 200."""
     resp = await rest.client.post(
@@ -100,6 +101,7 @@ async def test_webhook_accepts_post(rest):
 
 # ── Backup ───────────────────────────────────────────────
 
+@pytest.mark.marge_only
 async def test_backup_returns_data(rest):
     """GET /api/backup returns backup data."""
     resp = await rest.client.get(
@@ -111,6 +113,7 @@ async def test_backup_returns_data(rest):
 
 # ── Statistics ───────────────────────────────────────────
 
+@pytest.mark.marge_only
 async def test_statistics_endpoint(rest):
     """GET /api/statistics/{entity_id} returns data."""
     await rest.set_state("sensor.stat_depth_test", "42")
@@ -123,6 +126,7 @@ async def test_statistics_endpoint(rest):
 
 # ── Sim Time ─────────────────────────────────────────────
 
+@pytest.mark.marge_only
 async def test_sim_time_set_and_verify(rest):
     """POST /api/sim/time updates sim time visible in health."""
     resp = await rest.client.post(
@@ -140,6 +144,7 @@ async def test_sim_time_set_and_verify(rest):
 
 # ── Prometheus Metrics ───────────────────────────────────
 
+@pytest.mark.marge_only
 async def test_metrics_endpoint(rest):
     """GET /metrics returns Prometheus format."""
     resp = await rest.client.get(f"{rest.base_url}/metrics")
@@ -150,6 +155,7 @@ async def test_metrics_endpoint(rest):
 
 # ── Automation YAML ──────────────────────────────────────
 
+@pytest.mark.marge_only
 async def test_get_automation_yaml(rest):
     """GET /api/config/automation/yaml returns YAML text."""
     resp = await rest.client.get(
@@ -160,6 +166,7 @@ async def test_get_automation_yaml(rest):
     assert len(resp.text) > 0
 
 
+@pytest.mark.marge_only
 async def test_automation_reload_via_alt_path(rest):
     """POST /api/config/automation/reload also works."""
     resp = await rest.client.post(

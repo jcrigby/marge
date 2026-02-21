@@ -97,6 +97,7 @@ async def test_automation_trigger_service(rest):
     assert resp.status_code == 200
 
 
+@pytest.mark.marge_only
 async def test_automation_turn_off_service(rest):
     """automation.turn_off disables an automation (sets state to off)."""
     # The loaded automations should have some real IDs
@@ -119,6 +120,7 @@ async def test_automation_turn_off_service(rest):
         assert state["state"] == "on"
 
 
+@pytest.mark.marge_only
 async def test_automation_toggle_service(rest):
     """automation.toggle flips enabled state."""
     resp = await rest.client.get(
@@ -147,6 +149,7 @@ async def test_automation_toggle_service(rest):
 
 # ── Persistent notification via service ──────────────────
 
+@pytest.mark.marge_only
 async def test_notification_create_via_service(rest):
     """persistent_notification.create via service endpoint."""
     tag = uuid.uuid4().hex[:8]

@@ -13,6 +13,7 @@ pytestmark = pytest.mark.asyncio
 
 # ── State History ─────────────────────────────────────────
 
+@pytest.mark.marge_only
 async def test_history_records_state_changes(rest):
     """State changes appear in history API."""
     entity = "sensor.rec_hist_1"
@@ -30,6 +31,7 @@ async def test_history_records_state_changes(rest):
     assert isinstance(data, list)
 
 
+@pytest.mark.marge_only
 async def test_history_has_state_values(rest):
     """History entries contain state values."""
     entity = "sensor.rec_hist_vals"
@@ -50,6 +52,7 @@ async def test_history_has_state_values(rest):
         assert "30" in states
 
 
+@pytest.mark.marge_only
 async def test_history_empty_for_unknown_entity(rest):
     """History for unknown entity returns empty."""
     resp = await rest.client.get(
@@ -64,6 +67,7 @@ async def test_history_empty_for_unknown_entity(rest):
 
 # ── Area-Entity Associations ─────────────────────────────
 
+@pytest.mark.marge_only
 async def test_area_create_and_list(rest):
     """Create area and verify it appears in list."""
     resp = await rest.client.post(
@@ -83,6 +87,7 @@ async def test_area_create_and_list(rest):
     assert "rec_test_room" in area_ids
 
 
+@pytest.mark.marge_only
 async def test_area_entity_assignment(rest):
     """Assign entity to area and verify."""
     area_id = "assign_test_room"
@@ -136,6 +141,7 @@ async def test_label_list_via_ws(ws):
 
 # ── Logbook ──────────────────────────────────────────────
 
+@pytest.mark.marge_only
 async def test_logbook_records_events(rest):
     """Logbook contains entries after state changes."""
     await rest.set_state("sensor.rec_logbook", "event_a")
@@ -150,6 +156,7 @@ async def test_logbook_records_events(rest):
     assert isinstance(data, list)
 
 
+@pytest.mark.marge_only
 async def test_logbook_filtered_by_entity(rest):
     """Logbook can filter by entity_id."""
     entity = "sensor.rec_logbook_filter"

@@ -90,6 +90,7 @@ async def test_reload_preserves_trigger_counts(rest):
 
 # ── Automation Info API ──────────────────────────────────
 
+@pytest.mark.marge_only
 async def test_automations_info_endpoint(rest):
     """GET /api/config/automation/config returns automation info list."""
     resp = await rest.client.get(
@@ -102,6 +103,7 @@ async def test_automations_info_endpoint(rest):
     assert len(data) >= 1
 
 
+@pytest.mark.marge_only
 async def test_automations_info_has_fields(rest):
     """Automation info entries have required fields."""
     resp = await rest.client.get(
@@ -115,6 +117,7 @@ async def test_automations_info_has_fields(rest):
         assert field in auto, f"Missing field: {field}"
 
 
+@pytest.mark.marge_only
 async def test_automations_info_trigger_counts(rest):
     """Automation info reports correct trigger/condition/action counts."""
     resp = await rest.client.get(

@@ -609,6 +609,7 @@ async def test_create_notification(ws):
     assert resp.get("success", False) is True
 
 
+@pytest.mark.marge_only
 async def test_get_notifications(ws):
     """WS get_notifications returns list."""
     resp = await ws.send_command("get_notifications")
@@ -617,6 +618,7 @@ async def test_get_notifications(ws):
     assert isinstance(result, list)
 
 
+@pytest.mark.marge_only
 async def test_create_and_list_notification(ws):
     """Created notification appears in get_notifications."""
     tag = uuid.uuid4().hex[:8]
@@ -666,6 +668,7 @@ async def test_notification_fields(ws):
     assert "created_at" in found[0]
 
 
+@pytest.mark.marge_only
 async def test_dismiss_notification(ws):
     """WS persistent_notification/dismiss removes notification."""
     tag = uuid.uuid4().hex[:8]

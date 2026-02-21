@@ -14,6 +14,7 @@ pytestmark = pytest.mark.asyncio
 
 # ── Multi-Entity Trigger (StringOrVec) ─────────────────────
 
+@pytest.mark.marge_only
 async def test_smoke_co_has_two_triggers(rest):
     """smoke_co_emergency has 2 triggers (smoke + CO detectors)."""
     resp = await rest.client.get(
@@ -25,6 +26,7 @@ async def test_smoke_co_has_two_triggers(rest):
     assert auto["trigger_count"] == 2
 
 
+@pytest.mark.marge_only
 async def test_goodnight_has_event_trigger(rest):
     """goodnight_routine has 1 trigger (event type)."""
     resp = await rest.client.get(
@@ -36,6 +38,7 @@ async def test_goodnight_has_event_trigger(rest):
     assert auto["trigger_count"] == 1
 
 
+@pytest.mark.marge_only
 async def test_lock_verification_has_1_trigger(rest):
     """lock_verification has 1 trigger (alarm state change)."""
     resp = await rest.client.get(
@@ -47,6 +50,7 @@ async def test_lock_verification_has_1_trigger(rest):
     assert auto["trigger_count"] == 1
 
 
+@pytest.mark.marge_only
 async def test_lock_verification_has_or_condition(rest):
     """lock_verification has 1 condition (OR with 2 sub-conditions)."""
     resp = await rest.client.get(
@@ -58,6 +62,7 @@ async def test_lock_verification_has_or_condition(rest):
     assert auto["condition_count"] == 1
 
 
+@pytest.mark.marge_only
 async def test_security_alert_has_condition(rest):
     """security_alert has 1 condition (alarm state)."""
     resp = await rest.client.get(
@@ -71,6 +76,7 @@ async def test_security_alert_has_condition(rest):
 
 # ── All 6 Automations Present ──────────────────────────────
 
+@pytest.mark.marge_only
 async def test_all_six_automations_loaded(rest):
     """All 6 demo automations are loaded."""
     resp = await rest.client.get(
@@ -86,6 +92,7 @@ async def test_all_six_automations_loaded(rest):
     assert expected.issubset(ids)
 
 
+@pytest.mark.marge_only
 async def test_all_automations_have_alias(rest):
     """All automations have a non-empty alias."""
     resp = await rest.client.get(
@@ -97,6 +104,7 @@ async def test_all_automations_have_alias(rest):
         assert auto["alias"], f"Automation {auto['id']} has empty alias"
 
 
+@pytest.mark.marge_only
 async def test_all_automations_mode_single(rest):
     """All demo automations have mode 'single'."""
     resp = await rest.client.get(

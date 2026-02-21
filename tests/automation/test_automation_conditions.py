@@ -73,6 +73,7 @@ async def test_trigger_existing_automation(rest):
 
 # ── Automation Config Detail ──────────────────────────────────
 
+@pytest.mark.marge_only
 async def test_automation_config_has_description(rest):
     """Automation config entries include description field."""
     resp = await rest.client.get(
@@ -84,6 +85,7 @@ async def test_automation_config_has_description(rest):
     assert "description" in auto
 
 
+@pytest.mark.marge_only
 async def test_automation_config_has_last_triggered(rest):
     """Automation config entries include last_triggered field."""
     resp = await rest.client.get(
@@ -95,6 +97,7 @@ async def test_automation_config_has_last_triggered(rest):
     assert "last_triggered" in auto
 
 
+@pytest.mark.marge_only
 async def test_automation_config_has_total_triggers(rest):
     """Automation config entries include total_triggers field."""
     resp = await rest.client.get(
@@ -109,6 +112,7 @@ async def test_automation_config_has_total_triggers(rest):
 
 # ── Automation Reload ─────────────────────────────────────────
 
+@pytest.mark.marge_only
 async def test_automation_reload(rest):
     """POST /api/config/core/reload reloads automations."""
     resp = await rest.client.post(
@@ -121,6 +125,7 @@ async def test_automation_reload(rest):
     assert "automations_reloaded" in data
 
 
+@pytest.mark.marge_only
 async def test_automation_reload_via_automation_endpoint(rest):
     """POST /api/config/automation/reload reloads automations."""
     resp = await rest.client.post(
@@ -135,6 +140,7 @@ async def test_automation_reload_via_automation_endpoint(rest):
 
 # ── Scene Config ──────────────────────────────────────────────
 
+@pytest.mark.marge_only
 async def test_scene_config_list(rest):
     """GET /api/config/scene/config returns scene list."""
     resp = await rest.client.get(
@@ -147,6 +153,7 @@ async def test_scene_config_list(rest):
     assert len(data) >= 2  # evening, goodnight
 
 
+@pytest.mark.marge_only
 async def test_scene_config_has_name(rest):
     """Scene config entries have name field."""
     resp = await rest.client.get(
@@ -159,6 +166,7 @@ async def test_scene_config_has_name(rest):
     assert len(scene["name"]) > 0
 
 
+@pytest.mark.marge_only
 async def test_scene_config_has_entities(rest):
     """Scene config entries have entity_count."""
     resp = await rest.client.get(

@@ -18,6 +18,7 @@ HEADERS = {"Authorization": "Bearer test-token", "Content-Type": "application/js
 
 # ── Webhook State Setting ──────────────────────────────────
 
+@pytest.mark.marge_only
 async def test_webhook_sets_entity_state(rest):
     """Webhook with entity_id + state sets entity state."""
     tag = uuid.uuid4().hex[:8]
@@ -36,6 +37,7 @@ async def test_webhook_sets_entity_state(rest):
     assert state["state"] == "42"
 
 
+@pytest.mark.marge_only
 async def test_webhook_sets_state_with_attributes(rest):
     """Webhook with attributes sets entity attributes."""
     tag = uuid.uuid4().hex[:8]
@@ -57,6 +59,7 @@ async def test_webhook_sets_state_with_attributes(rest):
     assert state["attributes"]["friendly_name"] == "Webhook Temp"
 
 
+@pytest.mark.marge_only
 async def test_webhook_overwrites_existing_state(rest):
     """Webhook updates an already-existing entity."""
     tag = uuid.uuid4().hex[:8]
@@ -76,6 +79,7 @@ async def test_webhook_overwrites_existing_state(rest):
 
 # ── Webhook Event Firing ──────────────────────────────────
 
+@pytest.mark.marge_only
 async def test_webhook_fires_event(rest):
     """Webhook with event_type fires an event."""
     tag = uuid.uuid4().hex[:8]
@@ -89,6 +93,7 @@ async def test_webhook_fires_event(rest):
     assert "Event" in data.get("message", "") or "fired" in data.get("message", "")
 
 
+@pytest.mark.marge_only
 async def test_webhook_default_fires_webhook_event(rest):
     """Webhook with no entity_id or event_type fires webhook.<id> event."""
     tag = uuid.uuid4().hex[:8]
@@ -103,6 +108,7 @@ async def test_webhook_default_fires_webhook_event(rest):
     assert f"webhook.default_{tag}" in data.get("message", "")
 
 
+@pytest.mark.marge_only
 async def test_webhook_empty_body(rest):
     """Webhook with empty/no body fires default event."""
     tag = uuid.uuid4().hex[:8]
@@ -118,6 +124,7 @@ async def test_webhook_empty_body(rest):
 
 # ── Webhook + Automation Integration ──────────────────────
 
+@pytest.mark.marge_only
 async def test_webhook_event_triggers_automation(rest):
     """Webhook firing bedside_button_pressed triggers goodnight."""
     # Set up lights on so we can verify goodnight turns them off
@@ -144,6 +151,7 @@ async def test_webhook_event_triggers_automation(rest):
     assert s2["attributes"].get("current", 0) > count_before
 
 
+@pytest.mark.marge_only
 async def test_webhook_state_set_triggers_automation(rest):
     """Webhook setting smoke_detector to on triggers emergency automation."""
     # Set up baseline

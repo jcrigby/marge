@@ -13,6 +13,7 @@ pytestmark = pytest.mark.asyncio
 
 # ── Automation Listing ────────────────────────────────────
 
+@pytest.mark.marge_only
 async def test_automation_list_returns_list(rest):
     """GET /api/automations returns a list."""
     resp = await rest.client.get(
@@ -25,6 +26,7 @@ async def test_automation_list_returns_list(rest):
     assert len(data) >= 6  # 6 loaded automations
 
 
+@pytest.mark.marge_only
 @pytest.mark.parametrize("field", [
     "id", "alias", "enabled", "mode",
     "trigger_count", "condition_count", "action_count",
@@ -41,6 +43,7 @@ async def test_automation_list_has_field(rest, field):
         assert field in auto, f"Missing field: {field}"
 
 
+@pytest.mark.marge_only
 async def test_automation_list_has_id_and_alias(rest):
     """Automation entries have non-empty alias."""
     resp = await rest.client.get(
@@ -54,6 +57,7 @@ async def test_automation_list_has_id_and_alias(rest):
     assert len(auto["alias"]) > 0
 
 
+@pytest.mark.marge_only
 async def test_automation_list_has_counts(rest):
     """Automation entries include trigger/condition/action counts."""
     resp = await rest.client.get(
@@ -66,6 +70,7 @@ async def test_automation_list_has_counts(rest):
     assert auto["action_count"] >= 1
 
 
+@pytest.mark.marge_only
 async def test_automation_list_has_mode(rest):
     """Automation entries include mode field with valid value."""
     resp = await rest.client.get(
@@ -79,6 +84,7 @@ async def test_automation_list_has_mode(rest):
 
 # ── Automation YAML Read ──────────────────────────────────
 
+@pytest.mark.marge_only
 async def test_automation_yaml_read(rest):
     """GET /api/config/automation/yaml returns YAML text."""
     resp = await rest.client.get(
@@ -93,6 +99,7 @@ async def test_automation_yaml_read(rest):
 
 # ── Scene YAML Read ──────────────────────────────────────
 
+@pytest.mark.marge_only
 async def test_scene_yaml_read(rest):
     """GET /api/config/scene/yaml returns YAML text."""
     resp = await rest.client.get(
@@ -232,6 +239,7 @@ async def test_force_trigger_bypasses_disabled(rest):
 
 # -- merged from test_automation_trigger_depth.py --
 
+@pytest.mark.marge_only
 async def test_automation_ids_unique(rest):
     """All automation IDs are unique."""
     resp = await rest.client.get(
