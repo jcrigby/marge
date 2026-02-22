@@ -124,7 +124,7 @@ async def test_mqtt_state_triggers_automation(rest):
     await rest.set_state("binary_sensor.smoke_detector", "off")
     await rest.set_state("lock.front_door", "locked")
     await rest.call_service("automation", "turn_on", {
-        "entity_id": "automation.smoke_co_emergency"
+        "entity_id": "automation.smoke_co_emergency_response"
     })
     await asyncio.sleep(0.1)
 

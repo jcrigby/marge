@@ -22,7 +22,7 @@ async def test_smoke_co_has_two_triggers(rest):
         headers=rest._headers(),
     )
     data = resp.json()
-    auto = next(a for a in data if a["id"] == "smoke_co_emergency")
+    auto = next(a for a in data if a["id"] == "smoke_co_emergency_response")
     assert auto["trigger_count"] == 2
 
 
@@ -46,7 +46,7 @@ async def test_lock_verification_has_1_trigger(rest):
         headers=rest._headers(),
     )
     data = resp.json()
-    auto = next(a for a in data if a["id"] == "lock_verification")
+    auto = next(a for a in data if a["id"] == "lock_verification_after_goodnight")
     assert auto["trigger_count"] == 1
 
 
@@ -58,7 +58,7 @@ async def test_lock_verification_has_or_condition(rest):
         headers=rest._headers(),
     )
     data = resp.json()
-    auto = next(a for a in data if a["id"] == "lock_verification")
+    auto = next(a for a in data if a["id"] == "lock_verification_after_goodnight")
     assert auto["condition_count"] == 1
 
 
@@ -70,7 +70,7 @@ async def test_security_alert_has_condition(rest):
         headers=rest._headers(),
     )
     data = resp.json()
-    auto = next(a for a in data if a["id"] == "security_alert")
+    auto = next(a for a in data if a["id"] == "security_alert_motion_while_armed_away")
     assert auto["condition_count"] == 1
 
 
@@ -86,8 +86,8 @@ async def test_all_six_automations_loaded(rest):
     data = resp.json()
     ids = {a["id"] for a in data}
     expected = {
-        "morning_wakeup", "security_alert", "sunset_lights",
-        "goodnight_routine", "lock_verification", "smoke_co_emergency",
+        "morning_wake_up", "security_alert_motion_while_armed_away", "sunset_exterior_and_evening_scene",
+        "goodnight_routine", "lock_verification_after_goodnight", "smoke_co_emergency_response",
     }
     assert expected.issubset(ids)
 
@@ -119,8 +119,8 @@ async def test_all_automations_mode_single(rest):
 async def test_all_automation_entities_exist(rest):
     """All 6 automations have corresponding automation.* entities."""
     for auto_id in [
-        "morning_wakeup", "security_alert", "sunset_lights",
-        "goodnight_routine", "lock_verification", "smoke_co_emergency",
+        "morning_wake_up", "security_alert_motion_while_armed_away", "sunset_exterior_and_evening_scene",
+        "goodnight_routine", "lock_verification_after_goodnight", "smoke_co_emergency_response",
     ]:
         state = await rest.get_state(f"automation.{auto_id}")
         assert state is not None, f"automation.{auto_id} not found"
@@ -131,8 +131,8 @@ async def test_all_automation_entities_on(rest):
     """All 6 automation entities are initially enabled (on)."""
     # Re-enable all first in case prior tests disabled some
     for auto_id in [
-        "morning_wakeup", "security_alert", "sunset_lights",
-        "goodnight_routine", "lock_verification", "smoke_co_emergency",
+        "morning_wake_up", "security_alert_motion_while_armed_away", "sunset_exterior_and_evening_scene",
+        "goodnight_routine", "lock_verification_after_goodnight", "smoke_co_emergency_response",
     ]:
         await rest.call_service("automation", "turn_on", {
             "entity_id": f"automation.{auto_id}"
@@ -140,8 +140,8 @@ async def test_all_automation_entities_on(rest):
     await asyncio.sleep(0.1)
 
     for auto_id in [
-        "morning_wakeup", "security_alert", "sunset_lights",
-        "goodnight_routine", "lock_verification", "smoke_co_emergency",
+        "morning_wake_up", "security_alert_motion_while_armed_away", "sunset_exterior_and_evening_scene",
+        "goodnight_routine", "lock_verification_after_goodnight", "smoke_co_emergency_response",
     ]:
         state = await rest.get_state(f"automation.{auto_id}")
         assert state["state"] == "on", f"automation.{auto_id} is {state['state']}"
@@ -152,38 +152,38 @@ async def test_all_automation_entities_on(rest):
 async def test_automation_toggle_disables(rest):
     """automation.toggle flips from on to off."""
     await rest.call_service("automation", "turn_on", {
-        "entity_id": "automation.morning_wakeup"
+        "entity_id": "automation.morning_wake_up"
     })
     await asyncio.sleep(0.1)
-    assert (await rest.get_state("automation.morning_wakeup"))["state"] == "on"
+    assert (await rest.get_state("automation.morning_wake_up"))["state"] == "on"
 
     await rest.call_service("automation", "toggle", {
-        "entity_id": "automation.morning_wakeup"
+        "entity_id": "automation.morning_wake_up"
     })
     await asyncio.sleep(0.1)
-    assert (await rest.get_state("automation.morning_wakeup"))["state"] == "off"
+    assert (await rest.get_state("automation.morning_wake_up"))["state"] == "off"
 
     # Re-enable
     await rest.call_service("automation", "turn_on", {
-        "entity_id": "automation.morning_wakeup"
+        "entity_id": "automation.morning_wake_up"
     })
 
 
 async def test_automation_toggle_roundtrip(rest):
     """automation.toggle twice returns to original state."""
     await rest.call_service("automation", "turn_on", {
-        "entity_id": "automation.sunset_lights"
+        "entity_id": "automation.sunset_exterior_and_evening_scene"
     })
     await asyncio.sleep(0.1)
 
     await rest.call_service("automation", "toggle", {
-        "entity_id": "automation.sunset_lights"
+        "entity_id": "automation.sunset_exterior_and_evening_scene"
     })
     await asyncio.sleep(0.1)
-    assert (await rest.get_state("automation.sunset_lights"))["state"] == "off"
+    assert (await rest.get_state("automation.sunset_exterior_and_evening_scene"))["state"] == "off"
 
     await rest.call_service("automation", "toggle", {
-        "entity_id": "automation.sunset_lights"
+        "entity_id": "automation.sunset_exterior_and_evening_scene"
     })
     await asyncio.sleep(0.1)
-    assert (await rest.get_state("automation.sunset_lights"))["state"] == "on"
+    assert (await rest.get_state("automation.sunset_exterior_and_evening_scene"))["state"] == "on"

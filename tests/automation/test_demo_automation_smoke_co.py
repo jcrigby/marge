@@ -34,7 +34,7 @@ async def _setup_emergency_entities(rest):
     await rest.set_state("alarm_control_panel.home", "armed_home")
     # Ensure automation is enabled
     await rest.call_service("automation", "turn_on", {
-        "entity_id": "automation.smoke_co_emergency"
+        "entity_id": "automation.smoke_co_emergency_response"
     })
     await asyncio.sleep(0.1)
 
@@ -116,7 +116,7 @@ async def test_force_trigger_executes_all_actions(rest):
     """automation.trigger bypasses triggers, runs all actions."""
     await _setup_emergency_entities(rest)
     await rest.call_service("automation", "trigger", {
-        "entity_id": "automation.smoke_co_emergency"
+        "entity_id": "automation.smoke_co_emergency_response"
     })
     await asyncio.sleep(0.5)
     assert (await rest.get_state("lock.front_door"))["state"] == "unlocked"
@@ -126,15 +126,15 @@ async def test_force_trigger_executes_all_actions(rest):
 
 async def test_force_trigger_updates_metadata(rest):
     """Force trigger increments trigger count and updates last_triggered."""
-    s1 = await rest.get_state("automation.smoke_co_emergency")
+    s1 = await rest.get_state("automation.smoke_co_emergency_response")
     count_before = s1["attributes"].get("current", 0)
 
     await rest.call_service("automation", "trigger", {
-        "entity_id": "automation.smoke_co_emergency"
+        "entity_id": "automation.smoke_co_emergency_response"
     })
     await asyncio.sleep(0.3)
 
-    s2 = await rest.get_state("automation.smoke_co_emergency")
+    s2 = await rest.get_state("automation.smoke_co_emergency_response")
     assert s2["attributes"].get("current", 0) > count_before
     assert "last_triggered" in s2["attributes"]
 
@@ -145,7 +145,7 @@ async def test_disabled_emergency_does_not_fire(rest):
     """Disabled smoke_co_emergency does not unlock doors."""
     await _setup_emergency_entities(rest)
     await rest.call_service("automation", "turn_off", {
-        "entity_id": "automation.smoke_co_emergency"
+        "entity_id": "automation.smoke_co_emergency_response"
     })
     await asyncio.sleep(0.1)
 
@@ -157,7 +157,7 @@ async def test_disabled_emergency_does_not_fire(rest):
 
     # Re-enable
     await rest.call_service("automation", "turn_on", {
-        "entity_id": "automation.smoke_co_emergency"
+        "entity_id": "automation.smoke_co_emergency_response"
     })
 
 
@@ -166,7 +166,7 @@ async def test_re_enabled_emergency_fires_again(rest):
     await _setup_emergency_entities(rest)
     # Disable, trigger (should not fire), re-enable, trigger (should fire)
     await rest.call_service("automation", "turn_off", {
-        "entity_id": "automation.smoke_co_emergency"
+        "entity_id": "automation.smoke_co_emergency_response"
     })
     await asyncio.sleep(0.1)
     await rest.set_state("binary_sensor.smoke_detector", "on")
@@ -174,7 +174,7 @@ async def test_re_enabled_emergency_fires_again(rest):
     assert (await rest.get_state("lock.front_door"))["state"] == "locked"
 
     await rest.call_service("automation", "turn_on", {
-        "entity_id": "automation.smoke_co_emergency"
+        "entity_id": "automation.smoke_co_emergency_response"
     })
     await asyncio.sleep(0.1)
     # Reset trigger entity and fire again

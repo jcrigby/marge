@@ -158,7 +158,7 @@ async def test_webhook_state_set_triggers_automation(rest):
     await rest.set_state("binary_sensor.smoke_detector", "off")
     await rest.set_state("lock.front_door", "locked")
     await rest.call_service("automation", "turn_on", {
-        "entity_id": "automation.smoke_co_emergency"
+        "entity_id": "automation.smoke_co_emergency_response"
     })
     await asyncio.sleep(0.1)
 
@@ -178,6 +178,7 @@ async def test_webhook_state_set_triggers_automation(rest):
 
 # ── Multiple webhooks ──────────────────────────────────────
 
+@pytest.mark.marge_only
 async def test_rapid_webhook_state_updates(rest):
     """Multiple rapid webhook state updates, last one wins."""
     tag = uuid.uuid4().hex[:8]
@@ -192,6 +193,7 @@ async def test_rapid_webhook_state_updates(rest):
     assert state["state"] == "9"
 
 
+@pytest.mark.marge_only
 async def test_webhook_different_ids_independent(rest):
     """Different webhook IDs are independent endpoints."""
     tag = uuid.uuid4().hex[:8]

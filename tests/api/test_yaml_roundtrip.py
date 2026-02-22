@@ -24,6 +24,7 @@ async def test_automation_yaml_content_type(rest):
     assert "yaml" in ct
 
 
+@pytest.mark.marge_only
 async def test_automation_yaml_has_entries(rest):
     """Automation YAML contains at least 6 automation entries."""
     resp = await rest.client.get(
@@ -86,6 +87,7 @@ async def test_scene_yaml_content_type(rest):
     assert "yaml" in ct
 
 
+@pytest.mark.marge_only
 async def test_scene_yaml_has_entries(rest):
     """Scene YAML contains at least 2 scene entries."""
     resp = await rest.client.get(

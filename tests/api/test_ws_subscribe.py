@@ -57,28 +57,55 @@ async def test_ws_get_states(ws):
 # subscribe_events and event delivery
 # ---------------------------------------------------------------------------
 
+@pytest.mark.marge_only
 async def test_ws_subscribe_events(ws, rest):
     """subscribe_events returns success and events are delivered."""
     sub_id = await ws.subscribe_events("state_changed")
 
     # Trigger a state change
     await rest.set_state("test.ws_event_delivery", "triggered")
+    await asyncio.sleep(0.3)  # Give HA time to propagate
 
-    # Should receive the event
-    event = await ws.recv_event(timeout=3.0)
-    assert event["type"] == "event"
-    assert event["id"] == sub_id
-    assert event["event"]["event_type"] == "state_changed"
+    # On HA many state_changed events fire for various entities; drain
+    # until we find the one for our specific entity or timeout.
+    deadline = asyncio.get_event_loop().time() + 10.0
+    found = False
+    while asyncio.get_event_loop().time() < deadline:
+        try:
+            remaining = deadline - asyncio.get_event_loop().time()
+            event = await ws.recv_event(timeout=max(remaining, 0.1))
+            if (event.get("type") == "event"
+                    and event.get("id") == sub_id
+                    and event.get("event", {}).get("data", {}).get("entity_id")
+                        == "test.ws_event_delivery"):
+                found = True
+                break
+        except asyncio.TimeoutError:
+            break
+    assert found, "Did not receive state_changed event for test.ws_event_delivery"
 
 
+@pytest.mark.marge_only
 async def test_ws_event_contains_entity_id(ws, rest):
     """State change events contain the correct entity_id."""
     await ws.subscribe_events("state_changed")
     await rest.set_state("test.ws_entity_check", "on")
+    await asyncio.sleep(0.3)
 
-    event = await ws.recv_event(timeout=3.0)
-    data = event["event"]["data"]
-    assert data["entity_id"] == "test.ws_entity_check"
+    # On HA, drain until we find our entity (other entities fire too).
+    deadline = asyncio.get_event_loop().time() + 10.0
+    found = False
+    while asyncio.get_event_loop().time() < deadline:
+        try:
+            remaining = deadline - asyncio.get_event_loop().time()
+            event = await ws.recv_event(timeout=max(remaining, 0.1))
+            data = event.get("event", {}).get("data", {})
+            if data.get("entity_id") == "test.ws_entity_check":
+                found = True
+                break
+        except asyncio.TimeoutError:
+            break
+    assert found, "Did not receive state_changed event for test.ws_entity_check"
 
 
 async def test_ws_event_has_old_and_new_state(ws, rest):
@@ -87,38 +114,69 @@ async def test_ws_event_has_old_and_new_state(ws, rest):
 
     # Set initial state
     await rest.set_state("test.ws_old_new", "first")
-    # Drain initial event
-    await ws.recv_event(timeout=3.0)
+    await asyncio.sleep(0.3)
+
+    # Drain until we see the initial event for our entity
+    deadline = asyncio.get_event_loop().time() + 10.0
+    while asyncio.get_event_loop().time() < deadline:
+        try:
+            remaining = deadline - asyncio.get_event_loop().time()
+            ev = await ws.recv_event(timeout=max(remaining, 0.1))
+            if ev.get("event", {}).get("data", {}).get("entity_id") == "test.ws_old_new":
+                break
+        except asyncio.TimeoutError:
+            break
 
     # Change state
     await rest.set_state("test.ws_old_new", "second")
-    event = await ws.recv_event(timeout=3.0)
+    await asyncio.sleep(0.3)
 
-    data = event["event"]["data"]
-    assert data["new_state"]["state"] == "second"
-    assert data["old_state"]["state"] == "first"
+    # Find the event for our entity
+    found = False
+    deadline = asyncio.get_event_loop().time() + 10.0
+    while asyncio.get_event_loop().time() < deadline:
+        try:
+            remaining = deadline - asyncio.get_event_loop().time()
+            event = await ws.recv_event(timeout=max(remaining, 0.1))
+            data = event.get("event", {}).get("data", {})
+            if data.get("entity_id") == "test.ws_old_new":
+                assert data["new_state"]["state"] == "second"
+                assert data["old_state"]["state"] == "first"
+                found = True
+                break
+        except asyncio.TimeoutError:
+            break
+    assert found, "Did not receive state_changed event for test.ws_old_new"
 
 
+@pytest.mark.marge_only
 async def test_ws_multiple_subscriptions(ws, rest):
     """Multiple subscribe_events on same connection both receive events."""
     sub_id_1 = await ws.subscribe_events("state_changed")
     sub_id_2 = await ws.subscribe_events("state_changed")
 
     await rest.set_state("test.ws_multi_sub", "on")
+    await asyncio.sleep(0.3)
 
-    # Should get two events (one per subscription)
-    events = []
-    for _ in range(2):
+    # On HA many entities fire state_changed.  We need to see our specific
+    # entity arrive on BOTH subscription IDs.
+    seen_sub_ids = set()
+    deadline = asyncio.get_event_loop().time() + 10.0
+    while asyncio.get_event_loop().time() < deadline:
         try:
-            event = await ws.recv_event(timeout=3.0)
-            events.append(event)
+            remaining = deadline - asyncio.get_event_loop().time()
+            event = await ws.recv_event(timeout=max(remaining, 0.1))
+            if event.get("type") == "event":
+                data = event.get("event", {}).get("data", {})
+                if data.get("entity_id") == "test.ws_multi_sub":
+                    seen_sub_ids.add(event["id"])
+            if sub_id_1 in seen_sub_ids and sub_id_2 in seen_sub_ids:
+                break
         except asyncio.TimeoutError:
             break
 
-    assert len(events) == 2
-    sub_ids = {e["id"] for e in events}
-    assert sub_id_1 in sub_ids
-    assert sub_id_2 in sub_ids
+    assert sub_id_1 in seen_sub_ids, f"No event for sub {sub_id_1}"
+    assert sub_id_2 in seen_sub_ids, f"No event for sub {sub_id_2}"
 
 
 # ---------------------------------------------------------------------------
@@ -245,8 +303,9 @@ async def test_ws_get_services_returns_dict(ws):
 # call_service via WS
 # ---------------------------------------------------------------------------
 
+@pytest.mark.marge_only
 async def test_ws_call_service_light(ws, rest):
-    """WS call_service for light works."""
+    """WS call_service for light works (ad-hoc entity; HA does not dispatch services to REST-created entities)."""
     tag = uuid.uuid4().hex[:8]
     eid = f"light.wsord_{tag}"
     await rest.set_state(eid, "off")
@@ -301,18 +360,18 @@ async def test_ws_render_template_error(ws):
         "render_template",
         template="{{ x | nonexistent_filter }}",
     )
-    # Marge returns success=false; HA may return success=false or render error text.
+    # Marge returns success=false; HA may return success=false or success=true
+    # (subscription ack) followed by an event with error text.
     # Either way, the server should not crash.
     if resp.get("success", False) is True:
         # HA subscription style: drain the follow-up event if result is null
         if resp.get("result") is None:
             try:
-                raw = await asyncio.wait_for(ws.ws.recv(), timeout=3.0)
-                event_msg = json.loads(raw)
+                event = await ws.recv_event(timeout=3.0)
                 # HA may render error text in the result
-                assert "event" in event_msg
+                assert event.get("type") == "event"
             except asyncio.TimeoutError:
-                pass
+                pass  # No follow-up is also acceptable
     else:
-        # Marge style: success=false with error info
-        assert "error" in str(resp).lower() or resp.get("success") is False
+        # Marge style or HA immediate error: success=false with error info
+        assert resp.get("success") is False

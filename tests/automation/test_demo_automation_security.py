@@ -19,7 +19,7 @@ async def _setup_security(rest):
     """Baseline for security_alert tests."""
     await rest.set_state("binary_sensor.entryway_motion", "off")
     await rest.call_service("automation", "turn_on", {
-        "entity_id": "automation.security_alert"
+        "entity_id": "automation.security_alert_motion_while_armed_away"
     })
     await asyncio.sleep(0.1)
 
@@ -34,7 +34,7 @@ async def test_security_alert_fires_when_armed_away(rest):
     await asyncio.sleep(0.5)
 
     # Automation should have fired (check trigger count)
-    state = await rest.get_state("automation.security_alert")
+    state = await rest.get_state("automation.security_alert_motion_while_armed_away")
     assert state is not None
     assert state["attributes"].get("current", 0) >= 1
 
@@ -45,13 +45,13 @@ async def test_security_alert_blocked_when_armed_home(rest):
     await rest.set_state("alarm_control_panel.home", "armed_home")
     await asyncio.sleep(0.1)
 
-    s1 = await rest.get_state("automation.security_alert")
+    s1 = await rest.get_state("automation.security_alert_motion_while_armed_away")
     count_before = s1["attributes"].get("current", 0)
 
     await rest.set_state("binary_sensor.entryway_motion", "on")
     await asyncio.sleep(0.5)
 
-    s2 = await rest.get_state("automation.security_alert")
+    s2 = await rest.get_state("automation.security_alert_motion_while_armed_away")
     assert s2["attributes"].get("current", 0) == count_before
 
 
@@ -61,7 +61,7 @@ async def test_security_alert_blocked_when_disarmed(rest):
     await rest.set_state("alarm_control_panel.home", "disarmed")
     await asyncio.sleep(0.1)
 
-    s1 = await rest.get_state("automation.security_alert")
+    s1 = await rest.get_state("automation.security_alert_motion_while_armed_away")
     count_before = s1["attributes"].get("current", 0)
 
     # Reset motion then trigger
@@ -70,7 +70,7 @@ async def test_security_alert_blocked_when_disarmed(rest):
     await rest.set_state("binary_sensor.entryway_motion", "on")
     await asyncio.sleep(0.5)
 
-    s2 = await rest.get_state("automation.security_alert")
+    s2 = await rest.get_state("automation.security_alert_motion_while_armed_away")
     assert s2["attributes"].get("current", 0) == count_before
 
 
@@ -79,7 +79,7 @@ async def test_security_alert_blocked_when_disarmed(rest):
 async def _setup_lock_verification(rest):
     """Baseline for lock_verification tests."""
     await rest.call_service("automation", "turn_on", {
-        "entity_id": "automation.lock_verification"
+        "entity_id": "automation.lock_verification_after_goodnight"
     })
     await asyncio.sleep(0.1)
 
@@ -93,14 +93,14 @@ async def test_lock_verify_fires_when_door_unlocked(rest):
     await rest.set_state("alarm_control_panel.home", "armed_home")
     await asyncio.sleep(0.1)
 
-    s1 = await rest.get_state("automation.lock_verification")
+    s1 = await rest.get_state("automation.lock_verification_after_goodnight")
     count_before = s1["attributes"].get("current", 0)
 
     # Trigger: alarm goes to armed_night
     await rest.set_state("alarm_control_panel.home", "armed_night")
     await asyncio.sleep(0.5)
 
-    s2 = await rest.get_state("automation.lock_verification")
+    s2 = await rest.get_state("automation.lock_verification_after_goodnight")
     assert s2["attributes"].get("current", 0) > count_before
 
 
@@ -112,13 +112,13 @@ async def test_lock_verify_fires_when_back_door_unlocked(rest):
     await rest.set_state("alarm_control_panel.home", "armed_home")
     await asyncio.sleep(0.1)
 
-    s1 = await rest.get_state("automation.lock_verification")
+    s1 = await rest.get_state("automation.lock_verification_after_goodnight")
     count_before = s1["attributes"].get("current", 0)
 
     await rest.set_state("alarm_control_panel.home", "armed_night")
     await asyncio.sleep(0.5)
 
-    s2 = await rest.get_state("automation.lock_verification")
+    s2 = await rest.get_state("automation.lock_verification_after_goodnight")
     assert s2["attributes"].get("current", 0) > count_before
 
 
@@ -130,13 +130,13 @@ async def test_lock_verify_skipped_when_all_locked(rest):
     await rest.set_state("alarm_control_panel.home", "armed_home")
     await asyncio.sleep(0.1)
 
-    s1 = await rest.get_state("automation.lock_verification")
+    s1 = await rest.get_state("automation.lock_verification_after_goodnight")
     count_before = s1["attributes"].get("current", 0)
 
     await rest.set_state("alarm_control_panel.home", "armed_night")
     await asyncio.sleep(0.5)
 
-    s2 = await rest.get_state("automation.lock_verification")
+    s2 = await rest.get_state("automation.lock_verification_after_goodnight")
     assert s2["attributes"].get("current", 0) == count_before
 
 

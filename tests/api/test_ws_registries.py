@@ -30,6 +30,7 @@ async def test_ws_area_registry_list(ws):
     assert isinstance(result["result"], list)
 
 
+@pytest.mark.marge_only
 async def test_ws_area_registry_create(ws):
     """config/area_registry/create adds a new area."""
     result = await ws.send_command(
@@ -45,6 +46,7 @@ async def test_ws_area_registry_create(ws):
     assert "ws_test_area" in ids
 
 
+@pytest.mark.marge_only
 async def test_ws_area_registry_update(ws):
     """config/area_registry/update renames an area."""
     # Create first
@@ -68,6 +70,7 @@ async def test_ws_area_registry_update(ws):
     assert area["name"] == "After"
 
 
+@pytest.mark.marge_only
 async def test_ws_area_registry_delete(ws):
     """config/area_registry/delete removes an area."""
     await ws.send_command(
@@ -87,6 +90,7 @@ async def test_ws_area_registry_delete(ws):
     assert "ws_del_area" not in ids
 
 
+@pytest.mark.marge_only
 async def test_ws_area_create_empty_fails(ws):
     """config/area_registry/create with empty fields fails."""
     result = await ws.send_command(
@@ -106,6 +110,7 @@ async def test_ws_area_registry_create_missing_fields(ws):
     assert resp.get("success", False) is False
 
 
+@pytest.mark.marge_only
 async def test_ws_area_create_missing_id(ws):
     """WS config/area_registry/create with missing area_id fails."""
     resp = await ws.send_command("config/area_registry/create",
@@ -176,6 +181,7 @@ async def test_ws_label_registry_list(ws):
     assert isinstance(result["result"], list)
 
 
+@pytest.mark.marge_only
 async def test_ws_label_registry_create(ws):
     """config/label_registry/create adds a label."""
     result = await ws.send_command(
@@ -191,6 +197,7 @@ async def test_ws_label_registry_create(ws):
     assert "ws_test_label" in ids
 
 
+@pytest.mark.marge_only
 async def test_ws_label_registry_delete(ws):
     """config/label_registry/delete removes a label."""
     await ws.send_command(
@@ -211,6 +218,7 @@ async def test_ws_label_registry_delete(ws):
     assert "ws_del_label" not in ids
 
 
+@pytest.mark.marge_only
 async def test_ws_label_create_empty_fails(ws):
     """config/label_registry/create with empty fields fails."""
     result = await ws.send_command(
@@ -271,6 +279,7 @@ async def test_ws_entity_registry_list(ws):
         assert "entity_id" in entry
 
 
+@pytest.mark.marge_only
 async def test_ws_entity_registry_entry_fields(ws, rest):
     """Entity registry entries have expected name and platform fields."""
     await rest.set_state("sensor.ws_reg_fields", "10", {"friendly_name": "Test Sensor"})
@@ -282,6 +291,7 @@ async def test_ws_entity_registry_entry_fields(ws, rest):
     assert "platform" in entry
 
 
+@pytest.mark.marge_only
 @pytest.mark.parametrize("field,expected", [
     ("disabled_by", None),
     ("platform", "mqtt"),
@@ -300,6 +310,7 @@ async def test_ws_entity_registry_field_value(ws, rest, field, expected):
     assert found[0][field] == expected
 
 
+@pytest.mark.marge_only
 async def test_ws_entity_registry_update_name(ws, rest):
     """config/entity_registry/update renames an entity."""
     await rest.set_state("sensor.ws_rename_test", "42", {"friendly_name": "Old Name"})
@@ -316,6 +327,7 @@ async def test_ws_entity_registry_update_name(ws, rest):
     assert state["attributes"]["friendly_name"] == "New Name"
 
 
+@pytest.mark.marge_only
 async def test_ws_entity_registry_update_icon(ws, rest):
     """config/entity_registry/update sets icon attribute."""
     await rest.set_state("sensor.ws_icon_test", "50")

@@ -69,6 +69,7 @@ async def test_service_call_triggers_ws_event(ws, rest):
 
 # ── Automation → Service → State ────────────────────────────
 
+@pytest.mark.marge_only
 async def test_automation_trigger_changes_state(rest):
     """Triggering automation modifies state via service calls."""
     await rest.set_state("lock.front_door", "locked")

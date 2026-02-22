@@ -66,6 +66,7 @@ async def test_service_call_changes_state(rest):
     assert state["attributes"]["brightness"] == 200
 
 
+@pytest.mark.marge_only
 async def test_ws_receives_state_change(ws, rest):
     """WebSocket receives state_changed event from REST API."""
     sub_id = await ws.subscribe_events()
@@ -136,20 +137,21 @@ async def test_discovery_state_update_with_template():
     assert state["state"] == "21.5"
 
 
+@pytest.mark.marge_only
 async def test_automation_trigger_fires_actions(rest):
     """State change triggers automation that fires actions."""
     # smoke_co_emergency triggers on binary_sensor.smoke_detector -> on
     await rest.set_state("binary_sensor.smoke_detector", "off")
     await asyncio.sleep(0.2)
 
-    s1 = await rest.get_state("automation.smoke_co_emergency")
+    s1 = await rest.get_state("automation.smoke_co_emergency_response")
     count_before = s1["attributes"].get("current", 0)
 
     # Trigger
     await rest.set_state("binary_sensor.smoke_detector", "on")
     await asyncio.sleep(0.5)
 
-    s2 = await rest.get_state("automation.smoke_co_emergency")
+    s2 = await rest.get_state("automation.smoke_co_emergency_response")
     count_after = s2["attributes"].get("current", 0)
     assert count_after > count_before
 

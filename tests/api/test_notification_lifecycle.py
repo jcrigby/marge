@@ -140,6 +140,7 @@ async def test_notification_overwrite(rest):
 
 # ── WS Notification Operations ──────────────────────────
 
+@pytest.mark.marge_only
 async def test_ws_notification_roundtrip(ws):
     """Create notification via WS, list via WS, dismiss via WS."""
     # Clear all first

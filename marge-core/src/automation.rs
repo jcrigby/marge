@@ -184,12 +184,53 @@ impl StringOrVec {
     }
 }
 
+impl Automation {
+    /// Return the entity slug derived from the alias (like HA does),
+    /// falling back to the raw `id` field when alias is empty.
+    pub fn entity_slug(&self) -> String {
+        if self.alias.is_empty() {
+            self.id.clone()
+        } else {
+            slugify_alias(&self.alias)
+        }
+    }
+}
+
 // ── Parser ───────────────────────────────────────────────
 
 pub fn load_automations(path: &Path) -> anyhow::Result<Vec<Automation>> {
     let contents = std::fs::read_to_string(path)?;
     let automations: Vec<Automation> = serde_yaml::from_str(&contents)?;
     Ok(automations)
+}
+
+/// Convert an alias string to an entity slug, matching HA behaviour.
+///
+/// - Lowercase everything
+/// - Replace non-alphanumeric characters with underscore
+/// - Collapse consecutive underscores
+/// - Strip leading/trailing underscores
+pub fn slugify_alias(alias: &str) -> String {
+    let lower = alias.to_lowercase();
+    let replaced: String = lower
+        .chars()
+        .map(|c| if c.is_ascii_alphanumeric() { c } else { '_' })
+        .collect();
+    // Collapse consecutive underscores and strip leading/trailing
+    let mut result = String::with_capacity(replaced.len());
+    let mut prev_underscore = false;
+    for c in replaced.chars() {
+        if c == '_' {
+            if !prev_underscore {
+                result.push('_');
+            }
+            prev_underscore = true;
+        } else {
+            result.push(c);
+            prev_underscore = false;
+        }
+    }
+    result.trim_matches('_').to_string()
 }
 
 // ── Solar Calculator (Phase 3 §3.2) ─────────────────────
@@ -344,7 +385,7 @@ pub struct AutomationEngine {
     app: Arc<AppState>,
     scenes: std::sync::RwLock<Option<Arc<SceneEngine>>>,
     services: Arc<std::sync::RwLock<ServiceRegistry>>,
-    /// Runtime metadata per automation (keyed by automation id).
+    /// Runtime metadata per automation (keyed by entity slug).
     meta: DashMap<String, AutomationMeta>,
     /// Tracks last fired HH:MM for time/sun triggers to prevent duplicate fires.
     last_time_triggers: DashMap<String, String>,
@@ -361,15 +402,16 @@ impl AutomationEngine {
         tracing::info!("Loaded {} automations", automations.len());
         let meta = DashMap::new();
         for auto in &automations {
+            let slug = auto.entity_slug();
             tracing::info!(
                 "  [{}] {} — {} trigger(s), {} condition(s), {} action(s)",
-                auto.id,
+                slug,
                 auto.alias,
                 auto.triggers.len(),
                 auto.conditions.len(),
                 auto.actions.len()
             );
-            meta.insert(auto.id.clone(), AutomationMeta {
+            meta.insert(slug, AutomationMeta {
                 last_triggered: None,
                 trigger_count: 0,
                 enabled: true,
@@ -424,8 +466,9 @@ impl AutomationEngine {
 
         // Initialize metadata for new automations, preserve existing
         for auto in &new_automations {
-            if !self.meta.contains_key(&auto.id) {
-                self.meta.insert(auto.id.clone(), AutomationMeta {
+            let slug = auto.entity_slug();
+            if !self.meta.contains_key(&slug) {
+                self.meta.insert(slug, AutomationMeta {
                     last_triggered: None,
                     trigger_count: 0,
                     enabled: true,
@@ -435,16 +478,17 @@ impl AutomationEngine {
 
         // Update automation entities in state machine
         for auto in &new_automations {
+            let slug = auto.entity_slug();
             let mut attrs = serde_json::Map::new();
             attrs.insert("friendly_name".to_string(), serde_json::json!(auto.alias));
-            if let Some(m) = self.meta.get(&auto.id) {
+            if let Some(m) = self.meta.get(&slug) {
                 if let Some(ref lt) = m.last_triggered {
                     attrs.insert("last_triggered".to_string(), serde_json::json!(lt));
                 }
                 attrs.insert("current".to_string(), serde_json::json!(m.trigger_count));
             }
             self.app.state_machine.set(
-                format!("automation.{}", auto.id),
+                format!("automation.{}", slug),
                 "on".to_string(),
                 attrs,
             );
@@ -460,9 +504,10 @@ impl AutomationEngine {
     pub fn get_automations_info(&self) -> Vec<AutomationInfo> {
         let automations = self.automations.read().unwrap_or_else(|e| e.into_inner());
         automations.iter().map(|auto| {
-            let meta = self.meta.get(&auto.id);
+            let slug = auto.entity_slug();
+            let meta = self.meta.get(&slug);
             AutomationInfo {
-                id: auto.id.clone(),
+                id: slug,
                 alias: auto.alias.clone(),
                 description: auto.description.clone(),
                 mode: auto.mode.clone(),
@@ -521,14 +566,15 @@ impl AutomationEngine {
 
         let automations = self.automations.read().unwrap_or_else(|e| e.into_inner()).clone();
         for auto in &automations {
-            if !self.is_enabled(&auto.id) {
+            let slug = auto.entity_slug();
+            if !self.is_enabled(&slug) {
                 continue;
             }
             if self.triggers_match(auto, event) && self.conditions_met(auto) {
-                tracing::info!("Automation [{}] triggered by {}", auto.id, event.entity_id);
+                tracing::info!("Automation [{}] triggered by {}", slug, event.entity_id);
                 self.execute_actions(auto).await;
-                self.record_trigger(&auto.id);
-                fired.push(auto.id.clone());
+                self.record_trigger(&slug);
+                fired.push(slug);
             }
         }
 
@@ -543,10 +589,11 @@ impl AutomationEngine {
 
         let automations = self.automations.read().unwrap_or_else(|e| e.into_inner()).clone();
         for auto in &automations {
-            if auto.id == id {
-                tracing::info!("Automation [{}] force-triggered", auto.id);
+            let slug = auto.entity_slug();
+            if slug == id || auto.id == id {
+                tracing::info!("Automation [{}] force-triggered", slug);
                 self.execute_actions(auto).await;
-                self.record_trigger(&auto.id);
+                self.record_trigger(&slug);
                 return true;
             }
         }
@@ -560,7 +607,8 @@ impl AutomationEngine {
 
         let automations = self.automations.read().unwrap_or_else(|e| e.into_inner()).clone();
         for auto in &automations {
-            if !self.is_enabled(&auto.id) {
+            let slug = auto.entity_slug();
+            if !self.is_enabled(&slug) {
                 continue;
             }
             let matches = auto.triggers.iter().any(|t| {
@@ -568,10 +616,10 @@ impl AutomationEngine {
             });
 
             if matches && self.conditions_met(auto) {
-                tracing::info!("Automation [{}] triggered by event {}", auto.id, event_type);
+                tracing::info!("Automation [{}] triggered by event {}", slug, event_type);
                 self.execute_actions(auto).await;
-                self.record_trigger(&auto.id);
-                fired.push(auto.id.clone());
+                self.record_trigger(&slug);
+                fired.push(slug);
             }
         }
 
@@ -625,7 +673,8 @@ impl AutomationEngine {
 
             let automations = self.automations.read().unwrap_or_else(|e| e.into_inner()).clone();
             for auto in &automations {
-                if !self.is_enabled(&auto.id) {
+                let slug = auto.entity_slug();
+                if !self.is_enabled(&slug) {
                     continue;
                 }
                 for trigger in &auto.triggers {
@@ -651,7 +700,7 @@ impl AutomationEngine {
 
                     if let Some(ref trigger_hh) = trigger_hhmm {
                         if trigger_hh == current_hhmm {
-                            let key = format!("{}:{}", auto.id, trigger_hh);
+                            let key = format!("{}:{}", slug, trigger_hh);
 
                             // Prevent duplicate firing within the same minute
                             if let Some(last) = self.last_time_triggers.get(&key) {
@@ -663,11 +712,11 @@ impl AutomationEngine {
                             if self.conditions_met(auto) {
                                 tracing::info!(
                                     "Automation [{}] time-triggered at {}",
-                                    auto.id,
+                                    slug,
                                     current_time
                                 );
                                 self.execute_actions(auto).await;
-                                self.record_trigger(&auto.id);
+                                self.record_trigger(&slug);
                                 self.last_time_triggers
                                     .insert(key, current_hhmm.to_string());
                             }
@@ -813,7 +862,7 @@ impl AutomationEngine {
         if result.is_err() {
             tracing::error!(
                 "Automation [{}] timed out after {:?}",
-                auto.id,
+                auto.entity_slug(),
                 Self::EXECUTION_TIMEOUT,
             );
         }
@@ -1037,7 +1086,7 @@ impl AutomationEngine {
     /// Get automation IDs and aliases (for registering automation entities)
     pub fn automation_ids(&self) -> Vec<(String, String)> {
         self.automations.read().unwrap_or_else(|e| e.into_inner()).iter()
-            .map(|a| (a.id.clone(), a.alias.clone()))
+            .map(|a| (a.entity_slug(), a.alias.clone()))
             .collect()
     }
 }
@@ -1226,5 +1275,79 @@ mod tests {
             }
             _ => panic!("Expected Sun trigger"),
         }
+    }
+
+    #[test]
+    fn test_slugify_alias() {
+        assert_eq!(slugify_alias("Morning Wake-Up"), "morning_wake_up");
+        assert_eq!(
+            slugify_alias("Sunset — Exterior and Evening Scene"),
+            "sunset_exterior_and_evening_scene"
+        );
+        assert_eq!(
+            slugify_alias("Lock Verification After Goodnight"),
+            "lock_verification_after_goodnight"
+        );
+        assert_eq!(
+            slugify_alias("Security Alert — Motion While Armed Away"),
+            "security_alert_motion_while_armed_away"
+        );
+        assert_eq!(
+            slugify_alias("Smoke/CO Emergency Response"),
+            "smoke_co_emergency_response"
+        );
+        assert_eq!(slugify_alias("Goodnight Routine"), "goodnight_routine");
+    }
+
+    #[test]
+    fn test_slugify_alias_edge_cases() {
+        // Leading/trailing special chars
+        assert_eq!(slugify_alias("--hello--"), "hello");
+        // Multiple consecutive specials
+        assert_eq!(slugify_alias("a   b"), "a_b");
+        // Already clean
+        assert_eq!(slugify_alias("simple"), "simple");
+        // Empty string
+        assert_eq!(slugify_alias(""), "");
+        // Only special chars
+        assert_eq!(slugify_alias("---"), "");
+        // Mixed case
+        assert_eq!(slugify_alias("CamelCase"), "camelcase");
+    }
+
+    #[test]
+    fn test_entity_slug_uses_alias() {
+        let yaml = r#"
+- id: "1234"
+  alias: "Morning Wake-Up"
+  triggers: []
+  actions: []
+"#;
+        let automations: Vec<Automation> = serde_yaml::from_str(yaml).unwrap();
+        assert_eq!(automations[0].entity_slug(), "morning_wake_up");
+    }
+
+    #[test]
+    fn test_entity_slug_falls_back_to_id() {
+        let yaml = r#"
+- id: "fallback_id"
+  alias: ""
+  triggers: []
+  actions: []
+"#;
+        let automations: Vec<Automation> = serde_yaml::from_str(yaml).unwrap();
+        assert_eq!(automations[0].entity_slug(), "fallback_id");
+    }
+
+    #[test]
+    fn test_entity_slug_missing_alias() {
+        // alias defaults to "" when omitted
+        let yaml = r#"
+- id: "no_alias"
+  triggers: []
+  actions: []
+"#;
+        let automations: Vec<Automation> = serde_yaml::from_str(yaml).unwrap();
+        assert_eq!(automations[0].entity_slug(), "no_alias");
     }
 }

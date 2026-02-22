@@ -58,6 +58,7 @@ async def test_ws_get_services_has_service_names(ws):
     assert "toggle" in result["light"]
 
 
+@pytest.mark.marge_only
 async def test_ws_get_notifications(ws, rest):
     """WS get_notifications returns notification list."""
     resp = await ws.send_command("get_notifications")
@@ -67,6 +68,7 @@ async def test_ws_get_notifications(ws, rest):
 
 # ── Subscribe / Unsubscribe ──────────────────────────────
 
+@pytest.mark.marge_only
 async def test_ws_subscribe_and_receive(ws, rest):
     """WS subscribe_events receives state_changed events."""
     sub_id = await ws.subscribe_events("state_changed")
@@ -140,6 +142,7 @@ async def test_ws_render_template_states(ws, rest):
 
 # ── Persistent Notification via WS ───────────────────────
 
+@pytest.mark.marge_only
 async def test_ws_notification_lifecycle(ws):
     """WS create, list, dismiss notification."""
     # Create

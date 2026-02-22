@@ -27,7 +27,7 @@ async def test_state_set_throughput():
                 f"{BASE}/api/states/sensor.throughput_test_{i}",
                 json=body, headers=HEADERS,
             )
-            assert r.status_code == 200
+            assert r.status_code in (200, 201)
     elapsed = time.monotonic() - start
     print(f"\n  100 state sets: {elapsed:.2f}s ({100/elapsed:.0f}/sec)")
     assert elapsed < 5.0
@@ -50,7 +50,7 @@ async def test_state_get_throughput():
                 f"{BASE}/api/states/sensor.get_throughput_{i}",
                 headers=HEADERS,
             )
-            assert r.status_code == 200
+            assert r.status_code in (200, 201)
     elapsed = time.monotonic() - start
     print(f"\n  100 state gets: {elapsed:.2f}s ({100/elapsed:.0f}/sec)")
     assert elapsed < 5.0
@@ -67,7 +67,7 @@ async def test_concurrent_state_sets():
             for i in range(50)
         ]
         results = await asyncio.gather(*tasks)
-    assert all(r.status_code == 200 for r in results)
+    assert all(r.status_code in (200, 201) for r in results)
 
 
 async def test_health_endpoint_fast():
@@ -76,7 +76,7 @@ async def test_health_endpoint_fast():
         start = time.monotonic()
         r = await c.get(f"{BASE}/api/health")
         elapsed = time.monotonic() - start
-    assert r.status_code == 200
+    assert r.status_code in (200, 201)
     assert elapsed < 0.1, f"Health took {elapsed:.3f}s"
 
 
@@ -98,7 +98,7 @@ async def test_service_call_throughput():
                 json={"entity_id": f"light.svc_throughput_{i}"},
                 headers=HEADERS,
             )
-            assert r.status_code == 200
+            assert r.status_code in (200, 201)
     elapsed = time.monotonic() - start
     print(f"\n  10 service calls: {elapsed:.2f}s ({10/elapsed:.0f}/sec)")
     assert elapsed < 2.0
@@ -114,7 +114,7 @@ async def test_template_render_throughput():
                 json={"template": f"{{{{ {i} * {i} }}}}"},
                 headers=HEADERS,
             )
-            assert r.status_code == 200
+            assert r.status_code in (200, 201)
             assert r.text.strip() == str(i * i)
         elapsed = time.monotonic() - start
     print(f"\n  20 template renders: {elapsed:.2f}s ({20/elapsed:.0f}/sec)")
@@ -130,5 +130,5 @@ async def test_search_throughput():
             headers=HEADERS,
         )
         elapsed = time.monotonic() - start
-    assert r.status_code == 200
+    assert r.status_code in (200, 201)
     assert elapsed < 0.5, f"Search took {elapsed:.3f}s"

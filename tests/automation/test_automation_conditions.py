@@ -18,25 +18,25 @@ pytestmark = pytest.mark.asyncio
 async def test_automation_turn_off(rest):
     """automation.turn_off disables an automation."""
     await rest.call_service("automation", "turn_off", {
-        "entity_id": "automation.morning_wakeup",
+        "entity_id": "automation.morning_wake_up",
     })
-    state = await rest.get_state("automation.morning_wakeup")
+    state = await rest.get_state("automation.morning_wake_up")
     assert state["state"] == "off"
     # Re-enable for other tests
     await rest.call_service("automation", "turn_on", {
-        "entity_id": "automation.morning_wakeup",
+        "entity_id": "automation.morning_wake_up",
     })
 
 
 async def test_automation_turn_on(rest):
     """automation.turn_on enables an automation."""
     await rest.call_service("automation", "turn_off", {
-        "entity_id": "automation.morning_wakeup",
+        "entity_id": "automation.morning_wake_up",
     })
     await rest.call_service("automation", "turn_on", {
-        "entity_id": "automation.morning_wakeup",
+        "entity_id": "automation.morning_wake_up",
     })
-    state = await rest.get_state("automation.morning_wakeup")
+    state = await rest.get_state("automation.morning_wake_up")
     assert state["state"] == "on"
 
 
@@ -46,16 +46,16 @@ async def test_disabled_automation_not_triggered(rest):
     await rest.set_state("sensor.disable_test_target", "before")
     # Disable the automation
     await rest.call_service("automation", "turn_off", {
-        "entity_id": "automation.morning_wakeup",
+        "entity_id": "automation.morning_wake_up",
     })
     # Force trigger — should not execute
     await rest.call_service("automation", "trigger", {
-        "entity_id": "automation.morning_wakeup",
+        "entity_id": "automation.morning_wake_up",
     })
     await asyncio.sleep(0.1)
     # Re-enable
     await rest.call_service("automation", "turn_on", {
-        "entity_id": "automation.morning_wakeup",
+        "entity_id": "automation.morning_wake_up",
     })
 
 
@@ -65,7 +65,7 @@ async def test_trigger_existing_automation(rest):
     """Triggering existing automation returns 200."""
     resp = await rest.client.post(
         f"{rest.base_url}/api/services/automation/trigger",
-        json={"entity_id": "automation.morning_wakeup"},
+        json={"entity_id": "automation.morning_wake_up"},
         headers=rest._headers(),
     )
     assert resp.status_code == 200

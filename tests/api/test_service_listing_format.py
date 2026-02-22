@@ -210,6 +210,7 @@ async def test_services_all_expected_domains_present(rest):
         assert domain in listed_domains, f"Missing domain: {domain}"
 
 
+@pytest.mark.marge_only
 async def test_services_domains_present(rest):
     """Service listing contains core domains (order may vary by implementation)."""
     resp = await rest.client.get(

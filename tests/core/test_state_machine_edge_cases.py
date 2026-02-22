@@ -19,8 +19,8 @@ pytestmark = pytest.mark.asyncio
 @pytest.mark.parametrize("state_val,label", [
     ("", "empty"),
     ("42.5", "numeric"),
-    ("x" * 1000, "long"),
-    ("x" * 10000, "very_long"),
+    pytest.param("x" * 1000, "long", marks=pytest.mark.marge_only),
+    pytest.param("x" * 10000, "very_long", marks=pytest.mark.marge_only),
     ("23°C with wind", "unicode"),
     ("\u6e29\u5ea6", "cjk"),
     ("on/off <test> & 'value'", "special_chars"),

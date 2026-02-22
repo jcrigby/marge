@@ -227,6 +227,7 @@ async def test_ws_call_counter_increment(ws, rest):
 # ── Automation Dispatch ──────────────────────────────────────
 
 
+@pytest.mark.marge_only
 async def test_ws_automation_trigger(ws, rest):
     """WS call_service automation.trigger fires automation."""
     # Both HA and Marge derive entity_id from alias field

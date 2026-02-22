@@ -128,6 +128,7 @@ async def test_group_entity(rest):
     assert len(state["attributes"]["entity_id"]) == 2
 
 
+@pytest.mark.marge_only
 async def test_number_entity_set_value(rest):
     """number entity set_value service."""
     tag = uuid.uuid4().hex[:8]
@@ -145,6 +146,7 @@ async def test_number_entity_set_value(rest):
     assert state["state"] == "75"
 
 
+@pytest.mark.marge_only
 async def test_select_entity_select_option(rest):
     """select entity select_option service."""
     tag = uuid.uuid4().hex[:8]

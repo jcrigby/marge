@@ -22,6 +22,7 @@ async def test_rest_set_ws_read(rest, ws):
     assert found[0]["state"] == "42"
 
 
+@pytest.mark.marge_only
 async def test_ws_service_rest_read(ws, rest):
     """State changed via WS service call readable via REST."""
     await rest.set_state("light.cross_wr", "off")
@@ -35,6 +36,7 @@ async def test_ws_service_rest_read(ws, rest):
     assert state["state"] == "on"
 
 
+@pytest.mark.marge_only
 async def test_rest_service_ws_event(ws, rest):
     """REST service call triggers WS state_changed event."""
     sub = await ws.send_command("subscribe_events")
@@ -46,6 +48,7 @@ async def test_rest_service_ws_event(ws, rest):
     assert event is not None
 
 
+@pytest.mark.marge_only
 async def test_scene_via_rest_ws_verify(rest, ws):
     """Scene activated via REST, verify entity states via WS."""
     # Activate evening scene via REST

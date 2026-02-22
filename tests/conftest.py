@@ -129,13 +129,21 @@ class RESTClient:
 # ── WebSocket Client ──────────────────────────────────────
 
 class WSClient:
-    """HA-compatible WebSocket client for CTS tests."""
+    """HA-compatible WebSocket client for CTS tests.
+
+    On HA, subscription event messages can arrive interleaved with
+    command responses on the same WebSocket.  This client separates
+    them: command/response helpers drain messages until the response
+    matching the expected ``id`` is found, buffering any event messages
+    for later consumption by ``recv_event()``.
+    """
 
     def __init__(self, ws_url: str, token: str = ""):
         self.ws_url = ws_url
         self.token = token
         self.ws = None
         self._msg_id = 0
+        self._event_buffer: list[dict] = []
 
     async def connect(self):
         self.ws = await websockets.connect(self.ws_url, max_size=16 * 1024 * 1024)
@@ -158,6 +166,32 @@ class WSClient:
         self._msg_id += 1
         return self._msg_id
 
+    async def _recv_response(self, msg_id: int, timeout: float = 10.0) -> dict:
+        """Read WS messages until the response matching *msg_id* arrives.
+
+        Any event messages (``type == "event"``) received in the
+        meantime are stashed in ``_event_buffer`` so that
+        ``recv_event()`` can return them later.
+        """
+        deadline = asyncio.get_event_loop().time() + timeout
+        while True:
+            remaining = deadline - asyncio.get_event_loop().time()
+            if remaining <= 0:
+                raise asyncio.TimeoutError(
+                    f"Timed out waiting for response to msg_id={msg_id}"
+                )
+            raw = await asyncio.wait_for(self.ws.recv(), timeout=remaining)
+            msg = json.loads(raw)
+            # Subscription event -- buffer for recv_event()
+            if msg.get("type") == "event":
+                self._event_buffer.append(msg)
+                continue
+            # Response (result/pong) matching our command id
+            if msg.get("id") == msg_id:
+                return msg
+            # Message for a different id -- buffer it so nothing is lost
+            self._event_buffer.append(msg)
+
     async def subscribe_events(self, event_type: str = "state_changed") -> int:
         msg_id = self._next_id()
         await self.ws.send(json.dumps({
@@ -165,9 +199,8 @@ class WSClient:
             "type": "subscribe_events",
             "event_type": event_type,
         }))
-        result = json.loads(await self.ws.recv())
-        assert result["id"] == msg_id
-        assert result["success"] is True
+        result = await self._recv_response(msg_id)
+        assert result.get("success") is True
         return msg_id
 
     async def get_states(self) -> list:
@@ -176,12 +209,14 @@ class WSClient:
             "id": msg_id,
             "type": "get_states",
         }))
-        result = json.loads(await self.ws.recv())
-        assert result["id"] == msg_id
-        assert result["success"] is True
+        result = await self._recv_response(msg_id)
+        assert result.get("success") is True
         return result.get("result", [])
 
     async def recv_event(self, timeout: float = 5.0) -> dict:
+        """Return the next event message, draining the buffer first."""
+        if self._event_buffer:
+            return self._event_buffer.pop(0)
         return json.loads(await asyncio.wait_for(self.ws.recv(), timeout))
 
     async def ping(self) -> bool:
@@ -190,31 +225,48 @@ class WSClient:
             "id": msg_id,
             "type": "ping",
         }))
-        result = json.loads(await self.ws.recv())
+        result = await self._recv_response(msg_id)
         # HA returns type=pong, also accept type=result with success=true
         return result.get("type") == "pong" or result.get("success", False)
 
     async def send_command(self, command: str, **kwargs) -> dict:
-        """Send a generic WS command and return the result."""
+        """Send a generic WS command and return the response matching its id."""
         msg_id = self._next_id()
         payload = {"id": msg_id, "type": command}
         payload.update(kwargs)
         await self.ws.send(json.dumps(payload))
-        result = json.loads(await self.ws.recv())
-        return result
+        return await self._recv_response(msg_id)
 
     async def render_template(self, template: str, timeout: float = 5.0) -> str:
-        """Render a template via WS, handling both HA subscription and Marge request-response styles."""
+        """Render a template, handling both HA subscription and Marge request-response protocols."""
         resp = await self.send_command("render_template", template=template)
         if not resp.get("success", False):
             raise ValueError(f"render_template failed: {resp}")
-        # Marge returns result inline; HA returns null then sends an event
-        if resp.get("result") is not None:
-            return resp["result"]["result"]  # Marge style
-        # HA subscription style: read the follow-up event message
-        raw = await asyncio.wait_for(self.ws.recv(), timeout=timeout)
-        event_msg = json.loads(raw)
-        return event_msg["event"]["result"]
+        # Marge returns result inline; HA returns result=null then sends an event
+        result = resp.get("result")
+        if result is not None:
+            # Marge style: result is {"result": "rendered_value"}
+            if isinstance(result, dict) and "result" in result:
+                return str(result["result"])
+            # Fallback: result is the rendered value directly
+            return str(result)
+        # HA subscription style: the rendered value arrives as a follow-up
+        # event with the same id as the command.
+        deadline = asyncio.get_event_loop().time() + timeout
+        while True:
+            remaining = deadline - asyncio.get_event_loop().time()
+            if remaining <= 0:
+                raise asyncio.TimeoutError(
+                    "Timed out waiting for render_template event"
+                )
+            event = await self.recv_event(timeout=remaining)
+            if event.get("type") == "event" and event.get("id") == resp["id"]:
+                ev_data = event.get("event", {})
+                if isinstance(ev_data, dict) and "result" in ev_data:
+                    return str(ev_data["result"])
+                return str(ev_data)
+            # Not the event we need -- put it back
+            self._event_buffer.insert(0, event)
 
     async def close(self):
         if self.ws:

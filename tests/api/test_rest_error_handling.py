@@ -279,6 +279,7 @@ async def test_template_comparison(rest):
 # --- Service call edge cases ---
 
 
+@pytest.mark.marge_only
 async def test_call_service_unknown_domain(rest):
     """POST /api/services/unknown_domain/turn_on returns 200 (no-op)."""
     tag = uuid.uuid4().hex[:8]
@@ -293,6 +294,7 @@ async def test_call_service_unknown_domain(rest):
     assert resp.status_code == 200
 
 
+@pytest.mark.marge_only
 async def test_nonexistent_service(rest):
     """Calling nonexistent service returns 200 (no-op)."""
     resp = await rest.client.post(
@@ -303,6 +305,7 @@ async def test_nonexistent_service(rest):
     assert resp.status_code == 200
 
 
+@pytest.mark.marge_only
 async def test_service_call_empty_body(rest):
     """POST /api/services/light/turn_on with empty body."""
     resp = await rest.client.post(
@@ -313,6 +316,7 @@ async def test_service_call_empty_body(rest):
     assert resp.status_code == 200
 
 
+@pytest.mark.marge_only
 async def test_service_call_nonexistent_entity(rest):
     """Service call on nonexistent entity handles gracefully."""
     resp = await rest.client.post(
@@ -323,6 +327,7 @@ async def test_service_call_nonexistent_entity(rest):
     assert resp.status_code in [200, 404]
 
 
+@pytest.mark.marge_only
 async def test_service_empty_entity_id_array(rest):
     """Calling a service with empty entity_id array is a no-op."""
     resp = await rest.client.post(
@@ -333,6 +338,7 @@ async def test_service_empty_entity_id_array(rest):
     assert resp.status_code == 200
 
 
+@pytest.mark.marge_only
 async def test_service_call_returns_200(rest):
     """POST /api/services/<domain>/<service> returns 200."""
     tag = uuid.uuid4().hex[:8]
@@ -346,6 +352,7 @@ async def test_service_call_returns_200(rest):
     assert resp.status_code == 200
 
 
+@pytest.mark.marge_only
 async def test_service_call_returns_changed_states(rest):
     """Service call response is a flat list of changed entity states."""
     tag = uuid.uuid4().hex[:8]
@@ -362,6 +369,7 @@ async def test_service_call_returns_changed_states(rest):
         assert all(isinstance(e, dict) for e in data)
 
 
+@pytest.mark.marge_only
 async def test_service_call_returns_json(rest):
     """POST /api/services returns JSON response (dict or list)."""
     tag = uuid.uuid4().hex[:8]
@@ -484,6 +492,7 @@ async def test_set_state_returns_entity_format(rest):
     assert "attributes" in data
 
 
+@pytest.mark.marge_only
 async def test_set_state_preserves_entity_id_case(rest):
     """Entity IDs preserve case exactly as given."""
     tag = uuid.uuid4().hex[:8]
@@ -658,6 +667,7 @@ async def test_ws_unknown_command(ws):
     assert isinstance(error, dict)
 
 
+@pytest.mark.marge_only
 async def test_ws_call_service_missing_domain(ws):
     """WebSocket call_service with empty domain doesn't crash."""
     resp = await ws.send_command("call_service",

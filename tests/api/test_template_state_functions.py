@@ -146,6 +146,7 @@ async def test_is_state_in_template_logic(rest):
 
 # ── Merged from depth: WS-based state function tests ────
 
+@pytest.mark.marge_only
 async def test_ws_states_returns_entity_state(rest, ws):
     """states('entity_id') returns the entity's state string via WS."""
     tag = uuid.uuid4().hex[:8]
@@ -155,12 +156,14 @@ async def test_ws_states_returns_entity_state(rest, ws):
     assert result.strip() == "42"
 
 
+@pytest.mark.marge_only
 async def test_ws_states_unknown_entity(ws):
     """states() returns 'unknown' for non-existent entity via WS."""
     result = await _render_ws(ws, "{{ states('sensor.nonexistent_xyz_99') }}")
     assert result.strip() == "unknown"
 
 
+@pytest.mark.marge_only
 async def test_ws_is_state_true(rest, ws):
     """is_state() returns true when entity matches expected state via WS."""
     tag = uuid.uuid4().hex[:8]
@@ -170,6 +173,7 @@ async def test_ws_is_state_true(rest, ws):
     assert result.strip().lower() == "true"
 
 
+@pytest.mark.marge_only
 async def test_ws_is_state_false(rest, ws):
     """is_state() returns false when entity doesn't match via WS."""
     tag = uuid.uuid4().hex[:8]
@@ -179,12 +183,14 @@ async def test_ws_is_state_false(rest, ws):
     assert result.strip().lower() == "false"
 
 
+@pytest.mark.marge_only
 async def test_ws_is_state_nonexistent(ws):
     """is_state() returns false for non-existent entity via WS."""
     result = await _render_ws(ws, "{{ is_state('sensor.nope_xyz_99', 'on') }}")
     assert result.strip().lower() == "false"
 
 
+@pytest.mark.marge_only
 async def test_ws_state_attr_returns_value(rest, ws):
     """state_attr() returns the attribute value via WS."""
     tag = uuid.uuid4().hex[:8]
@@ -194,6 +200,7 @@ async def test_ws_state_attr_returns_value(rest, ws):
     assert result.strip() == "W"
 
 
+@pytest.mark.marge_only
 async def test_ws_state_attr_friendly_name(rest, ws):
     """state_attr() can read friendly_name via WS."""
     tag = uuid.uuid4().hex[:8]
@@ -203,6 +210,7 @@ async def test_ws_state_attr_friendly_name(rest, ws):
     assert tag in result
 
 
+@pytest.mark.marge_only
 async def test_ws_now_returns_timestamp(ws):
     """now() returns a timestamp-like string via WS."""
     result = await _render_ws(ws, "{{ now() }}")
@@ -212,6 +220,7 @@ async def test_ws_now_returns_timestamp(ws):
     assert "T" in result   # time separator
 
 
+@pytest.mark.marge_only
 async def test_ws_template_conditional(rest, ws):
     """Template conditional based on entity state via WS."""
     tag = uuid.uuid4().hex[:8]
@@ -222,6 +231,7 @@ async def test_ws_template_conditional(rest, ws):
     assert result.strip() == "yes"
 
 
+@pytest.mark.marge_only
 async def test_ws_template_arithmetic(rest, ws):
     """Template with arithmetic on state value via WS."""
     tag = uuid.uuid4().hex[:8]
@@ -232,6 +242,7 @@ async def test_ws_template_arithmetic(rest, ws):
     assert result.strip() == "200"
 
 
+@pytest.mark.marge_only
 async def test_ws_template_float_filter(rest, ws):
     """Template float filter converts state to float via WS."""
     tag = uuid.uuid4().hex[:8]
@@ -242,12 +253,14 @@ async def test_ws_template_float_filter(rest, ws):
     assert "3.1" in result
 
 
+@pytest.mark.marge_only
 async def test_ws_template_default_filter(ws):
     """default filter provides fallback for undefined values via WS."""
     result = await _render_ws(ws, "{{ undefined_var | default('fallback') }}")
     assert result.strip() == "fallback"
 
 
+@pytest.mark.marge_only
 async def test_ws_template_lower_upper(ws):
     """lower and upper filters work via WS."""
     result = await _render_ws(ws, "{{ 'Hello' | lower }}")

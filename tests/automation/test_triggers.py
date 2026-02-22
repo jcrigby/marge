@@ -77,7 +77,7 @@ async def test_security_alert_blocked_when_not_armed_away():
     await asyncio.sleep(0.2)
 
     # No side effects; automation entity still on
-    auto = await get_state("automation.security_alert")
+    auto = await get_state("automation.security_alert_motion_while_armed_away")
     assert auto["state"] == "on"
 
 
@@ -151,8 +151,8 @@ async def test_goodnight_event_arms_alarm_night():
 # ── Force trigger via automation.trigger service ──────────────
 
 @pytest.mark.asyncio
-async def test_force_trigger_morning_wakeup():
-    """POST /api/services/automation/trigger for morning_wakeup should run actions."""
+async def test_force_trigger_morning_wake_up():
+    """POST /api/services/automation/trigger for morning_wake_up should run actions."""
     # Preconditions
     await set_state("light.bedroom", "off")
     await set_state("climate.thermostat", "heat", {"temperature": 60})
@@ -160,7 +160,7 @@ async def test_force_trigger_morning_wakeup():
     await asyncio.sleep(0.1)
 
     # Force trigger (bypasses the time trigger)
-    await call_service("automation", "trigger", {"entity_id": "automation.morning_wakeup"})
+    await call_service("automation", "trigger", {"entity_id": "automation.morning_wake_up"})
     await asyncio.sleep(0.2)
 
     bed = await get_state("light.bedroom")
@@ -176,8 +176,8 @@ async def test_force_trigger_morning_wakeup():
 
 
 @pytest.mark.asyncio
-async def test_force_trigger_sunset_lights():
-    """Force-trigger sunset_lights turns on exterior + living room lights."""
+async def test_force_trigger_sunset_exterior_and_evening_scene():
+    """Force-trigger sunset_exterior_and_evening_scene turns on exterior + living room lights."""
     await set_state("light.porch", "off")
     await set_state("light.pathway", "off")
     await set_state("light.living_room_main", "off")
@@ -186,7 +186,7 @@ async def test_force_trigger_sunset_lights():
     await set_state("light.living_room_floor", "off")
     await asyncio.sleep(0.1)
 
-    await call_service("automation", "trigger", {"entity_id": "automation.sunset_lights"})
+    await call_service("automation", "trigger", {"entity_id": "automation.sunset_exterior_and_evening_scene"})
     await asyncio.sleep(0.2)
 
     porch = await get_state("light.porch")
@@ -219,7 +219,7 @@ async def test_lock_verification_fires_when_door_unlocked():
 
     # The automation creates a notification (not directly testable via state),
     # but at minimum it should not crash and the automation should still be 'on'
-    auto = await get_state("automation.lock_verification")
+    auto = await get_state("automation.lock_verification_after_goodnight")
     assert auto["state"] == "on"
 
 
@@ -235,7 +235,7 @@ async def test_lock_verification_blocked_when_all_locked():
     await asyncio.sleep(0.2)
 
     # No crash, automation still on
-    auto = await get_state("automation.lock_verification")
+    auto = await get_state("automation.lock_verification_after_goodnight")
     assert auto["state"] == "on"
 
 

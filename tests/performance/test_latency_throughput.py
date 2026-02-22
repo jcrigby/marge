@@ -29,7 +29,7 @@ async def test_state_set_latency():
             headers=HEADERS,
         )
         elapsed = time.monotonic() - start
-    assert r.status_code == 200
+    assert r.status_code in (200, 201)
     assert elapsed < 0.05  # 50ms
 
 
@@ -48,7 +48,7 @@ async def test_state_get_latency():
             headers=HEADERS,
         )
         elapsed = time.monotonic() - start
-    assert r.status_code == 200
+    assert r.status_code in (200, 201)
     assert elapsed < 0.05
 
 
@@ -63,7 +63,7 @@ async def test_sequential_state_throughput():
                 json={"state": str(i)},
                 headers=HEADERS,
             )
-            assert r.status_code == 200
+            assert r.status_code in (200, 201)
         elapsed = time.monotonic() - start
     assert elapsed < 5.0  # 20+ ops/sec
 
@@ -106,7 +106,7 @@ async def test_service_call_latency():
             headers=HEADERS,
         )
         elapsed = time.monotonic() - start
-    assert r.status_code == 200
+    assert r.status_code in (200, 201)
     assert elapsed < 0.1
 
 
@@ -116,7 +116,7 @@ async def test_health_endpoint_latency():
         start = time.monotonic()
         r = await c.get(f"{BASE}/api/health", headers=HEADERS)
         elapsed = time.monotonic() - start
-    assert r.status_code == 200
+    assert r.status_code in (200, 201)
     assert elapsed < 0.02
 
 
@@ -126,7 +126,7 @@ async def test_config_endpoint_latency():
         start = time.monotonic()
         r = await c.get(f"{BASE}/api/config", headers=HEADERS)
         elapsed = time.monotonic() - start
-    assert r.status_code == 200
+    assert r.status_code in (200, 201)
     assert elapsed < 0.02
 
 
@@ -140,7 +140,7 @@ async def test_search_latency():
             headers=HEADERS,
         )
         elapsed = time.monotonic() - start
-    assert r.status_code == 200
+    assert r.status_code in (200, 201)
     assert elapsed < 0.1
 
 
@@ -154,5 +154,5 @@ async def test_template_render_latency():
             headers=HEADERS,
         )
         elapsed = time.monotonic() - start
-    assert r.status_code == 200
+    assert r.status_code in (200, 201)
     assert elapsed < 0.05

@@ -135,6 +135,7 @@ async def test_set_state_empty_string(rest):
     assert state["state"] == ""
 
 
+@pytest.mark.marge_only
 async def test_set_state_long_value(rest):
     """Long state value (1000 chars) works."""
     tag = uuid.uuid4().hex[:8]

@@ -42,14 +42,14 @@ async def test_non_matching_state_no_trigger(rest):
 
 async def test_automation_entity_tracks_state(rest):
     """Automation entities reflect on/off state."""
-    state = await rest.get_state("automation.smoke_co_emergency")
+    state = await rest.get_state("automation.smoke_co_emergency_response")
     assert state["state"] in ["on", "off"]
     assert "friendly_name" in state["attributes"]
 
 
 async def test_trigger_updates_last_triggered(rest):
     """Triggering updates last_triggered attribute."""
-    eid = "automation.smoke_co_emergency"
+    eid = "automation.smoke_co_emergency_response"
 
     await rest.client.post(
         f"{rest.base_url}/api/services/automation/trigger",
@@ -65,7 +65,7 @@ async def test_trigger_updates_last_triggered(rest):
 
 async def test_disabled_automation_state(rest):
     """Disabled automation has state 'off'."""
-    eid = "automation.smoke_co_emergency"
+    eid = "automation.smoke_co_emergency_response"
 
     await rest.client.post(
         f"{rest.base_url}/api/services/automation/turn_off",
@@ -97,7 +97,7 @@ async def test_multiple_automations_exist(rest):
 
 async def test_automation_friendly_name(rest):
     """Automation entities have friendly_name from alias."""
-    state = await rest.get_state("automation.morning_wakeup")
+    state = await rest.get_state("automation.morning_wake_up")
     assert "friendly_name" in state["attributes"]
     assert len(state["attributes"]["friendly_name"]) > 0
 

@@ -58,6 +58,7 @@ async def test_concurrent_same_entity(rest):
     assert int(state["state"]) in range(20)
 
 
+@pytest.mark.marge_only
 async def test_concurrent_service_calls(rest):
     """Concurrent service calls all complete."""
     tag = uuid.uuid4().hex[:8]

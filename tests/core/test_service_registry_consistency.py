@@ -90,6 +90,7 @@ async def test_service_entry_has_description(rest):
             assert "description" in svc_info, f"Missing description for {entry['domain']}.{svc_name}"
 
 
+@pytest.mark.marge_only
 async def test_fallback_turn_on_unknown_domain(rest):
     """Unknown domain with turn_on falls back to generic handler."""
     tag = uuid.uuid4().hex[:8]
@@ -102,6 +103,7 @@ async def test_fallback_turn_on_unknown_domain(rest):
     assert state["state"] == "on"
 
 
+@pytest.mark.marge_only
 async def test_fallback_turn_off_unknown_domain(rest):
     """Unknown domain with turn_off falls back to generic handler."""
     tag = uuid.uuid4().hex[:8]
@@ -114,6 +116,7 @@ async def test_fallback_turn_off_unknown_domain(rest):
     assert state["state"] == "off"
 
 
+@pytest.mark.marge_only
 async def test_fallback_toggle_unknown_domain(rest):
     """Unknown domain with toggle falls back to generic handler."""
     tag = uuid.uuid4().hex[:8]
@@ -126,6 +129,7 @@ async def test_fallback_toggle_unknown_domain(rest):
     assert state["state"] == "off"
 
 
+@pytest.mark.marge_only
 async def test_unknown_service_no_crash(rest):
     """Unknown service on unknown domain returns 200 (no crash)."""
     tag = uuid.uuid4().hex[:8]
@@ -137,6 +141,7 @@ async def test_unknown_service_no_crash(rest):
     assert resp.status_code == 200
 
 
+@pytest.mark.marge_only
 async def test_service_call_empty_entity_list(rest):
     """Service call with no entity_id returns 200 with empty result."""
     resp = await rest.client.post(
@@ -162,6 +167,7 @@ async def test_rest_and_ws_services_match(rest, ws):
     assert rest_domains == ws_domains
 
 
+@pytest.mark.marge_only
 async def test_services_have_multiple_domains(rest):
     """Service listing contains multiple domains (order may vary)."""
     resp = await rest.client.get(

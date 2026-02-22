@@ -11,6 +11,7 @@ pytestmark = pytest.mark.asyncio
 
 # -- Water Heater --
 
+@pytest.mark.marge_only
 async def test_water_heater_set_temperature(rest):
     """water_heater.set_temperature sets temperature attribute."""
     await rest.set_state("water_heater.main", "eco")
@@ -22,6 +23,7 @@ async def test_water_heater_set_temperature(rest):
     assert state["attributes"]["temperature"] == 120
 
 
+@pytest.mark.marge_only
 async def test_water_heater_set_operation_mode(rest):
     """water_heater.set_operation_mode sets state to mode."""
     await rest.set_state("water_heater.main", "eco")
@@ -33,6 +35,7 @@ async def test_water_heater_set_operation_mode(rest):
     assert state["state"] == "performance"
 
 
+@pytest.mark.marge_only
 async def test_water_heater_turn_on(rest):
     """water_heater.turn_on sets state to eco."""
     await rest.set_state("water_heater.main", "off")
@@ -43,6 +46,7 @@ async def test_water_heater_turn_on(rest):
     assert state["state"] == "eco"
 
 
+@pytest.mark.marge_only
 async def test_water_heater_turn_off(rest):
     """water_heater.turn_off sets state to off."""
     await rest.set_state("water_heater.main", "eco")
@@ -55,6 +59,7 @@ async def test_water_heater_turn_off(rest):
 
 # -- Lawn Mower --
 
+@pytest.mark.marge_only
 async def test_lawn_mower_start(rest):
     """lawn_mower.start_mowing sets state to mowing."""
     await rest.set_state("lawn_mower.backyard", "docked")
@@ -65,6 +70,7 @@ async def test_lawn_mower_start(rest):
     assert state["state"] == "mowing"
 
 
+@pytest.mark.marge_only
 async def test_lawn_mower_pause(rest):
     """lawn_mower.pause sets state to paused."""
     await rest.set_state("lawn_mower.backyard", "mowing")
@@ -75,6 +81,7 @@ async def test_lawn_mower_pause(rest):
     assert state["state"] == "paused"
 
 
+@pytest.mark.marge_only
 async def test_lawn_mower_dock(rest):
     """lawn_mower.dock sets state to docked."""
     await rest.set_state("lawn_mower.backyard", "mowing")
@@ -87,6 +94,7 @@ async def test_lawn_mower_dock(rest):
 
 # -- Remote --
 
+@pytest.mark.marge_only
 async def test_remote_turn_on(rest):
     """remote.turn_on sets state to on."""
     await rest.set_state("remote.tv_remote", "off")
@@ -97,6 +105,7 @@ async def test_remote_turn_on(rest):
     assert state["state"] == "on"
 
 
+@pytest.mark.marge_only
 async def test_remote_turn_off(rest):
     """remote.turn_off sets state to off."""
     await rest.set_state("remote.tv_remote", "on")
@@ -107,6 +116,7 @@ async def test_remote_turn_off(rest):
     assert state["state"] == "off"
 
 
+@pytest.mark.marge_only
 async def test_remote_send_command(rest):
     """remote.send_command stores last_command attribute."""
     await rest.set_state("remote.tv_remote", "on")

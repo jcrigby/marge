@@ -42,7 +42,7 @@ async def set_state(entity_id: str, state: str, attrs=None):
     async with httpx.AsyncClient() as c:
         body = {"state": state, "attributes": attrs or {}}
         r = await c.post(f"{BASE}/api/states/{entity_id}", json=body, headers=HEADERS)
-        assert r.status_code == 200
+        assert r.status_code in (200, 201)
 
 
 async def test_mqtt_sensor_state_update():

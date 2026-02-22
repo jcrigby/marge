@@ -298,6 +298,7 @@ async def test_discovery_friendly_name_from_name():
 # ── Merged from test_discovery_removal.py ─────────────
 
 
+@pytest.mark.marge_only
 @pytest.mark.asyncio
 async def test_discovery_create_then_remove():
     """Empty discovery payload removes the entity."""
@@ -347,6 +348,7 @@ async def test_discovery_removal_idempotent():
     assert state is not None
 
 
+@pytest.mark.marge_only
 @pytest.mark.asyncio
 async def test_discovery_recreate_after_removal():
     """Entity can be recreated after removal."""

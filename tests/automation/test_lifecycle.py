@@ -24,8 +24,8 @@ async def test_list_automations(rest):
     assert isinstance(autos, list)
     assert len(autos) >= 6
     ids = [a["id"] for a in autos]
-    assert "morning_wakeup" in ids
-    assert "sunset_lights" in ids
+    assert "morning_wake_up" in ids
+    assert "sunset_exterior_and_evening_scene" in ids
     assert "goodnight_routine" in ids
 
 
@@ -37,7 +37,7 @@ async def test_automation_info_fields(rest):
         headers=rest._headers(),
     )
     autos = resp.json()
-    morning = next(a for a in autos if a["id"] == "morning_wakeup")
+    morning = next(a for a in autos if a["id"] == "morning_wake_up")
     assert "alias" in morning
     assert "mode" in morning
     assert "trigger_count" in morning
@@ -51,9 +51,9 @@ async def test_automation_info_fields(rest):
 async def test_automation_disable(rest):
     """automation.turn_off disables an automation."""
     await rest.call_service("automation", "turn_off", {
-        "entity_id": "automation.morning_wakeup",
+        "entity_id": "automation.morning_wake_up",
     })
-    state = await rest.get_state("automation.morning_wakeup")
+    state = await rest.get_state("automation.morning_wake_up")
     assert state is not None
     assert state["state"] == "off"
 
@@ -62,13 +62,13 @@ async def test_automation_enable(rest):
     """automation.turn_on re-enables an automation."""
     # Ensure disabled first
     await rest.call_service("automation", "turn_off", {
-        "entity_id": "automation.morning_wakeup",
+        "entity_id": "automation.morning_wake_up",
     })
     # Re-enable
     await rest.call_service("automation", "turn_on", {
-        "entity_id": "automation.morning_wakeup",
+        "entity_id": "automation.morning_wake_up",
     })
-    state = await rest.get_state("automation.morning_wakeup")
+    state = await rest.get_state("automation.morning_wake_up")
     assert state is not None
     assert state["state"] == "on"
 
@@ -77,23 +77,23 @@ async def test_automation_toggle(rest):
     """automation.toggle flips the enabled state."""
     # Start from known on state
     await rest.call_service("automation", "turn_on", {
-        "entity_id": "automation.morning_wakeup",
+        "entity_id": "automation.morning_wake_up",
     })
-    state_before = await rest.get_state("automation.morning_wakeup")
+    state_before = await rest.get_state("automation.morning_wake_up")
     assert state_before["state"] == "on"
 
     # Toggle off
     await rest.call_service("automation", "toggle", {
-        "entity_id": "automation.morning_wakeup",
+        "entity_id": "automation.morning_wake_up",
     })
-    state_after = await rest.get_state("automation.morning_wakeup")
+    state_after = await rest.get_state("automation.morning_wake_up")
     assert state_after["state"] == "off"
 
     # Toggle back on
     await rest.call_service("automation", "toggle", {
-        "entity_id": "automation.morning_wakeup",
+        "entity_id": "automation.morning_wake_up",
     })
-    state_restored = await rest.get_state("automation.morning_wakeup")
+    state_restored = await rest.get_state("automation.morning_wake_up")
     assert state_restored["state"] == "on"
 
 
@@ -162,7 +162,7 @@ async def test_force_trigger_sets_last_triggered(rest):
 
     # Ensure enabled
     await rest.call_service("automation", "turn_on", {
-        "entity_id": "automation.morning_wakeup",
+        "entity_id": "automation.morning_wake_up",
     })
 
     # Set preconditions
@@ -172,7 +172,7 @@ async def test_force_trigger_sets_last_triggered(rest):
 
     # Force trigger
     await rest.call_service("automation", "trigger", {
-        "entity_id": "automation.morning_wakeup",
+        "entity_id": "automation.morning_wake_up",
     })
     await asyncio.sleep(0.2)
 
@@ -182,7 +182,7 @@ async def test_force_trigger_sets_last_triggered(rest):
         headers=rest._headers(),
     )
     autos = resp.json()
-    morning = next(a for a in autos if a["id"] == "morning_wakeup")
+    morning = next(a for a in autos if a["id"] == "morning_wake_up")
     assert morning["last_triggered"] is not None
     assert morning["total_triggers"] >= 1
 
@@ -198,7 +198,7 @@ async def test_trigger_count_increments(rest):
         headers=rest._headers(),
     )
     autos = resp.json()
-    morning = next(a for a in autos if a["id"] == "morning_wakeup")
+    morning = next(a for a in autos if a["id"] == "morning_wake_up")
     count_before = morning["total_triggers"]
 
     # Set preconditions and trigger
@@ -207,7 +207,7 @@ async def test_trigger_count_increments(rest):
     await asyncio.sleep(0.1)
 
     await rest.call_service("automation", "trigger", {
-        "entity_id": "automation.morning_wakeup",
+        "entity_id": "automation.morning_wake_up",
     })
     await asyncio.sleep(0.2)
 
@@ -217,5 +217,5 @@ async def test_trigger_count_increments(rest):
         headers=rest._headers(),
     )
     autos = resp.json()
-    morning = next(a for a in autos if a["id"] == "morning_wakeup")
+    morning = next(a for a in autos if a["id"] == "morning_wake_up")
     assert morning["total_triggers"] > count_before
