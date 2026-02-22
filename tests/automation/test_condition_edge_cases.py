@@ -21,7 +21,7 @@ async def test_disabled_automation_no_trigger(rest, ws):
         "call_service",
         domain="automation",
         service="turn_off",
-        service_data={"entity_id": "automation.smoke_co_emergency"},
+        service_data={"entity_id": "automation.smoke_co_emergency_response"},
     )
     await asyncio.sleep(0.1)
 
@@ -39,7 +39,7 @@ async def test_disabled_automation_no_trigger(rest, ws):
         "call_service",
         domain="automation",
         service="turn_on",
-        service_data={"entity_id": "automation.smoke_co_emergency"},
+        service_data={"entity_id": "automation.smoke_co_emergency_response"},
     )
 
 
@@ -49,26 +49,27 @@ async def test_toggle_automation_twice_re_enables(rest, ws):
         "call_service",
         domain="automation",
         service="toggle",
-        service_data={"entity_id": "automation.smoke_co_emergency"},
+        service_data={"entity_id": "automation.smoke_co_emergency_response"},
     )
     await asyncio.sleep(0.1)
-    state = await rest.get_state("automation.smoke_co_emergency")
+    state = await rest.get_state("automation.smoke_co_emergency_response")
     first_state = state["state"]
 
     await ws.send_command(
         "call_service",
         domain="automation",
         service="toggle",
-        service_data={"entity_id": "automation.smoke_co_emergency"},
+        service_data={"entity_id": "automation.smoke_co_emergency_response"},
     )
     await asyncio.sleep(0.1)
-    state = await rest.get_state("automation.smoke_co_emergency")
+    state = await rest.get_state("automation.smoke_co_emergency_response")
     # Should be back to original
     assert state["state"] != first_state or state["state"] == "on"
 
 
 # ── Force Trigger via WS ────────────────────────────────
 
+@pytest.mark.marge_only
 async def test_ws_force_trigger(ws, rest):
     """Force triggering via WS call_service works."""
     await rest.set_state("lock.front_door", "locked")
@@ -76,7 +77,7 @@ async def test_ws_force_trigger(ws, rest):
         "call_service",
         domain="automation",
         service="trigger",
-        service_data={"entity_id": "automation.smoke_co_emergency"},
+        service_data={"entity_id": "automation.smoke_co_emergency_response"},
     )
     assert result["success"] is True
     await asyncio.sleep(0.3)
@@ -86,6 +87,7 @@ async def test_ws_force_trigger(ws, rest):
 
 # ── Scene via WS ────────────────────────────────────────
 
+@pytest.mark.marge_only
 async def test_ws_scene_turn_on(ws, rest):
     """Scene activated via WS call_service."""
     await rest.set_state("light.living_room_main", "off")
@@ -103,6 +105,7 @@ async def test_ws_scene_turn_on(ws, rest):
 
 # ── Service Call via WS ─────────────────────────────────
 
+@pytest.mark.marge_only
 async def test_ws_service_call_standard(ws, rest):
     """Standard service call via WS uses registry."""
     await rest.set_state("light.ws_cond_test", "off")
@@ -117,6 +120,7 @@ async def test_ws_service_call_standard(ws, rest):
     assert state["state"] == "on"
 
 
+@pytest.mark.marge_only
 async def test_ws_service_call_with_target(ws, rest):
     """WS service call with target.entity_id pattern."""
     await rest.set_state("switch.ws_target_test", "off")
@@ -132,6 +136,7 @@ async def test_ws_service_call_with_target(ws, rest):
     assert state["state"] == "on"
 
 
+@pytest.mark.marge_only
 async def test_ws_service_call_multiple_entities(ws, rest):
     """WS service call with array of entity_ids."""
     await rest.set_state("light.ws_multi_a", "off")
@@ -151,6 +156,7 @@ async def test_ws_service_call_multiple_entities(ws, rest):
 
 # ── Notification CRUD via WS ────────────────────────────
 
+@pytest.mark.marge_only
 async def test_ws_notification_create_and_list(ws):
     """Create notification via WS, then list it."""
     await ws.send_command(

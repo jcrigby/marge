@@ -14,16 +14,16 @@ pytestmark = pytest.mark.asyncio
 async def test_automation_disable_sets_off(rest):
     """Disabling automation sets entity state to 'off'."""
     await rest.call_service("automation", "turn_off", {
-        "entity_id": "automation.smoke_co_emergency"
+        "entity_id": "automation.smoke_co_emergency_response"
     })
-    state = await rest.get_state("automation.smoke_co_emergency")
+    state = await rest.get_state("automation.smoke_co_emergency_response")
     assert state["state"] == "off"
 
     # Re-enable
     await rest.call_service("automation", "turn_on", {
-        "entity_id": "automation.smoke_co_emergency"
+        "entity_id": "automation.smoke_co_emergency_response"
     })
-    state = await rest.get_state("automation.smoke_co_emergency")
+    state = await rest.get_state("automation.smoke_co_emergency_response")
     assert state["state"] == "on"
 
 
@@ -34,46 +34,48 @@ async def test_force_trigger_executes_actions(rest):
     # Set up a known starting state for the automation's targets
     await rest.set_state("binary_sensor.smoke_detector", "off")
     await rest.call_service("automation", "trigger", {
-        "entity_id": "automation.smoke_co_emergency"
+        "entity_id": "automation.smoke_co_emergency_response"
     })
     await asyncio.sleep(0.3)
     # The trigger count should increase
-    state = await rest.get_state("automation.smoke_co_emergency")
+    state = await rest.get_state("automation.smoke_co_emergency_response")
     assert state is not None
 
 
 async def test_force_trigger_records_last_triggered(rest):
     """Force trigger updates last_triggered attribute."""
     await rest.call_service("automation", "trigger", {
-        "entity_id": "automation.smoke_co_emergency"
+        "entity_id": "automation.smoke_co_emergency_response"
     })
     await asyncio.sleep(0.2)
-    state = await rest.get_state("automation.smoke_co_emergency")
+    state = await rest.get_state("automation.smoke_co_emergency_response")
     assert "last_triggered" in state["attributes"]
     assert len(state["attributes"]["last_triggered"]) > 0
 
 
+@pytest.mark.marge_only
 async def test_force_trigger_increments_count(rest):
     """Force trigger increments current trigger count."""
-    s1 = await rest.get_state("automation.smoke_co_emergency")
+    s1 = await rest.get_state("automation.smoke_co_emergency_response")
     count_before = s1["attributes"].get("current", 0)
 
     await rest.call_service("automation", "trigger", {
-        "entity_id": "automation.smoke_co_emergency"
+        "entity_id": "automation.smoke_co_emergency_response"
     })
     await asyncio.sleep(0.2)
 
-    s2 = await rest.get_state("automation.smoke_co_emergency")
+    s2 = await rest.get_state("automation.smoke_co_emergency_response")
     count_after = s2["attributes"].get("current", 0)
     assert count_after > count_before
 
 
 # ── Automation Reload ────────────────────────────────────
 
+@pytest.mark.marge_only
 async def test_reload_preserves_trigger_counts(rest):
     """Reloading does not reset trigger counts."""
     # Get current count
-    s1 = await rest.get_state("automation.smoke_co_emergency")
+    s1 = await rest.get_state("automation.smoke_co_emergency_response")
     count = s1["attributes"].get("current", 0)
 
     resp = await rest.client.post(
@@ -83,7 +85,7 @@ async def test_reload_preserves_trigger_counts(rest):
     )
     assert resp.status_code == 200
 
-    s2 = await rest.get_state("automation.smoke_co_emergency")
+    s2 = await rest.get_state("automation.smoke_co_emergency_response")
     # Count should be preserved (>= because other tests may trigger)
     assert s2["attributes"].get("current", 0) >= count
 
@@ -144,7 +146,7 @@ async def test_state_trigger_fires_automation(rest):
     await asyncio.sleep(0.5)
 
     # Check the automation was triggered (last_triggered updated)
-    state = await rest.get_state("automation.smoke_co_emergency")
+    state = await rest.get_state("automation.smoke_co_emergency_response")
     assert "last_triggered" in state["attributes"]
 
 

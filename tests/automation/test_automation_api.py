@@ -129,24 +129,25 @@ async def test_trigger_automation_rest(rest):
     """POST /api/services/automation/trigger fires automation."""
     resp = await rest.client.post(
         f"{rest.base_url}/api/services/automation/trigger",
-        json={"entity_id": "automation.smoke_co_emergency"},
+        json={"entity_id": "automation.smoke_co_emergency_response"},
         headers=rest._headers(),
     )
     assert resp.status_code == 200
 
 
+@pytest.mark.marge_only
 async def test_trigger_increments_count(rest):
     """Triggering automation increments current count."""
-    state1 = await rest.get_state("automation.smoke_co_emergency")
+    state1 = await rest.get_state("automation.smoke_co_emergency_response")
     count1 = int(state1["attributes"].get("current", 0))
 
     await rest.client.post(
         f"{rest.base_url}/api/services/automation/trigger",
-        json={"entity_id": "automation.smoke_co_emergency"},
+        json={"entity_id": "automation.smoke_co_emergency_response"},
         headers=rest._headers(),
     )
 
-    state2 = await rest.get_state("automation.smoke_co_emergency")
+    state2 = await rest.get_state("automation.smoke_co_emergency_response")
     count2 = int(state2["attributes"].get("current", 0))
     assert count2 > count1
 
@@ -155,11 +156,11 @@ async def test_automation_has_last_triggered(rest):
     """Triggered automation has last_triggered attribute."""
     await rest.client.post(
         f"{rest.base_url}/api/services/automation/trigger",
-        json={"entity_id": "automation.smoke_co_emergency"},
+        json={"entity_id": "automation.smoke_co_emergency_response"},
         headers=rest._headers(),
     )
 
-    state = await rest.get_state("automation.smoke_co_emergency")
+    state = await rest.get_state("automation.smoke_co_emergency_response")
     lt = state["attributes"].get("last_triggered", "")
     assert len(lt) > 0
     assert "T" in lt
@@ -173,7 +174,7 @@ async def test_trigger_ws(ws):
         "call_service",
         domain="automation",
         service="trigger",
-        service_data={"entity_id": "automation.smoke_co_emergency"},
+        service_data={"entity_id": "automation.smoke_co_emergency_response"},
     )
     assert resp.get("success", False) is True
 
@@ -182,7 +183,7 @@ async def test_trigger_ws(ws):
 
 async def test_automation_turn_off_on_cycle(rest):
     """Automation can be turned off and back on."""
-    eid = "automation.smoke_co_emergency"
+    eid = "automation.smoke_co_emergency_response"
 
     await rest.client.post(
         f"{rest.base_url}/api/services/automation/turn_off",
@@ -201,9 +202,10 @@ async def test_automation_turn_off_on_cycle(rest):
     assert state_on["state"] == "on"
 
 
+@pytest.mark.marge_only
 async def test_force_trigger_bypasses_disabled(rest):
     """Force trigger fires even when automation is off."""
-    eid = "automation.smoke_co_emergency"
+    eid = "automation.smoke_co_emergency_response"
 
     await rest.client.post(
         f"{rest.base_url}/api/services/automation/turn_on",
@@ -251,16 +253,18 @@ async def test_automation_ids_unique(rest):
     assert len(ids) == len(set(ids))
 
 
+@pytest.mark.marge_only
 async def test_trigger_without_prefix(rest):
     """Trigger without 'automation.' prefix also works."""
     resp = await rest.client.post(
         f"{rest.base_url}/api/services/automation/trigger",
-        json={"entity_id": "morning_wakeup"},
+        json={"entity_id": "morning_wake_up"},
         headers=rest._headers(),
     )
     assert resp.status_code == 200
 
 
+@pytest.mark.marge_only
 async def test_trigger_empty_entity_id(rest):
     """Trigger with empty entity_id returns 200 (no-op)."""
     resp = await rest.client.post(
