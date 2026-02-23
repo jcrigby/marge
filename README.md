@@ -104,6 +104,7 @@ See [docs/architecture.md](docs/architecture.md) for the full architecture docum
 | [Theory of Ops](docs/marge-theory-of-ops.md) | Operational concept, deployment, failure modes |
 | [Phase Tracker](docs/phase-tracker.md) | Development roadmap and completion status |
 | [CTS Spec](docs/marge-conformance-tests.md) | Conformance test suite design |
+| [Pi SD Card Setup](docs/plan-pi-setup-sd.md) | Automated Pi SD card provisioning plan |
 
 ## Stats
 
