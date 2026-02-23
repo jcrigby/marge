@@ -117,4 +117,4 @@ See [docs/architecture.md](docs/architecture.md) for the full architecture docum
 
 ## License
 
-This is an Innovation Week project. Use it however you want.
+MIT — see [LICENSE](LICENSE).
