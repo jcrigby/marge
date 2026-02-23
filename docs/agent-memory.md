@@ -14,14 +14,15 @@
 - Scene engine: 2 scenes (evening, goodnight)
 
 ## Key Files
-- `marge-core/src/` — api.rs(~2100), auth.rs(~240), automation.rs(1220), discovery.rs(830), mqtt.rs(229), recorder.rs(~875), scene.rs(87), services.rs(851), state.rs(169), template.rs(506), websocket.rs(~780), main.rs(~400), plugins.rs(~630), lua_plugins.rs(680), plugin_orchestrator.rs(116)
+- `marge-core/src/` — api.rs(~2100), auth.rs(~240), automation.rs(~1350), discovery.rs(830), mqtt.rs(229), recorder.rs(~875), scene.rs(87), services.rs(851), state.rs(169), template.rs(506), websocket.rs(~1000), main.rs(~400), plugins.rs(~630), lua_plugins.rs(680), plugin_orchestrator.rs(116)
 - `marge-core/src/integrations/` — zigbee2mqtt.rs(417), zwave.rs(302), tasmota.rs(344), esphome.rs(269), weather.rs(212), shelly.rs(470), hue.rs(676), cast.rs, sonos.rs, matter.rs(460)
 - `marge-ui/src/` — App.tsx(~960), IntegrationManager.tsx(~980), AutomationEditor.tsx(487), LoginPage.tsx(74), EntityCard.tsx(836), EntityDetail.tsx(815), + 12 more
-- `tests/` — 1654 CTS tests across 125 test files (pruned from 4854/411)
+- `tests/` — 1729 CTS tests across 125 test files (pruned from 4854/411), 120+ files tagged marge_only
 - `examples/plugins/` — joke-sensor/ (WASM, 353 LOC Rust), joke-sensor.lua (35 LOC), motion-light.lua (26 LOC)
 - `virtual-devices/zigbee2mqtt/` — devices.py(485), simulator.py(500) — 37 device z2m simulator (paho-mqtt v2)
 - `virtual-devices/shelly/` — simulator.py(225) — 2 Gen2 Shelly devices (FastAPI, port 8180)
 - `virtual-devices/hue/` — simulator.py(280) — Hue bridge with 3 lights + 2 sensors (FastAPI, port 8181)
+- `scenario-driver/driver.py` — unified automation slug map (no HA/Marge branching since entity IDs match)
 
 ## Phase Tracker
 See [phase-tracker.md](phase-tracker.md) for detailed status.
@@ -44,6 +45,7 @@ See [phase-tracker.md](phase-tracker.md) for detailed status.
 - **rumqttd 0.19**: No Default for ServerSettings, `broker.start()` is blocking (use spawn_blocking)
 - **Entity count inflation**: CTS performance tests create 1000 test entities. Force-recreate for clean metrics
 - **Cargo build**: Must run from `marge-core/` directory, not project root
+- **Host Rust 1.60 too old**: Cargo.lock v4 requires newer Cargo. Cannot build locally — all builds must go through Docker (`docker compose build --no-cache marge`). Dockerfile uses `rust:1.93`
 - **Recorder coalesce**: 100ms write batching — tests need 150ms+ sleep between writes for history verification
 - **conftest.py API**: `rest.base_url` (not `.base`), `ws.send_command(cmd, **kwargs)` (not positional dict)
 - **Jinja2 precedence**: `{{ 10 / 3 | round(2) }}` applies round to 3 first; need parens `{{ (10 / 3) | round(2) }}`
