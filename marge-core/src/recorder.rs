@@ -217,10 +217,25 @@ fn writer_loop(
             batch.clear();
         }
 
-        // Periodic purge
+        // Periodic purge + WAL checkpoint
         if last_purge.elapsed() >= purge_interval {
             if let Err(e) = purge_history(&conn, retention_days) {
                 tracing::warn!("Recorder: purge error: {}", e);
+            }
+            // WAL checkpoint (TRUNCATE mode = reset WAL file to zero size)
+            match conn.query_row("PRAGMA wal_checkpoint(TRUNCATE)", [], |row| {
+                let busy: i32 = row.get(0)?;
+                let log: i32 = row.get(1)?;
+                let checkpointed: i32 = row.get(2)?;
+                Ok((busy, log, checkpointed))
+            }) {
+                Ok((busy, log, checkpointed)) => {
+                    tracing::info!(
+                        "Recorder: WAL checkpoint — busy={}, log={}, checkpointed={}",
+                        busy, log, checkpointed
+                    );
+                }
+                Err(e) => tracing::warn!("Recorder: WAL checkpoint error: {}", e),
             }
             last_purge = std::time::Instant::now();
         }
@@ -870,4 +885,15 @@ fn purge_history(conn: &Connection, retention_days: u32) -> rusqlite::Result<usi
         tracing::info!("Recorder: purged {} history rows older than {} days", deleted, retention_days);
     }
     Ok(deleted)
+}
+
+/// Return (db_size_bytes, wal_size_bytes) for the database file.
+pub fn db_file_sizes(db_path: &Path) -> (u64, u64) {
+    let db_size = std::fs::metadata(db_path).map(|m| m.len()).unwrap_or(0);
+    let mut wal_path = db_path.to_path_buf();
+    let mut name = wal_path.file_name().unwrap_or_default().to_os_string();
+    name.push("-wal");
+    wal_path.set_file_name(name);
+    let wal_size = std::fs::metadata(&wal_path).map(|m| m.len()).unwrap_or(0);
+    (db_size, wal_size)
 }
