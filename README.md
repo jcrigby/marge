@@ -102,7 +102,7 @@ See [docs/architecture.md](docs/architecture.md) for the full architecture docum
 | [Architecture](docs/architecture.md) | System architecture, module descriptions, data flow, WASM plugin system |
 | [System Spec](docs/marge-sss.md) | MIL-STD-498 system specification |
 | [Theory of Ops](docs/marge-theory-of-ops.md) | Operational concept, deployment, failure modes |
-| [Phase Tracker](docs/phase-tracker.md) | Development roadmap and completion status |
+| [Phase Tracker](docs/phase-tracker.md) | Development roadmap, session log, and completion status |
 | [CTS Spec](docs/marge-conformance-tests.md) | Conformance test suite design |
 | [Pi SD Card Setup](docs/plan-pi-setup-sd.md) | Automated Pi SD card provisioning plan |
 | [We Still Need Ralph](docs/we-still-need-ralph-at-least-with-claude.md) | Why Ralph loops still matter with Claude |
