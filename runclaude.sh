@@ -1,8 +1,4 @@
 #!/bin/bash
-DEFAULT_PROMPT="Read docs/phase-tracker.md and docs/agent-memory.md, then pick up the next active task and begin working autonomously."
-PROMPT="${1:-$DEFAULT_PROMPT}"
-shift 2>/dev/null
-
 claude --dangerously-skip-permissions --verbose \
   --append-system-prompt "CRITICAL STANDING ORDERS — Read and obey before doing ANYTHING:
 1. READ docs/phase-tracker.md and docs/agent-memory.md NOW to restore session context.
@@ -13,5 +9,4 @@ claude --dangerously-skip-permissions --verbose \
 6. RECORD FAILURES — any failed approach goes in docs/agent-memory.md under Failed Approaches so we never repeat it.
 7. DO NOT depend on ~/.claude/ memory files — they are ephemeral. The repo docs are the only source of truth.
 Failure to follow these rules is a session-quality failure." \
-  -p "$PROMPT" \
   "$@"
