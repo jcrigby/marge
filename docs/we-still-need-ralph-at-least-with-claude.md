@@ -93,6 +93,19 @@ The `runclaude.sh` script was trying to make Tier 1 tooling do Tier 2/3 work. Th
 
 ---
 
+## Key Community Discussions
+
+- **Matt Pocock's X thread on why the official plugin misses the point:** [x.com/mattpocockuk/status/2010330604123144389](https://x.com/mattpocockuk/status/2010330604123144389) — "Single session, accumulating context, no re-anchoring. This really defeats the purpose."
+- **Matt Pocock's Getting Started with Ralph:** [aihero.dev/getting-started-with-ralph](https://www.aihero.dev/getting-started-with-ralph) — The canonical walkthrough with the actual bash loop code.
+- **"Why the Anthropic Ralph plugin sucks (use a bash loop instead)":** [aihero.dev/why-the-anthropic-ralph-plugin-sucks](https://www.aihero.dev/why-the-anthropic-ralph-plugin-sucks) — The "smart zone" vs "dumb zone" context analysis.
+- **"The Ralph Loop: How a Bash Script Is Forcing Developers to Rethink Context as a Resource":** [ikangai.com](https://www.ikangai.com/the-ralph-loop-how-a-bash-script-is-forcing-developers-to-rethink-context-as-a-resource/) — Deep technical analysis comparing Ralph to the JVM long-running process antipattern.
+- **Geoffrey Huntley's "Everything Is a Ralph Loop":** [ghuntley.com/loop](https://ghuntley.com/loop/) — Huntley's evolution from Ralph to "The Weaving Loom" and evolutionary software.
+- **Advanced Context Engineering for Coding Agents (HumanLayer/YC talk):** [github.com/humanlayer/advanced-context-engineering-for-coding-agents](https://github.com/humanlayer/advanced-context-engineering-for-coding-agents/blob/main/ace-fca.md) — "Frequent intentional compaction" techniques; 35K LOC shipped to a 300K LOC Rust codebase.
+- **Claude Code compaction deadlock bug (February 2026):** [github.com/anthropics/claude-code/issues/26317](https://github.com/anthropics/claude-code/issues/26317) — "Conversation too long to compact" — the exact failure mode that proves the point.
+- **awesome-ralph curated resource list:** [github.com/snwfdhmp/awesome-ralph](https://github.com/snwfdhmp/awesome-ralph) — Implementations for Claude, Codex, Gemini, Cursor, OpenCode, Copilot, and more.
+
+---
+
 ## TBD: Try Other Agents
 
 The analysis above is Claude-specific. The context management problem may manifest differently (or be better solved) with other agentic coding tools. Future investigation:
