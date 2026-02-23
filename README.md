@@ -1,5 +1,7 @@
 # MARGE
 
+> **Note:** All performance and resource stats below were measured with both HA and Marge running in Docker containers in a dev environment. Stats on real hardware (Raspberry Pi) are a work in progress.
+
 A clean-room reimplementation of Home Assistant's core platform in Rust. Started as a 9.5-hour Innovation Week demo, now a working HA replacement covering ~85% of real-world homes.
 
 Same YAML automations. Same MQTT entities. Same REST/WebSocket APIs. Same device bridges. Wildly different operational profile.
