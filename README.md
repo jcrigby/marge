@@ -105,6 +105,7 @@ See [docs/architecture.md](docs/architecture.md) for the full architecture docum
 | [Phase Tracker](docs/phase-tracker.md) | Development roadmap and completion status |
 | [CTS Spec](docs/marge-conformance-tests.md) | Conformance test suite design |
 | [Pi SD Card Setup](docs/plan-pi-setup-sd.md) | Automated Pi SD card provisioning plan |
+| [We Still Need Ralph](docs/we-still-need-ralph-at-least-with-claude.md) | Why Ralph loops still matter with Claude |
 
 ## Stats
 
