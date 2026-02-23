@@ -264,23 +264,66 @@ Full categorization: `cts-results/manual-run/categorization.json` + `categorizat
 ## Work In Progress
 <!-- What was being worked on when the session ended? What should the next session pick up? -->
 
-**Demo video polish complete.** All 6 deliverables implemented:
-1. `docker-compose.pi-marge.yml` (59 LOC) — Marge + mosquitto + 3 virtual device sims
-2. `docker-compose.pi-ha.yml` (57 LOC) — HA + mosquitto + 3 virtual device sims
-3. `dashboard/index.html` (+35 LOC) — `mode=marge-only|ha-only` + `label=` query params
-4. `scripts/pi-deploy.sh` (116 LOC) — ARM64 build, transfer, rsync, smoke test
-5. `docs/video-recording-guide.md` (244 LOC) — 4-segment shot-by-shot script
-6. `scenario-driver/Dockerfile` — multi-arch Docker CLI download (`$(uname -m)`)
+### Status: Demo Recording-Ready
 
-**Remaining tasks (low priority):**
-1. Rewrite ~50-75 Bucket B tests using HA input_* helpers (optional, long-term)
-2. SQLite WAL growth monitoring
+All code and tooling for the Innovation Week demo video is complete. The next
+human steps are physical (Pi setup, actual recording). No more code changes
+needed unless issues surface during dry-run.
 
-**Key context for next turn:**
-- Demo is recording-ready. Pi deploy via `./scripts/pi-deploy.sh pi@PI_IP`
+### What Was Just Completed (2026-02-22)
+
+Demo video polish — 6 deliverables, single commit `7fc8126`:
+1. `docker-compose.pi-marge.yml` (59 LOC) — Pi Marge stack
+2. `docker-compose.pi-ha.yml` (57 LOC) — Pi HA stack
+3. `dashboard/index.html` (+35 LOC) — single-system mode + HW label
+4. `scripts/pi-deploy.sh` (116 LOC) — ARM64 build/transfer/smoke-test
+5. `docs/video-recording-guide.md` (244 LOC) — 4-segment shot script
+6. `scenario-driver/Dockerfile` — multi-arch Docker CLI fix
+
+### Recording Execution Plan (human steps, not code)
+
+**Prep (night before):**
+1. `./scripts/pi-deploy.sh pi@PI_IP` — builds ARM64 (30-60 min QEMU), transfers, smoke-tests
+2. Verify Pi can reach desktop (both on same LAN)
+3. Create HA long-lived token on Pi (HA UI > Profile > Long-Lived Access Tokens)
+4. Desktop: `docker compose up -d` — verify full stack healthy
+
+**Record Segment 1 — Desktop side-by-side (~4 min):**
+1. OBS recording, dashboard at `http://localhost:3000`
+2. `./scripts/run-demo.sh docker-highlight` — runs 5 chapters at 10x
+3. Outage recovery race + score card auto-appear at end
+4. Stop recording after score card
+
+**Record Segment 2 — Marge on Pi (~2 min):**
+1. Pi: `docker compose -f docker-compose.pi-marge.yml up -d`
+2. Desktop dashboard: `?marge_ws=ws://PI_IP:8124/api/websocket&marge_rest=http://PI_IP:8124/api&mode=marge-only&label=Raspberry+Pi+5`
+3. Run dawn chapter: `TARGET=marge MARGE_URL=http://PI_IP:8124 MARGE_MQTT_HOST=PI_IP MARGE_MQTT_PORT=1884 SPEED=10 CHAPTER=dawn python3 scenario-driver/driver.py`
+4. Stop recording. Cleanup: `docker compose -f docker-compose.pi-marge.yml down` on Pi
+
+**Record Segment 3 — HA on Pi (~2 min):**
+1. Pi: `docker compose -f docker-compose.pi-ha.yml up -d` (wait ~90s)
+2. Desktop dashboard: `?ha_ws=ws://PI_IP:8123/api/websocket&ha_rest=http://PI_IP:8123/api&ha_token=TOKEN&mode=ha-only&label=Raspberry+Pi+5+(HA)`
+3. Run dawn chapter: `TARGET=ha HA_URL=http://PI_IP:8123 HA_TOKEN=TOKEN HA_MQTT_HOST=PI_IP HA_MQTT_PORT=1883 SPEED=10 CHAPTER=dawn python3 scenario-driver/driver.py`
+4. Stop recording. Cleanup on Pi.
+
+**Record Segment 4 — Wrap-up (~1 min):**
+- Voiceover/slides. Narration script in `docs/video-recording-guide.md`.
+
+**Segments are sequential, not concurrent.** Each Pi segment needs the previous one torn down first (Pi runs one stack at a time). Desktop segment is independent.
+
+### Remaining Code Tasks (low priority, post-demo)
+
+1. [ ] Rewrite ~50-75 Bucket B tests using HA input_* helpers (optional, long-term)
+2. [ ] SQLite WAL growth monitoring
+3. [ ] Any fixes discovered during recording dry-run
+
+### Key Context for Next Code Session
+- Demo is recording-ready. No code changes expected.
+- Pi deploy: `./scripts/pi-deploy.sh pi@PI_IP`
 - Dashboard single-system mode: `?mode=marge-only&label=Raspberry+Pi+5`
 - ARM64 build takes 30-60 min under QEMU. Build night before.
-- HA on Pi needs onboarding + long-lived token (create via HA UI before recording)
+- HA on Pi needs onboarding + long-lived token on first run.
+- Full recording guide: `docs/video-recording-guide.md`
 
 ---
 ## Session Log
