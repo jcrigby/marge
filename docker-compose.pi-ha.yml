@@ -1,0 +1,57 @@
+# Raspberry Pi — Home Assistant Stack
+# Runs HA + virtual device fleet (44 devices) on a Pi.
+# No Marge, no dashboard, no scenario-driver (those run on desktop).
+# Usage: docker compose -f docker-compose.pi-ha.yml up -d
+# HA UI: http://<pi-ip>:8123
+
+services:
+  mosquitto:
+    image: eclipse-mosquitto:2
+    ports:
+      - "1883:1883"
+    volumes:
+      - ./mosquitto/mosquitto.conf:/mosquitto/config/mosquitto.conf
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "mosquitto_sub", "-t", "$$SYS/#", "-C", "1", "-i", "healthcheck", "-W", "3"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  ha:
+    image: ghcr.io/home-assistant/home-assistant:2024.12
+    ports:
+      - "8123:8123"
+    volumes:
+      - ./ha-config:/config
+    environment:
+      - TZ=America/Denver
+    depends_on:
+      mosquitto:
+        condition: service_healthy
+    restart: unless-stopped
+    mem_limit: 2g
+
+  virtual-z2m:
+    build: ./virtual-devices/zigbee2mqtt
+    environment:
+      - MQTT_HOST=mosquitto
+      - MQTT_PORT=1883
+      - BRIDGE_NAME=zigbee2mqtt
+      - TICK_INTERVAL=5
+    depends_on:
+      mosquitto:
+        condition: service_healthy
+    restart: unless-stopped
+
+  virtual-shelly:
+    build: ./virtual-devices/shelly
+    ports:
+      - "8180:8180"
+    restart: unless-stopped
+
+  virtual-hue:
+    build: ./virtual-devices/hue
+    ports:
+      - "8181:8181"
+    restart: unless-stopped

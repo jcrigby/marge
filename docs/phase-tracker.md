@@ -257,33 +257,30 @@ Full categorization: `cts-results/manual-run/categorization.json` + `categorizat
 ---
 ## Active Tasks
 <!-- Update this section at end of every session. Clear completed items. Next session starts here. -->
-1. [x] Tag 285 Bucket A tests as marge_only (37 files, commit f2f47c0)
-2. [x] Document API surface — docs/api-surface.md (MRG-API-001, commit f2f47c0)
-3. [x] Fix Bucket C conformance bugs in Marge (69 tests, 7 issues) — see session log 2026-02-20 entry
-4. [x] Implement 11 missing HA WS commands (see api-surface.md gap list)
-5. [x] Tag ~480 Bucket B tests as marge_only (service dispatch on ad-hoc entities)
-6. [x] Fix remaining HA failures — automation slugify + marge_only tagging + WS protocol fixes (commit 88625d8)
-7. [ ] Rewrite ~50-75 Bucket B tests using HA input_* helpers (optional, long-term)
-8. [ ] Address SQLite WAL growth monitoring
+1. [x] Demo video polish — Pi deployment + recording guide (2026-02-22)
+2. [ ] Rewrite ~50-75 Bucket B tests using HA input_* helpers (optional, long-term)
+3. [ ] Address SQLite WAL growth monitoring
 
 ## Work In Progress
 <!-- What was being worked on when the session ended? What should the next session pick up? -->
 
-**Conformance achieved: 99.6% on HA-attempted tests.**
+**Demo video polish complete.** All 6 deliverables implemented:
+1. `docker-compose.pi-marge.yml` (59 LOC) — Marge + mosquitto + 3 virtual device sims
+2. `docker-compose.pi-ha.yml` (57 LOC) — HA + mosquitto + 3 virtual device sims
+3. `dashboard/index.html` (+35 LOC) — `mode=marge-only|ha-only` + `label=` query params
+4. `scripts/pi-deploy.sh` (116 LOC) — ARM64 build, transfer, rsync, smoke test
+5. `docs/video-recording-guide.md` (244 LOC) — 4-segment shot-by-shot script
+6. `scenario-driver/Dockerfile` — multi-arch Docker CLI download (`$(uname -m)`)
 
 **Remaining tasks (low priority):**
 1. Rewrite ~50-75 Bucket B tests using HA input_* helpers (optional, long-term)
 2. SQLite WAL growth monitoring
-3. Innovation Week demo polish
 
 **Key context for next turn:**
-- Docker stack is UP (HA on 8123, Marge on 8124). HA token at ha-config/.ha_token (expires ~30 min, refresh via scripts/ha-refresh-token.sh)
-- Python 3.9 on host — 9 test files use `dict | None` syntax (py3.10+), must --ignore them
-- CTS: Marge 1717/1729 (99.3%), HA 514/516 (99.6%), 1213 skipped
-- marge_only markers on 120+ test files. HA auto-skips 1213 Marge-specific tests.
-- automation.rs now uses slugify_alias() for entity_id generation (matches HA)
-- conftest.py WSClient has _event_buffer + _recv_response() for HA WS protocol compat
-- User directive: delegate all work to subagents, main session is orchestrator only.
+- Demo is recording-ready. Pi deploy via `./scripts/pi-deploy.sh pi@PI_IP`
+- Dashboard single-system mode: `?mode=marge-only&label=Raspberry+Pi+5`
+- ARM64 build takes 30-60 min under QEMU. Build night before.
+- HA on Pi needs onboarding + long-lived token (create via HA UI before recording)
 
 ---
 ## Session Log
@@ -325,3 +322,4 @@ Full categorization: `cts-results/manual-run/categorization.json` + `categorizat
 - 2026-02-21: Dual-target CTS verification — Marge: 1717/1729 (99.3%). HA: 503/619 attempted (81.3%), 1110 skipped. Conformance rate improved from 38.9% to 81.3% on HA-attempted tests.
 - 2026-02-21: Tag 21 more Bucket B tests as marge_only (commit e6f4d76). Force-trigger automation tests + WS service dispatch on ad-hoc entities. Files: test_automation_api.py (4), test_automation_execution.py (2), test_demo_automation_morning_sunset.py (8 individual markers), test_condition_edge_cases.py (6), test_ws_service_dispatch.py (1).
 - 2026-02-21: HA conformance 38.9% -> 99.6% (commit 88625d8). Three major changes: (1) automation.rs slugify_alias() derives entity_id from alias like HA, +5 unit tests, 10 test files updated. (2) conftest.py WSClient _event_buffer + _recv_response() handles HA interleaved WS messages. (3) 67 more marge_only markers across 19 files + assertion flexibility in 3 perf files. Final: Marge 1717/1729, HA 514/516, 1213 skipped.
+- 2026-02-22: Demo video polish — Pi deployment + recording guide. 6 deliverables: pi-marge.yml (59 LOC), pi-ha.yml (57 LOC), dashboard single-system mode (+35 LOC), pi-deploy.sh (116 LOC), video-recording-guide.md (244 LOC), scenario-driver Dockerfile multi-arch fix.

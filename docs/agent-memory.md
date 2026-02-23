@@ -23,6 +23,11 @@
 - `virtual-devices/shelly/` — simulator.py(225) — 2 Gen2 Shelly devices (FastAPI, port 8180)
 - `virtual-devices/hue/` — simulator.py(280) — Hue bridge with 3 lights + 2 sensors (FastAPI, port 8181)
 - `scenario-driver/driver.py` — unified automation slug map (no HA/Marge branching since entity IDs match)
+- `docker-compose.pi-marge.yml` (59 LOC) — Pi Marge stack (marge:pi image + mosquitto + 3 virtual device sims)
+- `docker-compose.pi-ha.yml` (57 LOC) — Pi HA stack (official HA image + mosquitto + 3 virtual device sims)
+- `scripts/pi-deploy.sh` (116 LOC) — ARM64 build, tarball transfer, rsync config, smoke test
+- `docs/video-recording-guide.md` (244 LOC) — 4-segment shot-by-shot recording script
+- `dashboard/index.html` (1216 LOC) — added single-system mode (`mode=marge-only|ha-only`) + hardware label (`label=`)
 
 ## Phase Tracker
 See [phase-tracker.md](phase-tracker.md) for detailed status.

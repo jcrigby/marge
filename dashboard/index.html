@@ -29,6 +29,11 @@ body {
   background: #1a7f37; color: #fff; font-weight: 600;
   text-transform: uppercase; letter-spacing: 1px;
 }
+.hw-label {
+  font-size: 11px; padding: 2px 10px; border-radius: 10px;
+  background: #656d76; color: #fff; font-weight: 600;
+  letter-spacing: 0.5px;
+}
 .status { font-size: 11px; padding: 2px 8px; border-radius: 10px; }
 .status.connected { background: #dafbe1; color: #0e8a8a; }
 .status.disconnected { background: #ffebe9; color: #cf222e; }
@@ -240,6 +245,7 @@ body {
   <span class="sim-time" id="sim-time">--:--:--</span>
   <span class="speed-badge" id="speed-badge">10x</span>
   <span class="chapter-badge" id="chapter-badge">IDLE</span>
+  <span class="hw-label" id="hw-label" style="display:none"></span>
   <span style="flex:1"></span>
   <span id="ha-status" class="status disconnected">HA: --</span>
   <span id="marge-status" class="status disconnected">Marge: --</span>
@@ -444,6 +450,8 @@ const MARGE_WS = params.get('marge_ws') || 'ws://localhost:8124/api/websocket';
 const MARGE_REST = params.get('marge_rest') || 'http://localhost:8124/api';
 const HA_REST = params.get('ha_rest') || 'http://localhost:8123/api';
 const HA_TOKEN = params.get('ha_token') || '';
+const VIEW_MODE = params.get('mode') || 'both'; // 'marge-only', 'ha-only', or 'both'
+const HW_LABEL = params.get('label') || '';
 
 // ── State ──────────────────────────────────
 const S = {};  // Marge states: { entity_id: { state, attrs } }
@@ -1147,13 +1155,41 @@ async function loadHAToken() {
 
 (async function init() {
   const haToken = await loadHAToken();
-  connectWS(MARGE_WS, '', 'marge', S, () => margeEvents++);
-  connectWS(HA_WS, haToken, 'ha', HA, () => haEvents++);
 
-  setInterval(pollMargeHealth, 3000);
-  pollMargeHealth();
-  setInterval(pollHALatency, 5000);
-  pollHALatency();
+  // Single-system mode: hide absent system's UI
+  if (VIEW_MODE !== 'both') {
+    const hideIdx = VIEW_MODE === 'marge-only' ? 0 : 1; // 0=HA, 1=Marge
+    document.querySelectorAll('.metric-bars').forEach(bars => {
+      const groups = bars.querySelectorAll('.bar-group');
+      if (groups[hideIdx]) groups[hideIdx].style.display = 'none';
+    });
+    // Hide status badge for absent system
+    if (VIEW_MODE === 'marge-only') document.getElementById('ha-status').style.display = 'none';
+    if (VIEW_MODE === 'ha-only') document.getElementById('marge-status').style.display = 'none';
+    // Update metrics header
+    const metricsH3 = document.querySelector('.metrics-section h3');
+    if (metricsH3) metricsH3.textContent = VIEW_MODE === 'marge-only' ? 'Marge' : 'HA';
+    // Hide state diffs section (nothing to compare)
+    document.querySelectorAll('.metrics-section')[1].style.display = 'none';
+  }
+
+  // Hardware label badge
+  if (HW_LABEL) {
+    const el = document.getElementById('hw-label');
+    el.textContent = decodeURIComponent(HW_LABEL);
+    el.style.display = '';
+  }
+
+  if (VIEW_MODE !== 'ha-only') {
+    connectWS(MARGE_WS, '', 'marge', S, () => margeEvents++);
+    setInterval(pollMargeHealth, 3000);
+    pollMargeHealth();
+  }
+  if (VIEW_MODE !== 'marge-only') {
+    connectWS(HA_WS, haToken, 'ha', HA, () => haEvents++);
+    setInterval(pollHALatency, 5000);
+    pollHALatency();
+  }
 
   setInterval(() => {
     document.getElementById('sim-time').textContent = simTimeStr;

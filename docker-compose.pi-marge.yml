@@ -1,0 +1,59 @@
+# Raspberry Pi — Marge Stack
+# Runs Marge + virtual device fleet (44 devices) on a Pi.
+# No HA, no dashboard, no scenario-driver (those run on desktop).
+# Usage: docker compose -f docker-compose.pi-marge.yml up -d
+# Marge REST/WS: http://<pi-ip>:8124
+# Marge MQTT:    <pi-ip>:1884
+
+services:
+  mosquitto:
+    image: eclipse-mosquitto:2
+    ports:
+      - "1883:1883"
+    volumes:
+      - ./mosquitto/mosquitto.conf:/mosquitto/config/mosquitto.conf
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "mosquitto_sub", "-t", "$$SYS/#", "-C", "1", "-i", "healthcheck", "-W", "3"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  marge:
+    image: marge:pi
+    ports:
+      - "8124:8124"
+      - "1884:1884"
+    volumes:
+      - ./ha-config/automations.yaml:/etc/marge/automations.yaml
+      - ./ha-config/scenes.yaml:/etc/marge/scenes.yaml
+    environment:
+      - TZ=America/Denver
+      - MARGE_HTTP_PORT=8124
+      - MARGE_MQTT_PORT=1884
+      - RUST_LOG=info,marge=debug
+    restart: unless-stopped
+    mem_limit: 256m
+
+  virtual-z2m:
+    build: ./virtual-devices/zigbee2mqtt
+    environment:
+      - MQTT_HOST=marge
+      - MQTT_PORT=1884
+      - BRIDGE_NAME=zigbee2mqtt
+      - TICK_INTERVAL=5
+    depends_on:
+      - marge
+    restart: unless-stopped
+
+  virtual-shelly:
+    build: ./virtual-devices/shelly
+    ports:
+      - "8180:8180"
+    restart: unless-stopped
+
+  virtual-hue:
+    build: ./virtual-devices/hue
+    ports:
+      - "8181:8181"
+    restart: unless-stopped
