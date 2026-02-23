@@ -603,6 +603,7 @@ async fn health(State(rs): State<RouterState>) -> Json<serde_json::Value> {
         "startup_ms": (startup_us as f64 / 1000.0 * 100.0).round() / 100.0,
         "state_changes": state_changes,
         "events_fired": events_fired,
+        "automation_triggers": m.automation_triggers.load(Ordering::Relaxed),
         "latency_avg_us": (avg_us * 100.0).round() / 100.0,
         "latency_max_us": (max_us * 100.0).round() / 100.0,
         "sim_time": sim_time,
@@ -2471,6 +2472,10 @@ async fn prometheus_metrics(State(rs): State<RouterState>) -> impl IntoResponse 
     let _ = writeln!(out, "# HELP marge_events_fired_total Total events fired");
     let _ = writeln!(out, "# TYPE marge_events_fired_total counter");
     let _ = writeln!(out, "marge_events_fired_total {}", events_fired);
+
+    let _ = writeln!(out, "# HELP marge_automation_triggers_total_aggregate Total automation triggers (all automations)");
+    let _ = writeln!(out, "# TYPE marge_automation_triggers_total_aggregate counter");
+    let _ = writeln!(out, "marge_automation_triggers_total_aggregate {}", m.automation_triggers.load(Ordering::Relaxed));
 
     let _ = writeln!(out, "# HELP marge_latency_avg_microseconds Average state transition latency");
     let _ = writeln!(out, "# TYPE marge_latency_avg_microseconds gauge");

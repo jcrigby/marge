@@ -53,6 +53,8 @@ pub struct Metrics {
     pub total_transition_ns: AtomicU64,
     /// Max transition time in nanoseconds
     pub max_transition_ns: AtomicU64,
+    /// Total automation trigger count (aggregated across all automations)
+    pub automation_triggers: AtomicU64,
 }
 
 impl Metrics {
@@ -62,6 +64,7 @@ impl Metrics {
             events_fired: AtomicU64::new(0),
             total_transition_ns: AtomicU64::new(0),
             max_transition_ns: AtomicU64::new(0),
+            automation_triggers: AtomicU64::new(0),
         }
     }
 }

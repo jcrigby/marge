@@ -523,6 +523,9 @@ impl AutomationEngine {
 
     /// Record that an automation was triggered and update its entity attributes.
     fn record_trigger(&self, auto_id: &str) {
+        // Increment aggregated automation trigger counter on the state machine metrics
+        self.app.state_machine.metrics.automation_triggers
+            .fetch_add(1, Ordering::Relaxed);
         let now = chrono::Utc::now().to_rfc3339();
         if let Some(mut m) = self.meta.get_mut(auto_id) {
             m.trigger_count += 1;

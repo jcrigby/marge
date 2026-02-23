@@ -255,75 +255,56 @@ The 909 marge-pass/ha-fail tests categorized into three buckets:
 Full categorization: `cts-results/manual-run/categorization.json` + `categorization-summary.txt`
 
 ---
-## Active Tasks
-<!-- Update this section at end of every session. Clear completed items. Next session starts here. -->
-1. [x] Demo video polish — Pi deployment + recording guide (2026-02-22)
-2. [ ] Rewrite ~50-75 Bucket B tests using HA input_* helpers (optional, long-term)
-3. [ ] Address SQLite WAL growth monitoring
+## Active Tasks — Track A: Demo (Innovation Week)
+Sequential. Do these first.
+
+1. [x] Commit WAL checkpoint fix in recorder.rs
+2. [ ] Desktop dry-run — full Docker stack + scenario driver, verify dashboard
+3. [ ] Pi dry-run — deploy to Pi, run each recording segment, verify timing
+4. [ ] Demo-day fixes — anything that breaks during dry-runs
+5. [ ] Recording — human steps, scripted in docs/video-recording-guide.md
+
+## Parked — Track B: Long-term Marge (post-demo)
+
+### Phase 10: Robustness
+- [ ] Rewrite ~50-75 Bucket B tests using HA input_* helpers
+- [ ] Integration tests for local bridges (Shelly/Hue/Cast/Sonos/Matter) using virtual simulators
+- [ ] Error recovery (MQTT reconnect, bridge failover, DB corruption handling)
+- [ ] Config validation on startup (catch bad YAML before runtime)
+
+### Phase 11: Energy & Metering
+- [ ] Utility meter entities (gas, electric, water)
+- [ ] Cost tracking with tariff schedules
+- [ ] Energy dashboard UI tab
+- [ ] Statistics aggregation (hourly/daily/monthly)
+
+### Phase 12: Notifications & Presence
+- [ ] Notification dispatcher (Lua plugin API: marge.notify)
+- [ ] Telegram + Pushover reference plugins
+- [ ] Device tracker entities (router-based, ping-based)
+- [ ] Person entities + zones
+
+### Phase 13: Plugin Ecosystem
+- [ ] Plugin registry / marketplace
+- [ ] Plugin config schema (settings UI per-plugin)
+- [ ] Plugin update mechanism
+- [ ] Community contribution guide
 
 ## Work In Progress
-<!-- What was being worked on when the session ended? What should the next session pick up? -->
 
-### Status: Demo Recording-Ready
+### Status: Demo Track Active
 
-All code and tooling for the Innovation Week demo video is complete. The next
-human steps are physical (Pi setup, actual recording). No more code changes
-needed unless issues surface during dry-run.
+Demo track is the priority. Long-term track is parked until after Innovation Week recording.
 
-### What Was Just Completed (2026-02-22)
+The WAL checkpoint fix has been committed. Next step is desktop dry-run: spin up the full Docker stack, run scenario driver, verify dashboard renders correctly.
 
-Demo video polish — 6 deliverables, single commit `7fc8126`:
-1. `docker-compose.pi-marge.yml` (59 LOC) — Pi Marge stack
-2. `docker-compose.pi-ha.yml` (57 LOC) — Pi HA stack
-3. `dashboard/index.html` (+35 LOC) — single-system mode + HW label
-4. `scripts/pi-deploy.sh` (116 LOC) — ARM64 build/transfer/smoke-test
-5. `docs/video-recording-guide.md` (244 LOC) — 4-segment shot script
-6. `scenario-driver/Dockerfile` — multi-arch Docker CLI fix
-
-### Recording Execution Plan (human steps, not code)
-
-**Prep (night before):**
-1. `./scripts/pi-deploy.sh pi@PI_IP` — builds ARM64 (30-60 min QEMU), transfers, smoke-tests
-2. Verify Pi can reach desktop (both on same LAN)
-3. Create HA long-lived token on Pi (HA UI > Profile > Long-Lived Access Tokens)
-4. Desktop: `docker compose up -d` — verify full stack healthy
-
-**Record Segment 1 — Desktop side-by-side (~4 min):**
-1. OBS recording, dashboard at `http://localhost:3000`
-2. `./scripts/run-demo.sh docker-highlight` — runs 5 chapters at 10x
-3. Outage recovery race + score card auto-appear at end
-4. Stop recording after score card
-
-**Record Segment 2 — Marge on Pi (~2 min):**
-1. Pi: `docker compose -f docker-compose.pi-marge.yml up -d`
-2. Desktop dashboard: `?marge_ws=ws://PI_IP:8124/api/websocket&marge_rest=http://PI_IP:8124/api&mode=marge-only&label=Raspberry+Pi+5`
-3. Run dawn chapter: `TARGET=marge MARGE_URL=http://PI_IP:8124 MARGE_MQTT_HOST=PI_IP MARGE_MQTT_PORT=1884 SPEED=10 CHAPTER=dawn python3 scenario-driver/driver.py`
-4. Stop recording. Cleanup: `docker compose -f docker-compose.pi-marge.yml down` on Pi
-
-**Record Segment 3 — HA on Pi (~2 min):**
-1. Pi: `docker compose -f docker-compose.pi-ha.yml up -d` (wait ~90s)
-2. Desktop dashboard: `?ha_ws=ws://PI_IP:8123/api/websocket&ha_rest=http://PI_IP:8123/api&ha_token=TOKEN&mode=ha-only&label=Raspberry+Pi+5+(HA)`
-3. Run dawn chapter: `TARGET=ha HA_URL=http://PI_IP:8123 HA_TOKEN=TOKEN HA_MQTT_HOST=PI_IP HA_MQTT_PORT=1883 SPEED=10 CHAPTER=dawn python3 scenario-driver/driver.py`
-4. Stop recording. Cleanup on Pi.
-
-**Record Segment 4 — Wrap-up (~1 min):**
-- Voiceover/slides. Narration script in `docs/video-recording-guide.md`.
-
-**Segments are sequential, not concurrent.** Each Pi segment needs the previous one torn down first (Pi runs one stack at a time). Desktop segment is independent.
-
-### Remaining Code Tasks (low priority, post-demo)
-
-1. [ ] Rewrite ~50-75 Bucket B tests using HA input_* helpers (optional, long-term)
-2. [ ] SQLite WAL growth monitoring
-3. [ ] Any fixes discovered during recording dry-run
-
-### Key Context for Next Code Session
-- Demo is recording-ready. No code changes expected.
-- Pi deploy: `./scripts/pi-deploy.sh pi@PI_IP`
-- Dashboard single-system mode: `?mode=marge-only&label=Raspberry+Pi+5`
+### Key Context
+- Demo is recording-ready from a code standpoint. Dry-runs may surface issues.
+- Pi deploy: ./scripts/pi-deploy.sh pi@PI_IP
+- Dashboard single-system mode: ?mode=marge-only&label=Raspberry+Pi+5
 - ARM64 build takes 30-60 min under QEMU. Build night before.
 - HA on Pi needs onboarding + long-lived token on first run.
-- Full recording guide: `docs/video-recording-guide.md`
+- Full recording guide: docs/video-recording-guide.md
 
 ---
 ## Session Log
@@ -366,3 +347,4 @@ Demo video polish — 6 deliverables, single commit `7fc8126`:
 - 2026-02-21: Tag 21 more Bucket B tests as marge_only (commit e6f4d76). Force-trigger automation tests + WS service dispatch on ad-hoc entities. Files: test_automation_api.py (4), test_automation_execution.py (2), test_demo_automation_morning_sunset.py (8 individual markers), test_condition_edge_cases.py (6), test_ws_service_dispatch.py (1).
 - 2026-02-21: HA conformance 38.9% -> 99.6% (commit 88625d8). Three major changes: (1) automation.rs slugify_alias() derives entity_id from alias like HA, +5 unit tests, 10 test files updated. (2) conftest.py WSClient _event_buffer + _recv_response() handles HA interleaved WS messages. (3) 67 more marge_only markers across 19 files + assertion flexibility in 3 perf files. Final: Marge 1717/1729, HA 514/516, 1213 skipped.
 - 2026-02-22: Demo video polish — Pi deployment + recording guide. 6 deliverables: pi-marge.yml (59 LOC), pi-ha.yml (57 LOC), dashboard single-system mode (+35 LOC), pi-deploy.sh (116 LOC), video-recording-guide.md (244 LOC), scenario-driver Dockerfile multi-arch fix.
+- 2026-02-22: Forked plan — Track A (demo) and Track B (long-term). WAL checkpoint fix committed. Desktop dry-run next.
