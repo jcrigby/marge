@@ -107,6 +107,7 @@ See [docs/architecture.md](docs/architecture.md) for the full architecture docum
 | [Pi SD Card Setup](docs/plan-pi-setup-sd.md) | Automated Pi SD card provisioning plan |
 | [We Still Need Ralph](docs/we-still-need-ralph-at-least-with-claude.md) | Why Ralph loops still matter with Claude |
 | [Ralph Context](docs/ralph-context.md) | Ralph loops: what they are and why they matter |
+| [Agent Memory](docs/agent-memory.md) | Architecture decisions, gotchas, and session knowledge |
 
 ## Stats
 
